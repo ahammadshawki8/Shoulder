@@ -1,0 +1,60 @@
+{
+  "period": "2026-10",
+  "round_number": 1,
+  "burdens": [
+    {
+      "principal_id": "amina",
+      "name": "Amina",
+      "task_count": 6,
+      "raw_hours": 32.25,
+      "weighted_burden": 59.91,
+      "capacity": 0.85,
+      "adjusted_share": 70.482,
+      "percent_of_total": 44.3
+    },
+    {
+      "principal_id": "rian",
+      "name": "Rian",
+      "task_count": 5,
+      "raw_hours": 15.25,
+      "weighted_burden": 41.525,
+      "capacity": 0.6,
+      "adjusted_share": 69.208,
+      "percent_of_total": 30.7
+    },
+    {
+      "principal_id": "farah",
+      "name": "Farah",
+      "task_count": 15,
+      "raw_hours": 30.5,
+      "weighted_burden": 33.83,
+      "capacity": 0.7,
+      "adjusted_share": 48.329,
+      "percent_of_total": 25.0
+    }
+  ],
+  "total_weighted_burden": 135.265,
+  "mean_adjusted_share": 62.673,
+  "max_deviation": 0.229,
+  "proportional": false,
+  "envy_free": false,
+  "envy_pairs": [
+    {
+      "envious": "amina",
+      "envied": "rian",
+      "magnitude": 28.195
+    },
+    {
+      "envious": "amina",
+      "envied": "farah",
+      "magnitude": 22.636
+    },
+    {
+      "envious": "farah",
+      "envied": "rian",
+      "magnitude": 5.104
+    }
+  ],
+  "unassigned_tasks": [],
+  "hard_violations": []
+}

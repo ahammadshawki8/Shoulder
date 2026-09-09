@@ -1,0 +1,31 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Environment and credentials. Never commit anything from here.
+.env
+.env.*
+!.env.example
+*.pem
+credentials
+
+# Local state
+*.sqlite
+*.sqlite3
+*.db
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

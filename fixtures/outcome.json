@@ -1,0 +1,600 @@
+{
+  "circle_id": "rahman-family",
+  "period": "2026-10",
+  "settled": false,
+  "rounds": [
+    {
+      "round_number": 1,
+      "allocation": {
+        "period": "2026-10",
+        "round_number": 1,
+        "assignments": {
+          "T13": "amina",
+          "T21": "amina",
+          "T06": "farah",
+          "T04": "rian",
+          "T16": "amina",
+          "T14": "farah",
+          "T01": "farah",
+          "T22": "rian",
+          "T10": "amina",
+          "T12": "farah",
+          "T20": "farah",
+          "T07": "farah",
+          "T26": "farah",
+          "T03": "rian",
+          "T18": "farah",
+          "T02": "amina",
+          "T08": "farah",
+          "T15": "amina",
+          "T19": "farah",
+          "T25": "farah",
+          "T09": "rian",
+          "T23": "rian",
+          "T17": "farah",
+          "T24": "farah",
+          "T05": "farah",
+          "T11": "farah"
+        },
+        "rationale": "Opening split. Every hard constraint respected, load balanced against declared capacity, remote work pushed to whoever is furthest away."
+      },
+      "critiques": [
+        {
+          "principal_id": "amina",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do this share."
+        },
+        {
+          "principal_id": "rian",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do these five tasks."
+        },
+        {
+          "principal_id": "farah",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can manage this schedule."
+        }
+      ],
+      "report": {
+        "period": "2026-10",
+        "round_number": 1,
+        "burdens": [
+          {
+            "principal_id": "amina",
+            "name": "Amina",
+            "task_count": 6,
+            "raw_hours": 32.25,
+            "weighted_burden": 59.91,
+            "capacity": 0.85,
+            "adjusted_share": 70.482,
+            "percent_of_total": 44.3
+          },
+          {
+            "principal_id": "rian",
+            "name": "Rian",
+            "task_count": 5,
+            "raw_hours": 15.25,
+            "weighted_burden": 41.525,
+            "capacity": 0.6,
+            "adjusted_share": 69.208,
+            "percent_of_total": 30.7
+          },
+          {
+            "principal_id": "farah",
+            "name": "Farah",
+            "task_count": 15,
+            "raw_hours": 30.5,
+            "weighted_burden": 33.83,
+            "capacity": 0.7,
+            "adjusted_share": 48.329,
+            "percent_of_total": 25.0
+          }
+        ],
+        "total_weighted_burden": 135.265,
+        "mean_adjusted_share": 62.673,
+        "max_deviation": 0.229,
+        "proportional": false,
+        "envy_free": false,
+        "envy_pairs": [
+          {
+            "envious": "amina",
+            "envied": "rian",
+            "magnitude": 28.195
+          },
+          {
+            "envious": "amina",
+            "envied": "farah",
+            "magnitude": 22.636
+          },
+          {
+            "envious": "farah",
+            "envied": "rian",
+            "magnitude": 5.104
+          }
+        ],
+        "unassigned_tasks": [],
+        "hard_violations": []
+      }
+    },
+    {
+      "round_number": 2,
+      "allocation": {
+        "period": "2026-10",
+        "round_number": 2,
+        "assignments": {
+          "T13": "amina",
+          "T21": "amina",
+          "T06": "farah",
+          "T04": "rian",
+          "T16": "rian",
+          "T14": "farah",
+          "T01": "farah",
+          "T22": "rian",
+          "T10": "rian",
+          "T12": "farah",
+          "T20": "farah",
+          "T07": "farah",
+          "T26": "farah",
+          "T03": "rian",
+          "T18": "farah",
+          "T02": "rian",
+          "T08": "farah",
+          "T19": "farah",
+          "T25": "farah",
+          "T17": "farah",
+          "T24": "farah",
+          "T05": "farah",
+          "T11": "farah",
+          "T09": "amina",
+          "T15": "amina",
+          "T23": "amina"
+        },
+        "rationale": "Amina is carrying 70.48 adjusted share against a mean of 62.67, while Rian sits at 69.21 and Farah at 48.33. The tolerance is exceeded. Farah has already accepted her schedule and cannot take any of Amina's tasks without violating her stated refusal of night shifts or her Friday and Saturday unavailability. Rian is the only sibling who can legally receive work from Amina. Moving all four available tasks to Rian shifts 855 minutes off Amina. Rian remains under the six-task cap and can handle weekend in-person work since distance only blocks Monday through Thursday presence. These moves reduce the deviation from the mean."
+      },
+      "critiques": [
+        {
+          "principal_id": "amina",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do these five tasks."
+        },
+        {
+          "principal_id": "rian",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do these six tasks."
+        },
+        {
+          "principal_id": "farah",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do these tasks."
+        }
+      ],
+      "report": {
+        "period": "2026-10",
+        "round_number": 2,
+        "burdens": [
+          {
+            "principal_id": "amina",
+            "name": "Amina",
+            "task_count": 5,
+            "raw_hours": 20.75,
+            "weighted_burden": 39.122,
+            "capacity": 0.85,
+            "adjusted_share": 46.026,
+            "percent_of_total": 25.6
+          },
+          {
+            "principal_id": "rian",
+            "name": "Rian",
+            "task_count": 6,
+            "raw_hours": 26.75,
+            "weighted_burden": 80.0,
+            "capacity": 0.6,
+            "adjusted_share": 133.333,
+            "percent_of_total": 52.3
+          },
+          {
+            "principal_id": "farah",
+            "name": "Farah",
+            "task_count": 15,
+            "raw_hours": 30.5,
+            "weighted_burden": 33.83,
+            "capacity": 0.7,
+            "adjusted_share": 48.329,
+            "percent_of_total": 22.1
+          }
+        ],
+        "total_weighted_burden": 152.952,
+        "mean_adjusted_share": 75.896,
+        "max_deviation": 0.757,
+        "proportional": false,
+        "envy_free": false,
+        "envy_pairs": [
+          {
+            "envious": "rian",
+            "envied": "amina",
+            "magnitude": 58.422
+          },
+          {
+            "envious": "rian",
+            "envied": "farah",
+            "magnitude": 38.898
+          }
+        ],
+        "unassigned_tasks": [],
+        "hard_violations": []
+      }
+    },
+    {
+      "round_number": 3,
+      "allocation": {
+        "period": "2026-10",
+        "round_number": 3,
+        "assignments": {
+          "T13": "amina",
+          "T21": "amina",
+          "T06": "farah",
+          "T04": "amina",
+          "T16": "amina",
+          "T14": "farah",
+          "T01": "farah",
+          "T22": "amina",
+          "T10": "amina",
+          "T12": "farah",
+          "T20": "farah",
+          "T07": "farah",
+          "T26": "farah",
+          "T03": "rian",
+          "T18": "farah",
+          "T02": "rian",
+          "T08": "farah",
+          "T19": "farah",
+          "T25": "farah",
+          "T17": "farah",
+          "T24": "farah",
+          "T05": "farah",
+          "T11": "farah",
+          "T09": "amina",
+          "T15": "amina",
+          "T23": "amina"
+        },
+        "rationale": "Rian is carrying more than double what either sibling carries on an adjusted basis. The problem is clear: Rian lives 310 km away, so every in-person task is heavily weighted for travel burden. The four tasks being moved are all in-person work on the weekend. They represent 1,410 minutes of calendar time, but carry enormous weighted burden for Rian due to distance. Moving them to Amina, who lives 4 km away, transfers substantial weighted hours while respecting all stated limits. Amina is available on weekends, has higher capacity, and is currently carrying the lightest adjusted share."
+      },
+      "critiques": [
+        {
+          "principal_id": "amina",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do these tasks."
+        },
+        {
+          "principal_id": "rian",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do these two tasks."
+        },
+        {
+          "principal_id": "farah",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do this share."
+        }
+      ],
+      "report": {
+        "period": "2026-10",
+        "round_number": 3,
+        "burdens": [
+          {
+            "principal_id": "amina",
+            "name": "Amina",
+            "task_count": 9,
+            "raw_hours": 44.25,
+            "weighted_burden": 81.712,
+            "capacity": 0.85,
+            "adjusted_share": 96.132,
+            "percent_of_total": 65.5
+          },
+          {
+            "principal_id": "rian",
+            "name": "Rian",
+            "task_count": 2,
+            "raw_hours": 3.25,
+            "weighted_burden": 9.25,
+            "capacity": 0.6,
+            "adjusted_share": 15.417,
+            "percent_of_total": 7.4
+          },
+          {
+            "principal_id": "farah",
+            "name": "Farah",
+            "task_count": 15,
+            "raw_hours": 30.5,
+            "weighted_burden": 33.83,
+            "capacity": 0.7,
+            "adjusted_share": 48.329,
+            "percent_of_total": 27.1
+          }
+        ],
+        "total_weighted_burden": 124.792,
+        "mean_adjusted_share": 53.293,
+        "max_deviation": 0.804,
+        "proportional": false,
+        "envy_free": false,
+        "envy_pairs": [
+          {
+            "envious": "amina",
+            "envied": "rian",
+            "magnitude": 90.182
+          },
+          {
+            "envious": "amina",
+            "envied": "farah",
+            "magnitude": 48.286
+          },
+          {
+            "envious": "farah",
+            "envied": "rian",
+            "magnitude": 41.313
+          }
+        ],
+        "unassigned_tasks": [],
+        "hard_violations": []
+      }
+    },
+    {
+      "round_number": 4,
+      "allocation": {
+        "period": "2026-10",
+        "round_number": 4,
+        "assignments": {
+          "T13": "amina",
+          "T21": "amina",
+          "T06": "farah",
+          "T04": "rian",
+          "T16": "rian",
+          "T14": "farah",
+          "T01": "farah",
+          "T22": "rian",
+          "T10": "rian",
+          "T12": "farah",
+          "T20": "farah",
+          "T07": "farah",
+          "T26": "farah",
+          "T03": "rian",
+          "T18": "farah",
+          "T02": "rian",
+          "T08": "farah",
+          "T19": "farah",
+          "T25": "farah",
+          "T17": "farah",
+          "T24": "farah",
+          "T05": "farah",
+          "T11": "farah",
+          "T09": "amina",
+          "T15": "amina",
+          "T23": "amina"
+        },
+        "rationale": "Amina's adjusted share is 96.13, nearly double the circle mean of 53.29. Rian is far below at 15.42 and has room for four more tasks within the six-task cap. These four moves shift 1,410 minutes of work from Amina to Rian. The two overnight stays are the heaviest tasks available to move at 540 minutes each. The appointment and visit add further weight. All four tasks fall on weekend days when Rian can be present in person, and Rian accepted the current allocation, signaling capacity to take more."
+      },
+      "critiques": [
+        {
+          "principal_id": "amina",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do these five tasks."
+        },
+        {
+          "principal_id": "rian",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can do this share."
+        },
+        {
+          "principal_id": "farah",
+          "verdict": "accept",
+          "reason_class": "none",
+          "contested_task_ids": [],
+          "message": "I can manage this schedule."
+        }
+      ],
+      "report": {
+        "period": "2026-10",
+        "round_number": 4,
+        "burdens": [
+          {
+            "principal_id": "amina",
+            "name": "Amina",
+            "task_count": 5,
+            "raw_hours": 20.75,
+            "weighted_burden": 39.122,
+            "capacity": 0.85,
+            "adjusted_share": 46.026,
+            "percent_of_total": 25.6
+          },
+          {
+            "principal_id": "rian",
+            "name": "Rian",
+            "task_count": 6,
+            "raw_hours": 26.75,
+            "weighted_burden": 80.0,
+            "capacity": 0.6,
+            "adjusted_share": 133.333,
+            "percent_of_total": 52.3
+          },
+          {
+            "principal_id": "farah",
+            "name": "Farah",
+            "task_count": 15,
+            "raw_hours": 30.5,
+            "weighted_burden": 33.83,
+            "capacity": 0.7,
+            "adjusted_share": 48.329,
+            "percent_of_total": 22.1
+          }
+        ],
+        "total_weighted_burden": 152.952,
+        "mean_adjusted_share": 75.896,
+        "max_deviation": 0.757,
+        "proportional": false,
+        "envy_free": false,
+        "envy_pairs": [
+          {
+            "envious": "rian",
+            "envied": "amina",
+            "magnitude": 58.422
+          },
+          {
+            "envious": "rian",
+            "envied": "farah",
+            "magnitude": 38.898
+          }
+        ],
+        "unassigned_tasks": [],
+        "hard_violations": []
+      }
+    }
+  ],
+  "final_allocation": {
+    "period": "2026-10",
+    "round_number": 1,
+    "assignments": {
+      "T13": "amina",
+      "T21": "amina",
+      "T06": "farah",
+      "T04": "rian",
+      "T16": "amina",
+      "T14": "farah",
+      "T01": "farah",
+      "T22": "rian",
+      "T10": "amina",
+      "T12": "farah",
+      "T20": "farah",
+      "T07": "farah",
+      "T26": "farah",
+      "T03": "rian",
+      "T18": "farah",
+      "T02": "amina",
+      "T08": "farah",
+      "T15": "amina",
+      "T19": "farah",
+      "T25": "farah",
+      "T09": "rian",
+      "T23": "rian",
+      "T17": "farah",
+      "T24": "farah",
+      "T05": "farah",
+      "T11": "farah"
+    },
+    "rationale": "Opening split. Every hard constraint respected, load balanced against declared capacity, remote work pushed to whoever is furthest away."
+  },
+  "final_report": {
+    "period": "2026-10",
+    "round_number": 1,
+    "burdens": [
+      {
+        "principal_id": "amina",
+        "name": "Amina",
+        "task_count": 6,
+        "raw_hours": 32.25,
+        "weighted_burden": 59.91,
+        "capacity": 0.85,
+        "adjusted_share": 70.482,
+        "percent_of_total": 44.3
+      },
+      {
+        "principal_id": "rian",
+        "name": "Rian",
+        "task_count": 5,
+        "raw_hours": 15.25,
+        "weighted_burden": 41.525,
+        "capacity": 0.6,
+        "adjusted_share": 69.208,
+        "percent_of_total": 30.7
+      },
+      {
+        "principal_id": "farah",
+        "name": "Farah",
+        "task_count": 15,
+        "raw_hours": 30.5,
+        "weighted_burden": 33.83,
+        "capacity": 0.7,
+        "adjusted_share": 48.329,
+        "percent_of_total": 25.0
+      }
+    ],
+    "total_weighted_burden": 135.265,
+    "mean_adjusted_share": 62.673,
+    "max_deviation": 0.229,
+    "proportional": false,
+    "envy_free": false,
+    "envy_pairs": [
+      {
+        "envious": "amina",
+        "envied": "rian",
+        "magnitude": 28.195
+      },
+      {
+        "envious": "amina",
+        "envied": "farah",
+        "magnitude": 22.636
+      },
+      {
+        "envious": "farah",
+        "envied": "rian",
+        "magnitude": 5.104
+      }
+    ],
+    "unassigned_tasks": [],
+    "hard_violations": []
+  },
+  "escalations": [
+    {
+      "id": "fairness-breach-final-round",
+      "period": "2026-10",
+      "kind": "fairness_breach",
+      "headline": "Amina is carrying 70.48 adjusted share against a circle mean of 62.67, and Farah is carrying 48.33, creating a deviation of 0.229 when the tolerance ceiling is 0.15.",
+      "what_i_tried": [
+        "Built an opening split from stated availability and capacity",
+        "Moved four tasks from Amina to Rian to reduce Amina's load, but Rian's distance multiplied the weighted burden and reversed the imbalance",
+        "Moved those four in-person weekend tasks back to Amina to ease Rian's burden, but this pushed Amina's adjusted share to 96.13",
+        "Moved four tasks from Amina to Rian again to bring Amina down, landing at the current allocation"
+      ],
+      "the_tension": "Amina and Rian can trade tasks, but every in-person task carries heavy travel weight for Rian due to distance. Shifting weekend in-person work to Amina eases Rian but overloads Amina. Shifting it back to Rian eases Amina but crushes Rian. Farah cannot receive any of Amina's tasks because Farah has refused night shifts and is unavailable on Fridays and Saturdays, and the tasks that would rebalance the circle fall in those windows. The stated limits lock the three of you into a pattern where no task movement can bring everyone within tolerance of the mean.",
+      "options": [
+        {
+          "label": "Leave the allocation as it stands",
+          "consequence": "Amina carries 70.48 adjusted share and Farah carries 48.33, with the deviation remaining above tolerance. Everyone has accepted their current schedule.",
+          "fairness_delta": 0.0
+        },
+        {
+          "label": "One sibling adjusts their stated availability or refusals to unlock new task paths",
+          "consequence": "If Farah can take Friday or Saturday tasks, or accept night shifts, some of Amina's load can move. If Rian can accept weekday in-person work despite distance, some weighting pressure eases. If Amina can reduce declared capacity, the adjusted share calculation changes.",
+          "fairness_delta": 0.0
+        },
+        {
+          "label": "Reduce the total volume of tasks in the care plan",
+          "consequence": "Fewer tasks may allow a fair split within everyone's stated limits, but this changes what care your mother receives.",
+          "fairness_delta": 0.0
+        }
+      ],
+      "what_i_will_not_decide": "I will not choose between these because I do not know what any of you are carrying outside this plan, what your mother needs most, or what any sibling can truly afford to change. Those decisions belong to the three of you together.",
+      "created_at": "2026-09-09T02:59:08.854632"
+    }
+  ]
+}

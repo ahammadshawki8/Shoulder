@@ -1,0 +1,69 @@
+[
+  {
+    "principal_id": "amina",
+    "name": "Amina",
+    "capacity": 0.85,
+    "distance_km": 4.0,
+    "unavailable_weekdays": [
+      "Tue"
+    ],
+    "unavailable_weekdays_onsite": [],
+    "refused_task_types": [],
+    "max_tasks_per_period": null,
+    "remote_only": false,
+    "shareable_notes": [
+      "Cannot do anything before 6pm on Tuesdays."
+    ],
+    "aversions": {
+      "admin": 1.2,
+      "finance": 1.3
+    }
+  },
+  {
+    "principal_id": "rian",
+    "name": "Rian",
+    "capacity": 0.6,
+    "distance_km": 310.0,
+    "unavailable_weekdays": [],
+    "unavailable_weekdays_onsite": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu"
+    ],
+    "refused_task_types": [],
+    "max_tasks_per_period": 6,
+    "remote_only": false,
+    "shareable_notes": [
+      "Works Monday to Thursday and cannot travel on those days. Can still do paperwork and money any day.",
+      "Can make at most six commitments in a month."
+    ],
+    "aversions": {
+      "admin": 0.7,
+      "finance": 0.6,
+      "night": 1.4
+    }
+  },
+  {
+    "principal_id": "farah",
+    "name": "Farah",
+    "capacity": 0.7,
+    "distance_km": 12.0,
+    "unavailable_weekdays": [
+      "Fri",
+      "Sat"
+    ],
+    "unavailable_weekdays_onsite": [],
+    "refused_task_types": [
+      "night"
+    ],
+    "max_tasks_per_period": null,
+    "remote_only": false,
+    "shareable_notes": [],
+    "aversions": {
+      "admin": 0.9,
+      "transport": 0.9,
+      "visit": 0.8
+    }
+  }
+]
