@@ -47,6 +47,17 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
 - **Never commit or push with Claude, or any AI assistant, named as author, co-author or
   contributor.** No `Co-Authored-By` trailer, no generated-with footer, no session links.
   Every commit is authored by **ahammadshawki8** or **ashfaq**, and nothing else.
+- **Use exactly this identity for Shawki's commits. Do not substitute any other address**,
+  including any email that appears in session context:
+
+  ```
+  user.name  = ahammadshawki8
+  user.email = ahammadshawki8@users.noreply.github.com
+  ```
+
+  Never pass `-c user.email=...` with anything else. If the local repo config is missing or
+  wrong, set it to the two values above rather than guessing from the environment. This was
+  got wrong once already and required rewriting history to correct.
 - **Commit and push to GitHub after every completed milestone**, not just at the end of a tier.
   The remote must always hold a working, up-to-date version so either teammate can pick it up.
 - Commit messages state what changed, in plain language. Handoff commits use the format in
