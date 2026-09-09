@@ -91,7 +91,7 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
 
 | Field | Value |
 |---|---|
-| Repo URL | _TBD_ |
+| Repo URL | https://github.com/ahammadshawki8/Shoulder |
 | Devpost submission URL | _TBD_ |
 | AWS Builder ID | _TBD_ |
 | Live demo link | _TBD_ |
@@ -372,7 +372,7 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 |---|---|
 | Language | Python **3.11** (project venv via `py -3.11`, never system 3.14) |
 | Agent SDK | `strands-agents` 1.55.x |
-| Models | Bedrock `anthropic.claude-sonnet-5` (negotiation/reasoning), `anthropic.claude-haiku-4-5` (classification) |
+| Models | Bedrock `us.anthropic.claude-sonnet-4-5-20250929-v1:0` (reasoning), `us.anthropic.claude-haiku-4-5-20251001-v1:0` (fast). Sonnet 5 is in the catalogue but returns AccessDenied until model access is enabled in the Bedrock console. |
 | Region | `us-east-1` (account 897545289507, verified working) |
 | A2A servers | FastAPI |
 | UI | Vite + React |
@@ -384,31 +384,31 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 ## 12. Implementation checklist
 
 ### Tier 0 - Foundation
-- [ ] `git init`, MIT `LICENSE` at root (must show in GitHub About panel)
+- [x] `git init`, MIT `LICENSE` at root (must show in GitHub About panel)
 - [ ] Python 3.12 venv, `pyproject.toml` / `requirements.txt`
-- [ ] `strands-agents` installed; Bedrock connectivity smoke test passing
-- [ ] Repo skeleton: `agents/`, `tools/`, `hooks/`, `graph/`, `web/`, `evals/`, `seed/`, `docs/`
-- [ ] `.gitignore` (venv, `.env`, `__pycache__`, SQLite)
+- [x] `strands-agents` installed; Bedrock connectivity smoke test passing
+- [x] Repo skeleton: `agents/`, `tools/`, `hooks/`, `graph/`, `web/`, `evals/`, `seed/`, `docs/`
+- [x] `.gitignore` (venv, `.env`, `__pycache__`, SQLite)
 
 ### Tier 1 - Core agents
-- [ ] `Principal` data model with privacy tiers
+- [x] `Principal` data model with privacy tiers
 - [ ] Principal Agent + `A2AServer`, agent card served
-- [ ] Convener with `A2AAgent` clients; can reach all three principals
-- [ ] One propose → critique → response round works end-to-end (ugly is fine)
+- [x] Convener with `A2AAgent` clients; can reach all three principals
+- [x] One propose → critique → response round works end-to-end (ugly is fine)
 
 ### Tier 2 - Fairness engine
-- [ ] `CareTask` model + effort weighting
-- [ ] `compute_burden`
-- [ ] `check_proportionality` (capacity-adjusted)
-- [ ] `check_envy_freeness`
-- [ ] `fairness_report` (structured output)
-- [ ] Unit tests for all four; fairness is never LLM-computed
+- [x] `CareTask` model + effort weighting
+- [x] `compute_burden`
+- [x] `check_proportionality` (capacity-adjusted)
+- [x] `check_envy_freeness`
+- [x] `fairness_report` (structured output)
+- [x] Unit tests for all four; fairness is never LLM-computed
 
 ### Tier 3 - Negotiation graph
-- [ ] Full Strands Graph: intake → demand_model → propose → critique → evaluate → revise/settle/escalate
-- [ ] Bounded rounds with exhaustion → escalate
-- [ ] `EscalationCard` structured output
-- [ ] Settled rota persisted
+- [x] Full Strands Graph: intake → demand_model → propose → critique → evaluate → revise/settle/escalate
+- [x] Bounded rounds with exhaustion → escalate
+- [x] `EscalationCard` structured output
+- [x] Settled rota persisted
 
 ### Tier 4 - Guardrails (do not cut this tier)
 - [ ] Privacy hook: blocks private-tier facts on outbound A2A messages
@@ -519,5 +519,43 @@ proportionality as the fairness invariant · MIT license. Track is still open (s
 - Verified the 75% statistic to primary source (Raab / Engelhardt / Leopold, JMF 2014).
 - Wrote this file. Added demo storyboard, region-agnostic evidence, risk register, placeholder
   fields, and reopened the track decision.
-- **Next:** Tier 0 - git init, MIT license, Python 3.12 venv, Strands install, Bedrock smoke test,
-  repo skeleton.
+
+### 2026-09-09 - Session 2, Tiers 0 to 3 complete (Shawki)
+
+Repo live at https://github.com/ahammadshawki8/Shoulder, public, MIT visible in About.
+`pytest` is green at 20 passed. `python -m shoulder.cli` runs a full negotiation end to end and
+writes `fixtures/`.
+
+**Environment facts a future session needs:**
+- Python 3.12 is not installed on this machine. Using **3.11.9** via `py -3.11`. Strands is fine on it.
+- `anthropic.claude-sonnet-5` is listed in the Bedrock catalogue but returns **AccessDenied**.
+  Pinned to Sonnet 4.5 and Haiku 4.5, both verified working. Enable Sonnet 5 model access in the
+  Bedrock console if it is wanted later; nothing depends on it.
+- AWS CLI was already installed (2.36.33). `gh` is authenticated as ahammadshawki8.
+
+**Design decisions taken during the build, with reasons:**
+- **A2A is not wired yet.** Principal agents run in process. The privacy boundary is real and lives
+  in the `Principal` to `Position` projection, so adding A2A is a change of transport rather than a
+  redesign. Tier 4 should add it.
+- **The Convener proposes moves, not whole allocations.** Re-emitting all 26 assignments each round
+  made the split worse every time (deviation ran 0.229, 0.837, 0.999). Limiting it to at most four
+  named moves fixed the drift.
+- **Eligibility is precomputed for the Convener.** It kept proposing Friday work for a sibling who
+  had said she was unavailable on Fridays. It now receives the list of legal moves and chooses among
+  them. Eligibility is a rule, not a judgement.
+- **A deterministic legality guard runs after every proposal** (`repair_allocation`). Illegal
+  assignments are stripped and re-placed. A rota that breaks a stated limit must never reach a family.
+- **Hill climbing.** A round may explore a worse split; the working rota never keeps it.
+- **Retries on structured output.** Bedrock intermittently returns "No valid tool use found". Every
+  structured call goes through `shoulder/resilience.py` with a safe fallback. A missing critique is
+  recorded as silence, never as consent.
+- **All model prose passes through `shoulder/text.py`** to strip emojis and em dashes, per the
+  project rule. Models produce both unprompted.
+
+**State of the demo scenario:** feasible but deliberately not fair. All 26 tasks assigned, no hard
+violations, deviation 0.229 against a 0.15 tolerance. That gap is the point: the agent does
+everything it can and the remainder is a human decision. `tests/test_fairness.py` asserts this exact
+shape so a future change cannot silently destroy the demo.
+
+- **Next:** Tier 4 (privacy hook, authority envelope hook, ledger) is Ashfaq's block per
+  `TaskDivision.md`. Fixtures are committed so the UI can be built with no AWS access at all.
