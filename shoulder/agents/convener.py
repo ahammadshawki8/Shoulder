@@ -11,9 +11,12 @@ the model revising in response to critiques.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 from strands import Agent
 from strands.models import BedrockModel
+from strands.models.model import Model
 
 from shoulder.config import REASONING_MODEL, REGION, REMOTE_CAPABLE
 from shoulder.resilience import with_retry
@@ -27,6 +30,7 @@ from shoulder.models.core import (
     Position,
     _Lenient,
 )
+from shoulder.tools.actions import ACTION_TOOLS
 from shoulder.tools.fairness import (
     FAIRNESS_TOOLS,
     needs_travel,
@@ -96,11 +100,20 @@ class ProposedRevision(_Lenient):
     rationale: str = ""
 
 
-def build_convener_agent() -> Agent:
+def build_convener_agent(
+    *, hooks: list[Any] | None = None, model: Model | None = None
+) -> Agent:
+    """The Convener, with tools that measure and tools that act.
+
+    The acting tools are only ever reached through the authority envelope hook
+    passed in `hooks` (see `shoulder.hooks.authority`). The negotiation always
+    passes one.
+    """
     return Agent(
-        model=BedrockModel(model_id=REASONING_MODEL, region_name=REGION),
+        model=model or BedrockModel(model_id=REASONING_MODEL, region_name=REGION),
         system_prompt=CONVENER_PROMPT,
-        tools=FAIRNESS_TOOLS,
+        tools=[*FAIRNESS_TOOLS, *ACTION_TOOLS],
+        hooks=hooks or [],
         callback_handler=None,
     )
 
@@ -382,6 +395,72 @@ admitting the limits do not allow one.
         assignments=assignments,
         rationale=rationale or f"Applied {applied} move(s).",
     )
+
+
+def attempt_remedies(
+    agent: Agent,
+    circle: Circle,
+    allocation: Allocation,
+    report: FairnessReport,
+) -> str:
+    """Out of rounds: give the Convener one chance to act beyond moving tasks.
+
+    This is where the authority envelope earns its place. The Convener has tools
+    that act in the world, and some of them would genuinely close the gap, like
+    booking paid help for the overnight stays. Whether it is allowed to is not
+    its call. Whatever it reaches for goes through the envelope hook: routine
+    actions run and are ledgered, the rest come back as "not done, raised with
+    the family" and become escalation cards of their own.
+
+    Runs through the agent loop, not structured output, because tools only run
+    inside the loop. The conversation is cleared afterwards so the structured
+    calls that follow start clean.
+    """
+    from shoulder.agents.principal import positions_brief
+
+    current = "\n".join(
+        f"  {p.name} ({p.id}) holds: "
+        + ", ".join(
+            f"{t.id} {t.weekday} {t.title} [{t.type}]"
+            for t in (circle.task(x) for x in sorted(allocation.bundle(p.id)))
+            if t is not None
+        )
+        for p in circle.principals
+    )
+    prompt = f"""The negotiation rounds are over and the split is still outside the
+fairness limit. Before this goes back to the family, consider whether anything
+beyond moving tasks between them would help.
+
+WHO CAN DO WHAT
+{positions_brief(circle.principals)}
+
+CURRENT SPLIT
+{current}
+
+WHAT THE FAIRNESS TOOLS SAY
+{_fairness_brief(report)}
+
+You have tools that act, not only tools that measure. If one action would
+genuinely help this family close the gap, take the single most helpful one. If
+none would, take no action.
+
+Before you act, check with the fairness tools that the action would actually
+bring every share closer to the limit. For an action that removes tasks from the
+family's load, call fairness_report on the current assignments without those
+tasks and compare max_deviation with the figure above. An action that would not
+help is worse than no action at all.
+
+Then say in one or two plain sentences what you did and why.
+"""
+    try:
+        reply = with_retry(
+            lambda: str(agent(prompt)),
+            label="convener remedies",
+            fallback=lambda: "",
+        )
+    finally:
+        agent.messages.clear()
+    return clean(reply.strip())
 
 
 def write_escalation(

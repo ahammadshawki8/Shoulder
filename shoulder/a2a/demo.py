@@ -24,6 +24,7 @@ import urllib.request
 from shoulder.a2a.serve import PORTS, agent_url
 from shoulder.cli import RULE, print_header, print_report
 from shoulder.config import FIXTURES_DIR
+from shoulder.hooks.privacy import scan_for_leaks
 from shoulder.seed.demo_circle import build_circle
 
 STARTUP_TIMEOUT = 90.0
@@ -120,20 +121,18 @@ def main() -> int:
         print(f"  {len(WIRE_LOG)} messages captured to {wire_path}")
 
         # Check, here and now, that nothing private left any process. Tier 7
-        # turns this into a proper adversarial eval; even this crude version is
-        # worth running every time, because a privacy claim nobody checks is
-        # just a sentence in a README.
-        leaks: list[str] = []
-        blob = json.dumps(WIRE_LOG, ensure_ascii=False).lower()
-        for principal in circle.principals:
-            for secret in principal.private_texts():
-                probe = secret.rstrip(".").lower()
-                if probe and probe in blob:
-                    leaks.append(f"{principal.name}: {secret}")
+        # turns this into a proper adversarial eval; even this version is worth
+        # running every time, because a privacy claim nobody checks is just a
+        # sentence in a README. It uses the guard's own detector, which also
+        # catches a fact split across streamed chunks. The earlier plain
+        # substring check did not.
+        leaks = scan_for_leaks(
+            [entry["payload"] for entry in WIRE_LOG], circle.principals
+        )
         if leaks:
             print("  PRIVACY FAILURE, these left the machine:")
             for leak in leaks:
-                print(f"    {leak}")
+                print(f"    {leak.principal_name}: {leak.matched} ({leak.layer})")
             return 1
         print("  No private constraint appears in any message. Boundary held.")
         return 0

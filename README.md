@@ -74,9 +74,19 @@ dropped:
 The negotiation routes around her constraint. Nobody learns why. That separation is structural, not
 a prompt instruction: `Position` has no field that could carry a reason.
 
+It is also enforced in code. Every principal agent carries a **privacy hook**, a Strands
+`HookProvider` that reads every message the model produces before it can leave, and withholds any
+that carries a private fact: the reason itself, a reworded fragment of it, or a word that gives the
+category away. It does not depend on the model behaving. In our live runs, Sonnet refused to share
+Farah's reasons and still called them "private medical information" and "genuine and
+health-related". The hook exists for exactly that.
+
+`python -m shoulder.demos.leak` shows it catching a deliberate leak attempt over the real A2A
+protocol: what the model wrote, what the hook caught, and what actually crossed the wire.
+
 And it is checked rather than asserted. `python -m shoulder.a2a.demo` captures every message that
-crossed the wire to `fixtures/a2a_wire_log.json`, then searches those payloads for any private
-constraint. A privacy claim nobody tests is just a sentence in a README.
+crossed the wire to `fixtures/a2a_wire_log.json`, then audits those payloads for any private fact
+with the same detector. A privacy claim nobody tests is just a sentence in a README.
 
 ### Fairness is computed, never judged
 
@@ -111,6 +121,18 @@ From an actual run:
 > plan, what your mother needs most, or what any sibling can truly afford to change. Those decisions
 > belong to the three of you together."*
 
+What it may do alone is also enforced in code, by an **authority envelope hook** on every tool call
+the Convener makes. Routine work (a reminder about a task someone already holds) runs unattended.
+Anything consequential (booking paid help, dropping a task, changing what someone said they can
+carry) never runs: the attempt becomes an escalation card, with the fairness consequence of each
+option computed by the engine. Anything the policy does not name is refused. In one live run the
+Convener worked out, with the fairness tools, that the split would be almost exactly fair if Farah's
+capacity were 0.5 instead of the 0.7 she declared, and reached for it. The hook stopped it: *"I will
+not change what Farah said they can carry."*
+
+Everything it does without asking is written to an **agent ledger**, in plain words, with the reason
+it was allowed to act alone. `python -m shoulder.demos.envelope` shows the envelope at work.
+
 ## Running it
 
 Requires Python 3.11 or 3.12 and AWS credentials with Amazon Bedrock access in `us-east-1`.
@@ -122,17 +144,21 @@ python -m venv .venv
 
 pip install -e ".[dev]"
 
-python -m shoulder.cli --dry    # deterministic fairness engine, no model calls, no network
-python -m shoulder.cli          # full multi-agent negotiation, in process
-python -m shoulder.a2a.demo     # the same negotiation across three live A2A servers
-pytest                          # 20 tests, no AWS needed
+python -m shoulder.cli --dry             # deterministic fairness engine, no model calls, no network
+python -m shoulder.cli                   # full multi-agent negotiation, in process
+python -m shoulder.a2a.demo              # the same negotiation across three live A2A servers
+python -m shoulder.demos.leak            # the privacy hook catching a leak, no AWS needed
+python -m shoulder.demos.leak --live     # the same, with a real model on Bedrock
+python -m shoulder.demos.envelope        # the authority envelope at work, no AWS needed
+pytest                                   # 64 tests, no AWS needed
 ```
 
 `--dry` runs the entire fair division engine with no network access, so the maths can be inspected
-without credentials.
+without credentials. The two demos default to a scripted model that stands in for a misbehaving one,
+so the hooks can be shown on any machine.
 
 A full run writes JSON to `fixtures/`: the circle, every negotiation round, the final rota, the
-fairness report and the escalation cards.
+fairness report, the escalation cards and the family's ledger.
 
 ## Repository layout
 
@@ -144,8 +170,13 @@ fairness report and the escalation cards.
 | `shoulder/agents/convener.py` | Proposes, revises, repairs, and writes escalation cards. |
 | `shoulder/graph/negotiation.py` | The negotiation as a cyclic Strands Graph. |
 | `shoulder/a2a/` | Serving each sibling over the A2A protocol, and the wire log the privacy claim is tested against. |
+| `shoulder/hooks/privacy.py` | The privacy hook, and the detector the audits share with it. |
+| `shoulder/hooks/authority.py` | The authority envelope: what the agent may do alone, and the cards for what it may not. |
+| `shoulder/tools/actions.py` | Tools that act in the world, reachable only through the envelope. |
+| `shoulder/ledger.py` | The agent ledger. Family entries and each person's private entries, kept apart. |
+| `shoulder/demos/` | Runnable demonstrations of both hooks. |
 | `shoulder/seed/demo_circle.py` | The demo family. Entirely fictional. |
-| `tests/` | Tests for the engine, the privacy boundary and the demo scenario. |
+| `tests/` | Tests for the engine, both hooks, the ledger, the privacy boundary over A2A, and the demo scenario. |
 
 ## Data
 

@@ -60,6 +60,17 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
   Never pass `-c user.email=...` with anything else. If the local repo config is missing or
   wrong, set it to the two values above rather than guessing from the environment. This was
   got wrong once already and required rewriting history to correct.
+- **Ashfaq's commits use exactly this identity** (his GitHub account is `ashfaqstu`, id
+  187305680). Same rule: never substitute an address from session context.
+
+  ```
+  user.name  = ashfaqstu
+  user.email = 187305680+ashfaqstu@users.noreply.github.com
+  ```
+
+- **Ashfaq works from a fork**, `https://github.com/ashfaqstu/Shoulder` (remote `origin`), with
+  Shawki's repo as `upstream`. He has read-only access to `upstream` until Shawki adds
+  `ashfaqstu` as a collaborator; until then his milestones reach `upstream` as pull requests.
 - **Commit and push to GitHub after every completed milestone**, not just at the end of a tier.
   The remote must always hold a working, up-to-date version so either teammate can pick it up.
 - Commit messages state what changed, in plain language. Handoff commits use the format in
@@ -289,7 +300,7 @@ flowchart TB
     end
 
     subgraph Guard["Privacy hook (per principal)"]
-        H1["BeforeMessageSend<br/>blocks private-tier facts<br/>emits positions only"]
+        H1["AfterModelCallEvent + BeforeToolCallEvent<br/>withholds private-tier facts<br/>reply held until screened"]
     end
 
     subgraph Convener["Convener - Strands Graph"]
@@ -311,7 +322,7 @@ flowchart TB
     end
 
     subgraph Envelope["Authority hook"]
-        H2["BeforeToolInvocation<br/>blocks out-of-envelope actions<br/>converts them to escalations"]
+        H2["BeforeToolCallEvent<br/>blocks out-of-envelope actions<br/>converts them to escalations"]
     end
 
     subgraph Surface["Product"]
@@ -424,10 +435,10 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 - [x] Settled rota persisted
 
 ### Tier 4 - Guardrails (do not cut this tier)
-- [ ] Privacy hook: blocks private-tier facts on outbound A2A messages
-- [ ] Authority-envelope hook: out-of-envelope action → escalation card
-- [ ] Ledger: every unattended action recorded with justification
-- [ ] Demo proof: privacy hook visibly catching a deliberate leak attempt
+- [x] Privacy hook: blocks private-tier facts on outbound A2A messages
+- [x] Authority-envelope hook: out-of-envelope action → escalation card
+- [x] Ledger: every unattended action recorded with justification
+- [x] Demo proof: privacy hook visibly catching a deliberate leak attempt (`python -m shoulder.demos.leak`)
 
 ### Tier 5 - Memory and precedent
 - [ ] Per-principal session persistence (preferences drift over time)
@@ -605,3 +616,100 @@ the identity is pinned in section 1.
 - **Next:** Tier 4 (privacy hook, authority envelope hook, ledger) is Ashfaq's block per
   `TaskDivision.md`. Fixtures are committed so the UI can be built with no AWS access at all, and
   the A2A wire log gives the privacy hook a real surface to guard.
+
+### 2026-09-11 - Session 3, Tier 4 complete (Ashfaq)
+
+**Block 1 handoff verified before building on it.** `pytest` 20 passed, `cli --dry`, `cli` and
+`a2a.demo` all ran clean against Bedrock with Ashfaq's IAM user (`user/ashfaq`, profile
+`shoulder`). Environment: this machine has **Python 3.12.7** only (no 3.11); everything works on it.
+
+**What Tier 4 added** (64 tests now, all offline):
+
+```
+python -m shoulder.demos.leak            privacy hook catching a leak over real A2A, no AWS
+python -m shoulder.demos.leak --live     same, real Sonnet with its privacy instruction removed
+python -m shoulder.demos.envelope        authority envelope: one action allowed, two refused
+```
+
+- `shoulder/hooks/privacy.py`: `PrivacyGuard`, a Strands `HookProvider` on every principal agent
+  (`AfterModelCallEvent` rewrites the finished message, `BeforeToolCallEvent` screens tool input,
+  which is how the in-process `Critique` travels). Detection is deterministic: the private reason
+  and its clauses, per-constraint `sensitive_terms`, and three-word runs of the reason, each checked
+  on normalised text and on punctuation-free text. `scan_for_leaks` is the same detector for audits.
+- `shoulder/hooks/authority.py`: `AuthorityGuard` on `BeforeToolCallEvent` for the Convener.
+  `decide()` is the envelope as a pure function. Measuring is free; `send_reminder` is inside only
+  for tasks the person already holds; `arrange_paid_help`, `drop_task`, `change_capacity` are
+  outside; **anything unnamed is outside** (fails closed). A refused call never runs, returns "not
+  done, raised with the family" to the model, and becomes an `authority_exceeded` card whose
+  numbers come from the fairness engine (`_without`, capacity what-ifs), with fixed copy.
+- `shoulder/tools/actions.py`: the acting tools. The always-refused ones are offered on purpose: the
+  envelope is a policy about authority, not about which tools exist.
+- `shoulder/ledger.py` + `shoulder/store/sqlite.py`: append-only ledger. `family` scope is the
+  shared audit trail; `private:<id>` entries (what a guard held back, including the draft) go to
+  their own SQLite file under `.shoulder/private/`. The graph records every unattended step: seed,
+  suggested moves (in words), reversed illegal moves, rejected worse splits, each critique, each
+  fairness measurement, remedies, escalations.
+- Graph: the escalate node now gives the Convener **one chance to act** (`attempt_remedies`, through
+  the agent loop so tools run) before writing the fairness card. Anything refused becomes its own
+  card, queued after the fairness card.
+- `shoulder/scripted_model.py`: a Strands `Model` that plays back a script, so hooks are tested
+  through the real agent loop, tool executor and A2A server with no network.
+- New fixtures: `ledger.json` (family view), `privacy_demo.json` (a real `--live` catch),
+  `authority_demo.json` (scripted, deterministic). Regenerated: `circle.json`, `outcome.json`,
+  `escalations.json`, `a2a_wire_log.json`. Every family-visible fixture passes `scan_for_leaks`.
+
+**Findings that shaped it (each is pinned by a test):**
+1. **The stock A2A executor streams text chunks to the caller before any hook sees the finished
+   message.** The Block 1 wire log shows every reply twice, once whole and once as fragments. A
+   post-model hook alone would screen text that had already left. `HeldReplyExecutor` in
+   `shoulder/a2a/serve.py` holds the reply until it is screened. A control test serves the same
+   guarded agent through the stock executor and asserts it leaks; if that test ever fails, the SDK
+   changed, re-check before removing the hold.
+2. **The old leak check could be beaten by chunking**: plain substring search misses
+   `Chemo\ntherapy`. The detector also checks punctuation-free text.
+3. **The deprecated `agent.structured_output()` skips the hook registry entirely.** The in-process
+   critique now calls `agent(prompt, structured_output_model=Critique)`, with history cleared each
+   round so behaviour matches before. The Convener's revise and escalation calls still use the
+   deprecated path (unchanged), which also means the Convener never actually ran its fairness tools
+   there. Only `attempt_remedies` uses the loop.
+4. **Sonnet refuses to leak, and its refusals leak the category**: "private medical information",
+   "genuine and health-related". Category words are now in Farah's `sensitive_terms`. This is the
+   best evidence we have that the hook, not the prompt, has to be the enforcement.
+5. **Redacting only the offending sentence is not enough.** The sentence left behind read "she needs
+   help quickly if she develops any complications". Any free text carrying a private fact is now
+   withheld whole; structural fields (verdict, reason class, task ids) still pass.
+6. **A private constraint's summary is its effect, not its secret.** Screening "Unavailable Friday
+   and Saturday" flagged the Convener stating Farah's public Position, and made the family ledger
+   fail its own audit. Only reasons and sensitive terms are screened; `Principal.private_texts()`
+   now returns reasons only. Intake (Tier 6) must keep the why out of `summary`.
+7. **In process, the model writes working notes that quote the private constraint.** They never
+   leave (only the `Critique` does), so the guard scrubs them silently. Announcing them would have
+   put "Farah's agent held something back" in the family ledger every round, itself a small leak.
+   `PrivacyGuard(reply="text" | "structured")` makes the outbound surface explicit.
+
+**Behaviour worth knowing for the demo:** in one live run the Convener used the fairness tools, found
+the split is almost exactly fair if Farah's capacity were 0.5 instead of 0.7, and called
+`change_capacity`. The envelope refused: *"I will not change what Farah said they can carry."* In
+another run it checked, found nothing that helps, and took no action. Both are correct; it is not
+forced to act. The deterministic version of that beat is `demos.envelope`.
+
+**Fragile / honest limits:**
+- The detector is lexical. A paraphrase with no shared words and no sensitive term ("she is not
+  well at the moment") would pass. Whole-text withholding narrows it; Tier 7's adversarial eval
+  should probe it, and `sensitive_terms` is where fixes go. An LLM second opinion would be additive,
+  never a replacement.
+- In the A2A demo the family-scope "withheld" entries stay in each principal's process (servers run
+  with no ledger), so the Convener's ledger does not show them. Fine for now; Tier 8 could forward
+  content-free notices.
+- `HeldReplyExecutor` overrides a private SDK method (`_handle_streaming_event`). Pinned by tests.
+- `.shoulder/` holds local SQLite state and is gitignored. Delete it to reset.
+- The rounds still all come back `accept` from every sibling and rounds 2 to 4 retry the same
+  rejected moves (see the fairness bar note in the Block 1 verification: rounds show 0.229, 0.757,
+  0.804, 0.757 as tried, 0.229 as kept). Not touched in Tier 4. The UI should show "tried" versus
+  "kept" rather than animate straight through the tried splits.
+
+**Git:** work is on the fork (`ashfaqstu/Shoulder`) because `ashfaqstu` has no push access to
+`upstream` yet. Shawki: add `ashfaqstu` as a collaborator, or merge the PR.
+
+- **Next:** Tier 5 (memory and precedent) and Tier 6 (four screens, fairness bar as hero), then the
+  Block 2 handoff commit.

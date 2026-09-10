@@ -1,0 +1,196 @@
+{
+  "mode": "scripted",
+  "decisions": [
+    {
+      "tool": "send_reminder",
+      "input": {
+        "principal_id": "amina",
+        "task_ids": [
+          "T02"
+        ],
+        "note": "A gentle reminder about this one, and thank you."
+      },
+      "allowed": true,
+      "why": "Reminding someone about work they already hold is routine.",
+      "means": "reminding Amina about Pharmacy run and pill organiser (Fri 2 Oct)"
+    },
+    {
+      "tool": "arrange_paid_help",
+      "input": {
+        "task_ids": [
+          "T13",
+          "T22"
+        ],
+        "reason": "Covering these two brings every share inside the fairness limit."
+      },
+      "allowed": false,
+      "why": "Spending the family's money, and bringing someone new into her home, is a decision for the family and for her.",
+      "means": "booking paid help for Wednesday overnight stay (Wed 14 Oct); Follow-up nephrology appointment (Fri 23 Oct)"
+    },
+    {
+      "tool": "change_capacity",
+      "input": {
+        "principal_id": "farah",
+        "new_capacity": 0.5,
+        "reason": "At this capacity the split would be almost exactly fair."
+      },
+      "allowed": false,
+      "why": "Only a person can change what they said they can carry. I work from what they told me.",
+      "means": "changing Farah's capacity from 0.7 to 0.5"
+    }
+  ],
+  "escalations": [
+    {
+      "id": "esc-rahman-family-2026-10-arrange_paid_help-1",
+      "period": "2026-10",
+      "kind": "authority_exceeded",
+      "headline": "Paid help could cover 2 of this month's tasks. Whether to bring someone in is your decision, not mine.",
+      "what_i_tried": [
+        "Looked for moves between you that stay inside everyone's stated limits.",
+        "Found that paid help for Wednesday overnight stay (Wed 14 Oct); Follow-up nephrology appointment (Fri 23 Oct) would take 11.5 hours of care off Amina and Rian.",
+        "Stopped before booking anything."
+      ],
+      "the_tension": "The worst deviation would go from 23 percent to 13 percent, against a limit of 15 percent. It also means spending money, and someone new in Nasrin's home.",
+      "options": [
+        {
+          "label": "Bring in paid help for these tasks",
+          "consequence": "The spread goes from 23 percent to 13 percent. You agree between you who pays, and Nasrin has a say in it.",
+          "fairness_delta": -0.1
+        },
+        {
+          "label": "Keep this care within the family",
+          "consequence": "Nothing changes. The current split stands.",
+          "fairness_delta": 0.0
+        }
+      ],
+      "what_i_will_not_decide": "Whether to pay for care, who pays, and whether someone new comes into Nasrin's home. Those choices belong to your family, and to Nasrin.",
+      "created_at": "2026-09-10T21:07:10+00:00"
+    },
+    {
+      "id": "esc-rahman-family-2026-10-change_capacity-2",
+      "period": "2026-10",
+      "kind": "authority_exceeded",
+      "headline": "I will not change what Farah said they can carry.",
+      "what_i_tried": [
+        "Worked out the split as if Farah's capacity were 0.5 instead of 0.7.",
+        "Left it exactly as Farah set it."
+      ],
+      "the_tension": "At 0.5, the worst deviation would be 2 percent instead of 23 percent. Only a person can change what they said they can carry. I work from what they told me.",
+      "options": [
+        {
+          "label": "Leave Farah's capacity as they set it",
+          "consequence": "Nothing changes.",
+          "fairness_delta": 0.0
+        },
+        {
+          "label": "Farah revisits it, if they choose to",
+          "consequence": "Only Farah can do this. If they do, I renegotiate with the new figure and the spread moves to about 2 percent.",
+          "fairness_delta": -0.208
+        }
+      ],
+      "what_i_will_not_decide": "How much Farah can carry. Only Farah knows that.",
+      "created_at": "2026-09-10T21:07:10+00:00"
+    }
+  ],
+  "ledger": [
+    {
+      "id": "9b884fc13dff",
+      "seq": 1,
+      "at": "2026-09-10T21:07:10+00:00",
+      "period": "2026-10",
+      "round_number": null,
+      "actor": "convener",
+      "kind": "took_action",
+      "summary": "Sent Amina a reminder about Pharmacy run and pill organiser (Fri 2 Oct).",
+      "justification": "Reminding someone about work they already hold is routine.",
+      "scope": "family",
+      "details": {
+        "tool": "send_reminder",
+        "input": {
+          "principal_id": "amina",
+          "task_ids": [
+            "T02"
+          ],
+          "note": "A gentle reminder about this one, and thank you."
+        }
+      }
+    },
+    {
+      "id": "1d58cf9e2a4d",
+      "seq": 2,
+      "at": "2026-09-10T21:07:10+00:00",
+      "period": "2026-10",
+      "round_number": null,
+      "actor": "convener",
+      "kind": "blocked_action",
+      "summary": "Stopped before booking paid help for Wednesday overnight stay (Wed 14 Oct); Follow-up nephrology appointment (Fri 23 Oct).",
+      "justification": "Spending the family's money, and bringing someone new into her home, is a decision for the family and for her.",
+      "scope": "family",
+      "details": {
+        "tool": "arrange_paid_help",
+        "input": {
+          "task_ids": [
+            "T13",
+            "T22"
+          ],
+          "reason": "Covering these two brings every share inside the fairness limit."
+        },
+        "escalation_id": "esc-rahman-family-2026-10-arrange_paid_help-1"
+      }
+    },
+    {
+      "id": "20adc849ed15",
+      "seq": 3,
+      "at": "2026-09-10T21:07:10+00:00",
+      "period": "2026-10",
+      "round_number": null,
+      "actor": "convener",
+      "kind": "raised_escalation",
+      "summary": "Asked the family instead: Paid help could cover 2 of this month's tasks. Whether to bring someone in is your decision, not mine.",
+      "justification": "Anything outside what I may do alone becomes a question for the people it affects.",
+      "scope": "family",
+      "details": {
+        "escalation_id": "esc-rahman-family-2026-10-arrange_paid_help-1",
+        "kind": "authority_exceeded"
+      }
+    },
+    {
+      "id": "67cc9d08b3a6",
+      "seq": 4,
+      "at": "2026-09-10T21:07:10+00:00",
+      "period": "2026-10",
+      "round_number": null,
+      "actor": "convener",
+      "kind": "blocked_action",
+      "summary": "Stopped before changing Farah's capacity from 0.7 to 0.5.",
+      "justification": "Only a person can change what they said they can carry. I work from what they told me.",
+      "scope": "family",
+      "details": {
+        "tool": "change_capacity",
+        "input": {
+          "principal_id": "farah",
+          "new_capacity": 0.5,
+          "reason": "At this capacity the split would be almost exactly fair."
+        },
+        "escalation_id": "esc-rahman-family-2026-10-change_capacity-2"
+      }
+    },
+    {
+      "id": "6df5be75aefe",
+      "seq": 5,
+      "at": "2026-09-10T21:07:10+00:00",
+      "period": "2026-10",
+      "round_number": null,
+      "actor": "convener",
+      "kind": "raised_escalation",
+      "summary": "Asked the family instead: I will not change what Farah said they can carry.",
+      "justification": "Anything outside what I may do alone becomes a question for the people it affects.",
+      "scope": "family",
+      "details": {
+        "escalation_id": "esc-rahman-family-2026-10-change_capacity-2",
+        "kind": "authority_exceeded"
+      }
+    }
+  ],
+  "convener_remark": "I sent one reminder. The other two are the family's decisions, so I have raised them."
+}

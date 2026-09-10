@@ -18,6 +18,7 @@ T = TypeVar("T")
 
 RETRYABLE = (
     "no valid tool use",
+    "failed to invoke the structured output tool",
     "throttl",
     "timeout",
     "serviceunavailable",

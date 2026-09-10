@@ -7,6 +7,12 @@ eval in Tier 7 can assert that no private fact ever appears in one.
 
 Structured output is not available across A2A, so the principal agents are asked
 to answer in strict JSON and the reply is parsed back into a Critique here.
+
+Privacy is enforced on the other side of the wire, inside each principal's own
+process (`shoulder.hooks.privacy`, and the held reply in `shoulder.a2a.serve`).
+Nothing here screens for private facts, because by the time a reply reaches
+this file it has already left the principal. The Convener should never be the
+one holding a secret long enough to redact it.
 """
 
 from __future__ import annotations
@@ -20,7 +26,6 @@ from typing import Any
 from strands_tools.a2a_client import A2AClientToolProvider
 
 from shoulder.a2a.serve import agent_url
-from shoulder.agents.principal import redact
 from shoulder.models.core import Critique, Principal
 from shoulder.resilience import with_retry
 from shoulder.text import clean
@@ -75,11 +80,20 @@ def _reply_text(response: Any) -> str:
 class A2ATransport:
     """Sends critique requests to principals over A2A and parses what comes back."""
 
-    def __init__(self, principal_ids: list[str], host: str = "127.0.0.1") -> None:
-        self.urls = {pid: agent_url(pid, host) for pid in principal_ids}
+    def __init__(
+        self,
+        principal_ids: list[str],
+        host: str = "127.0.0.1",
+        urls: dict[str, str] | None = None,
+    ) -> None:
+        self.urls = urls or {pid: agent_url(pid, host) for pid in principal_ids}
         self.provider = A2AClientToolProvider(
             known_agent_urls=list(self.urls.values()), timeout=180
         )
+
+    def send(self, url: str, text: str) -> str:
+        """Send one message and return the raw text of everything that came back."""
+        return self._send(url, text)
 
     def _send(self, url: str, text: str) -> str:
         # a2a_send_message is a coroutine, and the graph node calling us is
@@ -124,10 +138,5 @@ class A2ATransport:
             _ask, label=f"{principal.name} critique over A2A", fallback=_silent
         )
         result.principal_id = principal.id
-        cleaned, leaked = redact(clean(result.message), principal)
-        result.message = cleaned
-        if leaked:
-            result.message = (
-                f"{result.message} (a private detail was removed before sending)"
-            )
+        result.message = clean(result.message)
         return result

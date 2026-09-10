@@ -7,7 +7,7 @@ requires-python = ">=3.11,<3.14"
 license = { file = "LICENSE" }
 
 dependencies = [
-    "strands-agents>=1.55.0",
+    "strands-agents[a2a]>=1.55.0",
     "strands-agents-tools>=0.8.8",
     "boto3>=1.43.0",
     "pydantic>=2.13.0",
@@ -33,3 +33,7 @@ include = ["shoulder*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+filterwarnings = [
+    # Legacy A2A streaming. The reply is held (shoulder.a2a.serve), so moot.
+    "ignore:The default A2A response stream:UserWarning",
+]

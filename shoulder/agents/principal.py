@@ -6,18 +6,22 @@ actually said. It reasons with the whole truth and speaks only in positions.
 The separation is enforced three ways, deliberately overlapping:
   1. Structurally, because Critique has no field that can carry a reason.
   2. By instruction, in the system prompt below.
-  3. At runtime, by a redaction guard on the way out (Tier 4 replaces this with a
-     proper Strands hook; this is the floor, not the ceiling).
+  3. In code, by the PrivacyGuard hook (`shoulder.hooks.privacy`) registered on
+     every principal agent. It screens every message the model produces, and it
+     is the layer that does not depend on the model behaving.
 """
 
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from strands import Agent
 from strands.models import BedrockModel
+from strands.models.model import Model
 
 from shoulder.config import REASONING_MODEL, REGION
+from shoulder.hooks.privacy import PrivacyGuard
 from shoulder.resilience import with_retry
 from shoulder.text import clean
 from shoulder.models.core import Allocation, CareTask, Critique, Principal
@@ -106,20 +110,44 @@ though it will be quoted back to you. No emojis, no em dashes.
 """
 
 
-def build_principal_agent(principal: Principal, wire_format: bool = False) -> Agent:
-    """Construct the agent that speaks for one person.
-
-    `wire_format` is for the A2A transport, where the agent must answer in JSON
-    because structured output does not cross the protocol boundary.
-    """
+def build_system_prompt(principal: Principal, wire_format: bool = False) -> str:
     prompt = SYSTEM_PROMPT.format(
         name=principal.name, private_block=_private_block(principal)
     )
     if wire_format:
         prompt += WIRE_FORMAT
+    return prompt
+
+
+def build_principal_agent(
+    principal: Principal,
+    wire_format: bool = False,
+    *,
+    ledger: Any = None,
+    model: Model | None = None,
+    system_prompt: str | None = None,
+    echo: bool = False,
+) -> Agent:
+    """Construct the agent that speaks for one person.
+
+    `wire_format` is for the A2A transport, where the agent must answer in JSON
+    because structured output does not cross the protocol boundary.
+
+    The privacy guard is always attached. There is deliberately no way to build
+    a principal agent without it. `model` and `system_prompt` exist so the leak
+    demo can stand in a misbehaving model; the guard does not change with them.
+    """
+    guard = PrivacyGuard(
+        principal,
+        # Over the wire the reply is text; in process it is the Critique object.
+        reply="text" if wire_format else "structured",
+        ledger=ledger,
+        echo=echo,
+    )
     return Agent(
-        model=BedrockModel(model_id=REASONING_MODEL, region_name=REGION),
-        system_prompt=prompt,
+        model=model or BedrockModel(model_id=REASONING_MODEL, region_name=REGION),
+        system_prompt=system_prompt or build_system_prompt(principal, wire_format),
+        hooks=[guard],
         callback_handler=None,
     )
 
@@ -132,22 +160,6 @@ def _describe_bundle(tasks: list[CareTask]) -> str:
         f"[{t.type}, {t.duration_min} min]"
         for t in sorted(tasks, key=lambda x: x.on_date)
     )
-
-
-def redact(text: str, principal: Principal) -> tuple[str, bool]:
-    """Last line of defence before a principal's words leave the agent.
-
-    Returns the text and whether anything had to be removed. Tier 4 promotes this
-    into a Strands hook that also writes to the ledger.
-    """
-    leaked = False
-    cleaned = text
-    for secret in principal.private_texts():
-        for fragment in {secret, secret.rstrip(".")}:
-            if fragment and fragment.lower() in cleaned.lower():
-                cleaned = cleaned.replace(fragment, "[withheld]")
-                leaked = True
-    return cleaned, leaked
 
 
 def build_critique_prompt(
@@ -198,7 +210,16 @@ def critique_allocation(
     )
 
     def _ask() -> Critique:
-        return agent.structured_output(Critique, prompt)
+        # Each round is judged fresh, as it always has been. What changed is the
+        # call: this goes through the agent loop rather than the deprecated
+        # structured_output shortcut, which skips the hook registry entirely.
+        # Through the loop, the Critique arrives as a tool call and the privacy
+        # guard screens it before it exists as an object.
+        agent.messages.clear()
+        result = agent(prompt, structured_output_model=Critique)
+        if result.structured_output is None:
+            raise ValueError("no valid tool use: principal returned no critique")
+        return result.structured_output  # type: ignore[return-value]
 
     def _silent() -> Critique:
         # If a principal's agent cannot be reached, the safe reading is silence,
@@ -213,12 +234,7 @@ def critique_allocation(
 
     result = with_retry(_ask, label=f"{principal.name} critique", fallback=_silent)
     result.principal_id = principal.id
-    cleaned, leaked = redact(clean(result.message), principal)
-    result.message = cleaned
-    if leaked:
-        result.message = (
-            f"{result.message} (a private detail was removed before sending)"
-        )
+    result.message = clean(result.message)
     return result
 
 

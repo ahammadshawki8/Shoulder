@@ -60,3 +60,8 @@ EFFORT_WEIGHTS: dict[str, float] = {
 REMOTE_CAPABLE: set[str] = {"admin", "finance"}
 
 FIXTURES_DIR = os.getenv("SHOULDER_FIXTURES_DIR", "fixtures")
+
+# Local runtime state (SQLite). Never committed. The family's ledger lives in one
+# database; each principal's private ledger lives in its own, because what a
+# person's agent held back on their behalf is theirs, not the family's.
+STATE_DIR = os.getenv("SHOULDER_STATE_DIR", ".shoulder")

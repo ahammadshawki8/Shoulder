@@ -14,6 +14,7 @@ import sys
 from shoulder.agents.convener import seed_allocation
 from shoulder.agents.principal import positions_payload
 from shoulder.config import FIXTURES_DIR, MAX_ROUNDS
+from shoulder.ledger import Ledger
 from shoulder.models.core import Circle, NegotiationOutcome
 from shoulder.seed.demo_circle import build_circle
 from shoulder.tools.fairness import build_fairness_report, set_active_circle
@@ -87,7 +88,8 @@ def run_full(circle: Circle) -> int:
     from shoulder.graph.negotiation import negotiate
 
     print(f"Negotiating, at most {MAX_ROUNDS} rounds.\n")
-    outcome: NegotiationOutcome = negotiate(circle)
+    ledger = Ledger(circle.period, persist=True)
+    outcome: NegotiationOutcome = negotiate(circle, ledger=ledger)
 
     print(f"\n{RULE}\nFINAL ROTA\n{RULE}")
     if outcome.final_report:
@@ -112,12 +114,21 @@ def run_full(circle: Circle) -> int:
         if card.what_i_will_not_decide:
             print(f"\n  What I will not decide:\n    {card.what_i_will_not_decide}")
 
+    family = ledger.entries()
+    print(f"\n{RULE}\nWHAT I DID WITHOUT ASKING ({len(family)} ledger entries)\n{RULE}")
+    for entry in family:
+        when = f"r{entry.round_number}" if entry.round_number else "  "
+        print(f"  {when:<3} {entry.summary}")
+
     written = [
         _write(f"{FIXTURES_DIR}/circle.json", circle.model_dump(mode="json")),
         _write(f"{FIXTURES_DIR}/outcome.json", outcome.model_dump(mode="json")),
         _write(
             f"{FIXTURES_DIR}/positions.json", json.loads(positions_payload(circle.principals))
         ),
+        # The family's view only. Private-scope entries stay with each person's
+        # agent (in .shoulder/private/) and are never written here.
+        _write(f"{FIXTURES_DIR}/ledger.json", ledger.dump()),
     ]
     if outcome.final_report:
         written.append(

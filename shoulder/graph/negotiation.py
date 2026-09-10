@@ -12,7 +12,12 @@ not beside it: the model must not be able to route around the arithmetic.
   critique   LLM, one call per principal, each with only their own private view
   evaluate   deterministic, no model
   settle     deterministic, no model
-  escalate   LLM, writes the card the family will read
+  escalate   LLM: one chance to act (through the authority envelope), then the
+             card the family will read
+
+Everything the negotiation does without asking is written to the ledger as it
+happens, in words the family can read. Two hooks guard the edges: a privacy
+guard on every principal agent, and the authority envelope on the Convener.
 """
 
 from __future__ import annotations
@@ -23,6 +28,7 @@ from strands.multiagent import GraphBuilder
 from strands.multiagent.base import MultiAgentBase, MultiAgentResult, Status
 
 from shoulder.agents.convener import (
+    attempt_remedies,
     build_convener_agent,
     fairness_brief,
     repair_allocation,
@@ -35,7 +41,9 @@ from shoulder.agents.principal import (
     build_principal_agent,
     critique_allocation,
 )
-from shoulder.config import MAX_ROUNDS
+from shoulder.config import FAIRNESS_TOLERANCE, MAX_ROUNDS
+from shoulder.hooks.authority import AuthorityGuard, EnvelopeContext
+from shoulder.ledger import Ledger
 from shoulder.models.core import (
     Allocation,
     Circle,
@@ -46,6 +54,33 @@ from shoulder.models.core import (
     NegotiationRound,
 )
 from shoulder.tools.fairness import build_fairness_report, set_active_circle
+
+
+_VERDICT_WORDS = {
+    "accept": "it works",
+    "counter": "some of it needs to move",
+    "veto": "it breaks a hard limit",
+}
+
+
+def _pct(value: float) -> str:
+    return f"{round(value * 100)} percent"
+
+
+def _moves(circle: Circle, before: Allocation, after: Allocation) -> list[str]:
+    """Each task that changed hands, in words: "Weekend visit (Sat) from Amina to Rian"."""
+    names = {p.id: p.name for p in circle.principals}
+    out: list[str] = []
+    for task_id, pid in sorted(after.assignments.items()):
+        was = before.assignments.get(task_id)
+        if was == pid:
+            continue
+        task = circle.task(task_id)
+        label = f"{task.title} ({task.weekday})" if task else task_id
+        out.append(
+            f"{label} from {names.get(was, 'nobody')} to {names.get(pid, pid)}"
+        )
+    return out
 
 
 class NegotiationState:
@@ -59,12 +94,14 @@ class NegotiationState:
         circle: Circle,
         max_rounds: int = MAX_ROUNDS,
         transport: str = "local",
+        ledger: Ledger | None = None,
     ) -> None:
         self.circle = circle
         self.max_rounds = max_rounds
         self.transport = transport
         self.round_number = 0
         self.tasks_by_id = {t.id: t for t in circle.tasks}
+        self.ledger = ledger or Ledger(circle.period)
 
         self.allocation: Allocation | None = None
         self.report: FairnessReport | None = None
@@ -83,11 +120,20 @@ class NegotiationState:
         self.settled = False
         self.exhausted = False
 
-        self.convener = build_convener_agent()
+        # The envelope judges each action against the rota as it stands at that
+        # moment: the best legal split found so far.
+        self.authority = AuthorityGuard(
+            ledger=self.ledger,
+            context=self.envelope_context,
+            on_escalation=self.escalations.append,
+            echo=True,
+        )
+        self.convener = build_convener_agent(hooks=[self.authority])
 
-        # Over A2A each principal already runs in its own process, so no local
-        # agents are built here. That is the point: the Convener can only reach
-        # them across a boundary it does not control.
+        # Over A2A each principal already runs in its own process, with its own
+        # privacy guard and its own private ledger, so no local agents are built
+        # here. That is the point: the Convener can only reach them across a
+        # boundary it does not control.
         if transport == "a2a":
             from shoulder.a2a.client import A2ATransport, reset_wire_log
 
@@ -97,8 +143,21 @@ class NegotiationState:
         else:
             self.a2a = None
             self.principal_agents = {
-                p.id: build_principal_agent(p) for p in circle.principals
+                p.id: build_principal_agent(p, ledger=self.ledger, echo=True)
+                for p in circle.principals
             }
+
+    def envelope_context(self) -> EnvelopeContext | None:
+        allocation = self.best_allocation or self.allocation
+        report = self.best_report or self.report
+        if allocation is None or report is None:
+            return None
+        return EnvelopeContext(
+            circle=self.circle,
+            allocation=allocation,
+            report=report,
+            round_number=self.round_number,
+        )
 
     def consider(self, allocation: Allocation, report: FairnessReport) -> None:
         """Keep this split if it is the best legal one we have found."""
@@ -158,8 +217,19 @@ class ProposeNode(_Node):
                 "Built an opening split from everyone's stated availability, "
                 "balanced against declared capacity."
             )
+            s.ledger.record(
+                "seeded_rota",
+                f"Drew up an opening split of {len(s.allocation.assignments)} of "
+                f"{len(s.circle.tasks)} tasks from everyone's stated availability.",
+                justification=(
+                    "A first draft is routine. It respects every stated limit, and "
+                    "nothing stands until each person's agent has seen their share."
+                ),
+                round_number=1,
+            )
         else:
             assert s.allocation is not None and s.report is not None
+            previous = s.allocation
             proposed = revise_allocation(
                 s.convener,
                 s.circle,
@@ -167,6 +237,22 @@ class ProposeNode(_Node):
                 s.report,
                 s.critiques,
                 s.round_number,
+            )
+            moves = _moves(s.circle, previous, proposed)
+            s.ledger.record(
+                "proposed_moves",
+                f"Suggested {len(moves)} move{'s' if len(moves) != 1 else ''}: "
+                f"{'; '.join(moves)}."
+                if moves
+                else "Looked for a move that would even out the load and found none "
+                "worth making.",
+                justification=(
+                    "Suggesting moves inside everyone's stated limits is routine. "
+                    "Each one is checked against those limits and by the fairness "
+                    "engine before it is kept."
+                ),
+                round_number=s.round_number,
+                details={"rationale": proposed.rationale, "moves": moves},
             )
             # The model proposes. This decides what is allowed to stand.
             s.allocation, corrections = repair_allocation(s.circle, proposed)
@@ -176,6 +262,15 @@ class ProposeNode(_Node):
             )
             for c in corrections:
                 print(f"  [repair]   {c}")
+                s.ledger.record(
+                    "reversed_move",
+                    f"Put back a suggested move that broke a stated limit: {c}.",
+                    justification=(
+                        "A rota that breaks someone's stated limit never reaches "
+                        "the family. This check is a rule, not a judgement."
+                    ),
+                    round_number=s.round_number,
+                )
 
             # Hill climb. A round is allowed to explore a worse split, but the
             # working rota does not keep it. Without this the negotiation can
@@ -193,6 +288,14 @@ class ProposeNode(_Node):
                 s.attempts.append(
                     f"Round {s.round_number}: those moves made the split less "
                     f"even, so they were not kept."
+                )
+                s.ledger.record(
+                    "kept_better_split",
+                    f"Tried those moves and they made the load less even "
+                    f"({_pct(trial.max_deviation)} against "
+                    f"{_pct(s.best_report.max_deviation)}), so kept the earlier split.",
+                    justification="The working rota only ever gets fairer.",
+                    round_number=s.round_number,
                 )
                 assert s.best_allocation is not None
                 s.allocation = s.best_allocation.model_copy(
@@ -230,6 +333,24 @@ class CritiqueNode(_Node):
             s.critiques.append(critique)
             print(f"  [critique] {principal.name}: {critique.verdict} "
                   f"({critique.reason_class})")
+            said = f' "{critique.message}"' if critique.message else ""
+            s.ledger.record(
+                "asked_for_view",
+                f"Asked {principal.name}'s agent whether this share works: "
+                f"{_VERDICT_WORDS[critique.verdict]}.{said}",
+                actor=f"agent:{principal.id}",
+                justification=(
+                    "Nothing stands until the person it lands on has had their say, "
+                    "through their own agent."
+                ),
+                round_number=s.round_number,
+                details={
+                    "principal_id": principal.id,
+                    "verdict": critique.verdict,
+                    "reason_class": critique.reason_class,
+                    "contested_task_ids": critique.contested_task_ids,
+                },
+            )
 
 
 class EvaluateNode(_Node):
@@ -259,11 +380,35 @@ class EvaluateNode(_Node):
               f"violations={len(s.report.hard_violations)} "
               f"unassigned={len(s.report.unassigned_tasks)} "
               f"deviation={s.report.max_deviation}")
+        s.ledger.record(
+            "measured_fairness",
+            f"Measured round {s.round_number}: {s.report.headline()} The worst "
+            f"deviation is {_pct(s.report.max_deviation)} against a limit of "
+            f"{_pct(FAIRNESS_TOLERANCE)}.",
+            justification=(
+                "Fairness is computed by a fixed rule, never estimated by a model. "
+                "Same inputs, same answer, every time."
+            ),
+            round_number=s.round_number,
+            details={
+                "max_deviation": s.report.max_deviation,
+                "proportional": s.report.proportional,
+                "envy_free": s.report.envy_free,
+            },
+        )
 
 
 class SettleNode(_Node):
     def run(self) -> None:
+        s = self.state
         print("  [settle]   invariant holds, rota published")
+        s.ledger.record(
+            "published_rota",
+            f"Published the rota for {s.circle.period}. Every share is within the "
+            f"fairness limit.",
+            justification="A fair rota inside everyone's limits is routine to publish.",
+            round_number=s.round_number,
+        )
 
 
 class EscalateNode(_Node):
@@ -276,10 +421,37 @@ class EscalateNode(_Node):
         allocation = s.best_allocation or s.allocation
         report = s.best_report or s.report
         assert allocation is not None and report is not None
+
+        # One chance to act beyond moving tasks. Anything it reaches for passes
+        # through the authority envelope, and whatever is not its to do comes
+        # back as a card of its own, appended to s.escalations by the hook.
+        queue_position = len(s.escalations)
+        cards_before = len(s.authority.cards)
+        remedy = attempt_remedies(s.convener, s.circle, allocation, report)
+        if remedy:
+            print(f"  [remedy]   {remedy}")
+        for raised in s.authority.cards[cards_before:]:
+            s.attempts.append(
+                "Stopped short of an action that is the family's call, and raised "
+                f"it as its own decision: {raised.headline}"
+            )
+
         card = write_escalation(
             s.convener, s.circle, allocation, report, s.critiques, s.attempts
         )
-        s.escalations.append(card)
+        # The fairness question is the one the family came for, so it leads the
+        # queue; anything the envelope raised follows it.
+        s.escalations.insert(queue_position, card)
+        s.ledger.record(
+            "raised_escalation",
+            f"Handed a decision to the family: {card.headline}",
+            justification=(
+                "When a fair split cannot be reached inside everyone's limits, the "
+                "choice belongs to the people it affects."
+            ),
+            round_number=s.round_number,
+            details={"escalation_id": card.id, "kind": card.kind},
+        )
         print(f"  [escalate] {card.kind}: {card.headline}")
 
 
@@ -314,10 +486,17 @@ def negotiate(
     circle: Circle,
     max_rounds: int = MAX_ROUNDS,
     transport: str = "local",
+    ledger: Ledger | None = None,
 ) -> NegotiationOutcome:
-    """Run one full negotiation for a circle and return everything it produced."""
+    """Run one full negotiation for a circle and return everything it produced.
+
+    Pass a `ledger` to keep the record of what was done unattended; the CLI
+    persists it and writes the family's view to fixtures.
+    """
     set_active_circle(circle)
-    state = NegotiationState(circle, max_rounds=max_rounds, transport=transport)
+    state = NegotiationState(
+        circle, max_rounds=max_rounds, transport=transport, ledger=ledger
+    )
     graph = build_negotiation_graph(state)
     graph(
         f"Negotiate the care rota for {circle.care_recipient} "
