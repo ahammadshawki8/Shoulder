@@ -84,7 +84,7 @@ Target finish: **Sun 14 Sep, midnight Dhaka** - that leaves ~6 hours of buffer. 
 - [ ] Settled rota persisted to SQLite
 
 **Definition of Done - Ashfaq must be able to verify all of these without asking:**
-1. `make demo` runs from a clean clone and prints a full negotiation to the terminal
+1. `python -m shoulder.cli` runs a full negotiation and prints it to the terminal. `make` is NOT installed on Shawki's machine, so the Makefile is a convenience only, never a requirement.
 2. It produces a settled rota **and** at least one escalation card
 3. **`fixtures/` contains committed JSON from real runs** - every rota, fairness report, escalation
    card and negotiation transcript the UI will need. *Ashfaq builds screens against these, so he is
@@ -101,7 +101,7 @@ Start by reading `CLAUDE.md` end to end, especially **§1 Hard rules** and **§8
 Build toward the storyboard in §8 - it defines what the screens must show.
 
 **Tier 4 - Guardrails · DO NOT CUT THIS TIER**
-- [ ] Privacy hook: blocks any `tier: private` fact on outbound A2A messages
+- [ ] Privacy hook: blocks any `tier: private` fact on outbound A2A messages. The A2A transport is live, so there is a real outbound surface to hook. See `shoulder/a2a/client.py` and the wire log it writes.
 - [ ] Authority-envelope hook: an out-of-envelope action becomes an escalation card, not an error
 - [ ] Ledger: every unattended action recorded with timestamp + justification
 - [ ] **A runnable script that visibly demonstrates the privacy hook catching a deliberate leak attempt.** This is the most persuasive five seconds of the video - it must be showable on screen.

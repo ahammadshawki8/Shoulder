@@ -1,4 +1,4 @@
-"""The negotiation, as a Strands Graph.
+﻿"""The negotiation, as a Strands Graph.
 
 The graph is genuinely cyclic: propose, critique, evaluate, and back to propose
 until the fairness invariant holds or the rounds run out. Strands supports this
@@ -30,7 +30,11 @@ from shoulder.agents.convener import (
     seed_allocation,
     write_escalation,
 )
-from shoulder.agents.principal import build_principal_agent, critique_allocation
+from shoulder.agents.principal import (
+    build_critique_prompt,
+    build_principal_agent,
+    critique_allocation,
+)
 from shoulder.config import MAX_ROUNDS
 from shoulder.models.core import (
     Allocation,
@@ -50,9 +54,15 @@ class NegotiationState:
     The graph controls what runs next; this holds what everyone is arguing about.
     """
 
-    def __init__(self, circle: Circle, max_rounds: int = MAX_ROUNDS) -> None:
+    def __init__(
+        self,
+        circle: Circle,
+        max_rounds: int = MAX_ROUNDS,
+        transport: str = "local",
+    ) -> None:
         self.circle = circle
         self.max_rounds = max_rounds
+        self.transport = transport
         self.round_number = 0
         self.tasks_by_id = {t.id: t for t in circle.tasks}
 
@@ -74,9 +84,21 @@ class NegotiationState:
         self.exhausted = False
 
         self.convener = build_convener_agent()
-        self.principal_agents = {
-            p.id: build_principal_agent(p) for p in circle.principals
-        }
+
+        # Over A2A each principal already runs in its own process, so no local
+        # agents are built here. That is the point: the Convener can only reach
+        # them across a boundary it does not control.
+        if transport == "a2a":
+            from shoulder.a2a.client import A2ATransport, reset_wire_log
+
+            reset_wire_log()
+            self.principal_agents = {}
+            self.a2a = A2ATransport([p.id for p in circle.principals])
+        else:
+            self.a2a = None
+            self.principal_agents = {
+                p.id: build_principal_agent(p) for p in circle.principals
+            }
 
     def consider(self, allocation: Allocation, report: FairnessReport) -> None:
         """Keep this split if it is the best legal one we have found."""
@@ -191,14 +213,20 @@ class CritiqueNode(_Node):
 
         s.critiques = []
         for principal in s.circle.principals:
-            critique = critique_allocation(
-                s.principal_agents[principal.id],
-                principal,
-                s.allocation,
-                s.tasks_by_id,
-                brief,
-                s.round_number,
-            )
+            if s.a2a is not None:
+                prompt = build_critique_prompt(
+                    principal, s.allocation, s.tasks_by_id, brief, s.round_number
+                )
+                critique = s.a2a.critique(principal, prompt, s.round_number)
+            else:
+                critique = critique_allocation(
+                    s.principal_agents[principal.id],
+                    principal,
+                    s.allocation,
+                    s.tasks_by_id,
+                    brief,
+                    s.round_number,
+                )
             s.critiques.append(critique)
             print(f"  [critique] {principal.name}: {critique.verdict} "
                   f"({critique.reason_class})")
@@ -282,10 +310,14 @@ def build_negotiation_graph(state: NegotiationState):
     return builder.build()
 
 
-def negotiate(circle: Circle, max_rounds: int = MAX_ROUNDS) -> NegotiationOutcome:
+def negotiate(
+    circle: Circle,
+    max_rounds: int = MAX_ROUNDS,
+    transport: str = "local",
+) -> NegotiationOutcome:
     """Run one full negotiation for a circle and return everything it produced."""
     set_active_circle(circle)
-    state = NegotiationState(circle, max_rounds=max_rounds)
+    state = NegotiationState(circle, max_rounds=max_rounds, transport=transport)
     graph = build_negotiation_graph(state)
     graph(
         f"Negotiate the care rota for {circle.care_recipient} "

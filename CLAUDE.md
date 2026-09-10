@@ -39,7 +39,9 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
 - Python **3.11** via the project venv (`py -3.11`). Never the system Python 3.14 (wheel breakage risk).
 - Never claim something works without running it and showing the output. Evidence before assertions.
 - No secrets in the repo. AWS credentials come from the environment / `~/.aws`.
-- The repo must stay publicly runnable: seeded demo data, `make demo` works from a clean clone.
+- The repo must stay publicly runnable from a clean clone with seeded demo data. Use
+  `python -m shoulder.cli`. **`make` is not installed on Shawki's machine**, so the Makefile is a
+  convenience only and must never be the documented path.
 - MIT license file at repo root, detectable by GitHub's About panel. This is a submission requirement.
 
 **Git and authorship rules:**
@@ -403,8 +405,8 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 
 ### Tier 1 - Core agents
 - [x] `Principal` data model with privacy tiers
-- [ ] Principal Agent + `A2AServer`, agent card served
-- [x] Convener with `A2AAgent` clients; can reach all three principals
+- [x] Principal Agent + `A2AServer`, agent card served
+- [x] Convener reaches all three principals over A2A (see note: the client is `A2AClientToolProvider` from strands-agents-tools, not `A2AAgent`)
 - [x] One propose → critique → response round works end-to-end (ugly is fine)
 
 ### Tier 2 - Fairness engine
@@ -544,10 +546,28 @@ writes `fixtures/`.
   Bedrock console if it is wanted later; nothing depends on it.
 - AWS CLI was already installed (2.36.33). `gh` is authenticated as ahammadshawki8.
 
-**Design decisions taken during the build, with reasons:**
-- **A2A is not wired yet.** Principal agents run in process. The privacy boundary is real and lives
-  in the `Principal` to `Position` projection, so adding A2A is a change of transport rather than a
-  redesign. Tier 4 should add it.
+**A2A is wired and working.** Each sibling runs in their own process, on their own port, serving
+their own agent card. Verified end to end with `python -m shoulder.a2a.demo`: three servers start,
+twelve JSON critiques cross the wire, the run exits 0, and no private constraint appears in any
+captured payload.
+
+Important correction to what the docs suggest: **`A2AAgent` does not exist in strands-agents
+1.55.0.** `strands.multiagent.a2a` ships the server side only (`A2AServer`, `StrandsA2AExecutor`,
+`AgentFactory`). The client is `A2AClientToolProvider` from **strands-agents-tools**
+(`strands_tools.a2a_client`), and `a2a_send_message` is a **coroutine**, so it must be awaited on a
+worker thread because the graph node calling it already sits inside a running event loop. Getting
+this wrong silently logs `<coroutine object ...>` as the reply rather than raising.
+
+Structured output does not cross A2A, so principal agents get a `wire_format=True` system prompt
+that makes them answer in strict JSON, and `shoulder/a2a/client.py` parses it back into a `Critique`.
+Both transports build the same prompt via `build_critique_prompt`, so the A2A run tests what the
+local run does.
+
+`shoulder/a2a/client.py` captures every message that crossed the wire into
+`fixtures/a2a_wire_log.json`. **That file is what Tier 7's adversarial privacy eval should assert
+against**, and it is the real outbound surface for Ashfaq's Tier 4 privacy hook.
+
+**Other design decisions, with reasons:**
 - **The Convener proposes moves, not whole allocations.** Re-emitting all 26 assignments each round
   made the split worse every time (deviation ran 0.229, 0.837, 0.999). Limiting it to at most four
   named moves fixed the drift.
@@ -568,5 +588,20 @@ violations, deviation 0.229 against a 0.15 tolerance. That gap is the point: the
 everything it can and the remainder is a human decision. `tests/test_fairness.py` asserts this exact
 shape so a future change cannot silently destroy the demo.
 
+**Commands that work today:**
+
+```
+python -m shoulder.cli --dry     deterministic fairness engine, no model calls, no network
+python -m shoulder.cli           full negotiation in process
+python -m shoulder.a2a.demo      full negotiation across three A2A servers, writes the wire log
+python -m pytest                 20 tests, no AWS needed
+```
+
+**Git identity was rewritten once.** Two commits were made with the wrong author email
+(`srot.dev@gmail.com`, picked up from session context). All four commits were rewritten to
+`ahammadshawki8 <ahammadshawki8@users.noreply.github.com>` and force pushed. Do not repeat this:
+the identity is pinned in section 1.
+
 - **Next:** Tier 4 (privacy hook, authority envelope hook, ledger) is Ashfaq's block per
-  `TaskDivision.md`. Fixtures are committed so the UI can be built with no AWS access at all.
+  `TaskDivision.md`. Fixtures are committed so the UI can be built with no AWS access at all, and
+  the A2A wire log gives the privacy hook a real surface to guard.

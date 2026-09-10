@@ -84,13 +84,42 @@ def _public_block(principal: Principal) -> str:
     return "\n".join(lines) if lines else "- Nothing stated publicly."
 
 
-def build_principal_agent(principal: Principal) -> Agent:
-    """Construct the agent that speaks for one person."""
+WIRE_FORMAT = """
+
+ANSWERING ACROSS THE WIRE
+
+You are reachable over a network. Structured output is not available, so reply
+with a single JSON object and nothing else. No prose before it, no prose after
+it, no code fence.
+
+{{
+  "verdict": "accept" | "counter" | "veto",
+  "reason_class": "none" | "hard_constraint" | "over_capacity" |
+                  "task_type_refused" | "distance" | "unfair_share",
+  "contested_task_ids": ["T04"],
+  "message": "one short neutral sentence"
+}}
+
+Everything you put in `message` leaves this machine and is read by the whole
+family. It is the field most likely to betray something private, so write it as
+though it will be quoted back to you. No emojis, no em dashes.
+"""
+
+
+def build_principal_agent(principal: Principal, wire_format: bool = False) -> Agent:
+    """Construct the agent that speaks for one person.
+
+    `wire_format` is for the A2A transport, where the agent must answer in JSON
+    because structured output does not cross the protocol boundary.
+    """
+    prompt = SYSTEM_PROMPT.format(
+        name=principal.name, private_block=_private_block(principal)
+    )
+    if wire_format:
+        prompt += WIRE_FORMAT
     return Agent(
         model=BedrockModel(model_id=REASONING_MODEL, region_name=REGION),
-        system_prompt=SYSTEM_PROMPT.format(
-            name=principal.name, private_block=_private_block(principal)
-        ),
+        system_prompt=prompt,
         callback_handler=None,
     )
 
@@ -121,20 +150,24 @@ def redact(text: str, principal: Principal) -> tuple[str, bool]:
     return cleaned, leaked
 
 
-def critique_allocation(
-    agent: Agent,
+def build_critique_prompt(
     principal: Principal,
     allocation: Allocation,
     tasks_by_id: dict[str, CareTask],
     fairness_summary: str,
     round_number: int,
-) -> Critique:
-    """Ask one principal's agent what it thinks of the proposed share."""
+) -> str:
+    """The question put to a principal's agent.
+
+    Shared by both transports so that running over A2A asks exactly the same
+    thing as running in process. If the two ever drift, the privacy eval stops
+    testing what the demo actually does.
+    """
     my_task_ids = allocation.bundle(principal.id)
     my_tasks = [tasks_by_id[t] for t in my_task_ids if t in tasks_by_id]
-
     public = _public_block(principal)
-    prompt = f"""Round {round_number}. Here is what the Convener proposes for you.
+
+    return f"""Round {round_number}. Here is what the Convener proposes for you.
 
 YOUR SHARE ({len(my_tasks)} tasks)
 {_describe_bundle(my_tasks)}
@@ -149,6 +182,20 @@ Judge this share. If a hard constraint of yours is broken, veto it and name the
 task ids. If it is close but wrong, counter. If you can do it, accept, even if
 someone else is carrying more than you: that is not yours to fix.
 """
+
+
+def critique_allocation(
+    agent: Agent,
+    principal: Principal,
+    allocation: Allocation,
+    tasks_by_id: dict[str, CareTask],
+    fairness_summary: str,
+    round_number: int,
+) -> Critique:
+    """Ask one principal's agent what it thinks of the proposed share, in process."""
+    prompt = build_critique_prompt(
+        principal, allocation, tasks_by_id, fairness_summary, round_number
+    )
 
     def _ask() -> Critique:
         return agent.structured_output(Critique, prompt)

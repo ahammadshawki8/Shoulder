@@ -1,4 +1,4 @@
-# Shoulder
+﻿# Shoulder
 
 **Nobody should shoulder it alone.**
 
@@ -61,6 +61,9 @@ flowchart LR
 
 ### The privacy boundary
 
+Each sibling runs in **their own process, on their own port, serving their own A2A agent card**. The
+Convener can only reach them across a network boundary it does not control.
+
 A `Principal` holds everything a person told their own agent. A `Position` is the only thing allowed
 to leave it. A private constraint still shapes the negotiation, but its wording and its reason are
 dropped:
@@ -70,6 +73,10 @@ dropped:
 
 The negotiation routes around her constraint. Nobody learns why. That separation is structural, not
 a prompt instruction: `Position` has no field that could carry a reason.
+
+And it is checked rather than asserted. `python -m shoulder.a2a.demo` captures every message that
+crossed the wire to `fixtures/a2a_wire_log.json`, then searches those payloads for any private
+constraint. A privacy claim nobody tests is just a sentence in a README.
 
 ### Fairness is computed, never judged
 
@@ -115,8 +122,9 @@ python -m venv .venv
 
 pip install -e ".[dev]"
 
-python -m shoulder.cli --dry    # deterministic fairness engine, no model calls
-python -m shoulder.cli          # full multi-agent negotiation
+python -m shoulder.cli --dry    # deterministic fairness engine, no model calls, no network
+python -m shoulder.cli          # full multi-agent negotiation, in process
+python -m shoulder.a2a.demo     # the same negotiation across three live A2A servers
 pytest                          # 20 tests, no AWS needed
 ```
 
@@ -135,6 +143,7 @@ fairness report and the escalation cards.
 | `shoulder/agents/principal.py` | The agent that speaks for one person and keeps their secrets. |
 | `shoulder/agents/convener.py` | Proposes, revises, repairs, and writes escalation cards. |
 | `shoulder/graph/negotiation.py` | The negotiation as a cyclic Strands Graph. |
+| `shoulder/a2a/` | Serving each sibling over the A2A protocol, and the wire log the privacy claim is tested against. |
 | `shoulder/seed/demo_circle.py` | The demo family. Entirely fictional. |
 | `tests/` | Tests for the engine, the privacy boundary and the demo scenario. |
 
