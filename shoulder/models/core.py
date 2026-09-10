@@ -299,10 +299,41 @@ class Critique(_Lenient):
     message: str = ""
 
 
+EffectKind = Literal[
+    "accept_split",
+    "paid_help",
+    "remove_tasks",
+    "decline_action",
+    "none",
+]
+
+
+class OptionEffect(_Lenient):
+    """What choosing an option would actually do, in terms code can apply.
+
+    This is what makes a human decision reusable. The label is prose for the
+    family; the effect is the part the fairness engine can price today and the
+    precedent system can apply next month without asking again.
+
+      accept_split    the current split stands despite the spread
+      paid_help       paid help covers `task_ids`
+      remove_tasks    `task_ids` come off the plan
+      decline_action  do not take `action` (and do not suggest it again)
+      none            nothing the system can apply, like a conversation
+    """
+
+    kind: EffectKind = "none"
+    task_ids: list[str] = Field(default_factory=list)
+    action: str = ""
+    principal_id: str = ""
+
+
 class EscalationOption(_Lenient):
     label: str
     consequence: str
+    # Computed by the fairness engine from `effect`, never taken from a model.
     fairness_delta: float = 0.0
+    effect: OptionEffect | None = None
 
 
 class EscalationCard(_Lenient):
@@ -326,8 +357,56 @@ class EscalationCard(_Lenient):
     )
 
 
+class Resolution(BaseModel):
+    """A human's answer to an escalation card."""
+
+    escalation_id: str
+    period: str
+    option_index: int
+    option_label: str
+    decided_by: str
+    decided_at: str
+    note: str = ""
+
+
+PrecedentKind = Literal["paid_help", "remove_tasks", "accept_split", "decline_action"]
+
+
+class Precedent(BaseModel):
+    """A resolved escalation turned into a rule the agent applies without asking.
+
+    Built by code from the effect of the option a human chose, never written by a
+    model. `text` is the decision in the family's terms. `provenance()` is how
+    the agent cites it back to them every time it is applied.
+
+    Recurring tasks are matched by title, because task ids restart each period
+    and "the Wednesday overnight stay" is what the family actually decided about.
+    """
+
+    id: str
+    kind: PrecedentKind
+    text: str
+    task_titles: list[str] = Field(default_factory=list)
+    action: str = ""
+    principal_id: str = ""
+    max_deviation: float | None = None
+    source_escalation_id: str
+    period_decided: str
+    decided_by: str
+    decided_at: str
+    active: bool = True
+
+    def provenance(self) -> str:
+        # Stored in UTC, shown in the reader's local time: a family decides on
+        # their own date, not Greenwich's.
+        when = datetime.fromisoformat(self.decided_at).astimezone()
+        return f"{self.decided_by} decided this on {when.day} {when.strftime('%b')}"
+
+
 LedgerKind = Literal[
     "seeded_rota",
+    "applied_precedent",
+    "noted_change",
     "proposed_moves",
     "reversed_move",
     "kept_better_split",
@@ -380,3 +459,7 @@ class NegotiationOutcome(BaseModel):
     final_allocation: Allocation | None = None
     final_report: FairnessReport | None = None
     escalations: list[EscalationCard] = Field(default_factory=list)
+    # Tasks taken out of the family's split by a precedent, and by which one.
+    covered: dict[str, str] = Field(default_factory=dict)
+    applied_precedents: list[str] = Field(default_factory=list)
+    settled_by_precedent: str | None = None

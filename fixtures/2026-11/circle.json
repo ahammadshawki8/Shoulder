@@ -1,0 +1,420 @@
+{
+  "id": "rahman-family",
+  "care_recipient": "Nasrin, 74, their mother",
+  "period": "2026-11",
+  "principals": [
+    {
+      "id": "amina",
+      "name": "Amina",
+      "capacity": 0.85,
+      "distance_km": 4.0,
+      "constraints": [
+        {
+          "id": "amina-work",
+          "summary": "Cannot do anything before 6pm on Tuesdays.",
+          "tier": "shareable",
+          "hardness": "hard",
+          "reason": null,
+          "blocks_weekdays": [
+            "Tue"
+          ],
+          "blocks_task_types": [],
+          "max_tasks_per_period": null,
+          "requires_remote": false,
+          "applies_to_remote": true,
+          "sensitive_terms": []
+        },
+        {
+          "id": "amina-mornings",
+          "summary": "Prefers morning appointments where possible.",
+          "tier": "shareable",
+          "hardness": "soft",
+          "reason": null,
+          "blocks_weekdays": [],
+          "blocks_task_types": [],
+          "max_tasks_per_period": null,
+          "requires_remote": false,
+          "applies_to_remote": true,
+          "sensitive_terms": []
+        }
+      ],
+      "aversions": {
+        "admin": 1.2,
+        "finance": 1.3
+      },
+      "endpoint": null
+    },
+    {
+      "id": "rian",
+      "name": "Rian",
+      "capacity": 0.6,
+      "distance_km": 310.0,
+      "constraints": [
+        {
+          "id": "rian-work",
+          "summary": "Works Monday to Thursday and cannot travel on those days. Can still do paperwork and money any day.",
+          "tier": "shareable",
+          "hardness": "hard",
+          "reason": null,
+          "blocks_weekdays": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu"
+          ],
+          "blocks_task_types": [],
+          "max_tasks_per_period": null,
+          "requires_remote": false,
+          "applies_to_remote": false,
+          "sensitive_terms": []
+        },
+        {
+          "id": "rian-trips",
+          "summary": "Can make at most six commitments in a month.",
+          "tier": "shareable",
+          "hardness": "hard",
+          "reason": null,
+          "blocks_weekdays": [],
+          "blocks_task_types": [],
+          "max_tasks_per_period": 6,
+          "requires_remote": false,
+          "applies_to_remote": true,
+          "sensitive_terms": []
+        }
+      ],
+      "aversions": {
+        "admin": 0.7,
+        "finance": 0.6,
+        "night": 1.4
+      },
+      "endpoint": null
+    },
+    {
+      "id": "farah",
+      "name": "Farah",
+      "capacity": 0.7,
+      "distance_km": 12.0,
+      "constraints": [
+        {
+          "id": "farah-treatment",
+          "summary": "Unavailable Friday and Saturday.",
+          "tier": "private",
+          "hardness": "hard",
+          "reason": "Chemotherapy infusions on Friday, recovering all Saturday. The cycle was extended by two months. She has not told her brother or sister and does not intend to.",
+          "blocks_weekdays": [
+            "Fri",
+            "Sat"
+          ],
+          "blocks_task_types": [],
+          "max_tasks_per_period": null,
+          "requires_remote": false,
+          "applies_to_remote": true,
+          "sensitive_terms": [
+            "chemo",
+            "infusion",
+            "cancer",
+            "oncology",
+            "oncologist",
+            "tumour",
+            "tumor",
+            "medical",
+            "treatment",
+            "diagnos",
+            "illness",
+            "hospital",
+            "health"
+          ]
+        },
+        {
+          "id": "farah-nights",
+          "summary": "Cannot do overnight care.",
+          "tier": "private",
+          "hardness": "hard",
+          "reason": "Neutropenia risk means she cannot be the only responsible adult overnight.",
+          "blocks_weekdays": [],
+          "blocks_task_types": [
+            "night"
+          ],
+          "max_tasks_per_period": null,
+          "requires_remote": false,
+          "applies_to_remote": true,
+          "sensitive_terms": [
+            "neutropeni",
+            "immunocompromised",
+            "immune system",
+            "white blood cell",
+            "infection risk"
+          ]
+        }
+      ],
+      "aversions": {
+        "admin": 0.9,
+        "transport": 0.9,
+        "visit": 0.8
+      },
+      "endpoint": null
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Nephrology appointment",
+      "type": "appointment",
+      "on_date": "2026-11-05",
+      "weekday": "Thu",
+      "duration_min": 150,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T02",
+      "title": "Pharmacy run and pill organiser",
+      "type": "medication",
+      "on_date": "2026-11-06",
+      "weekday": "Fri",
+      "duration_min": 75,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T03",
+      "title": "Grocery delivery and kitchen reset",
+      "type": "household",
+      "on_date": "2026-11-07",
+      "weekday": "Sat",
+      "duration_min": 120,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T04",
+      "title": "Sunday overnight stay",
+      "type": "night",
+      "on_date": "2026-11-01",
+      "weekday": "Sun",
+      "duration_min": 540,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T05",
+      "title": "Insurance renewal paperwork",
+      "type": "admin",
+      "on_date": "2026-11-02",
+      "weekday": "Mon",
+      "duration_min": 90,
+      "requires_presence": false,
+      "notes": null
+    },
+    {
+      "id": "T06",
+      "title": "Weekly visit and company",
+      "type": "visit",
+      "on_date": "2026-11-03",
+      "weekday": "Tue",
+      "duration_min": 180,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T07",
+      "title": "Physiotherapy transport",
+      "type": "transport",
+      "on_date": "2026-11-04",
+      "weekday": "Wed",
+      "duration_min": 120,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T08",
+      "title": "Pill organiser refill",
+      "type": "medication",
+      "on_date": "2026-11-12",
+      "weekday": "Thu",
+      "duration_min": 60,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T09",
+      "title": "Pension office forms",
+      "type": "admin",
+      "on_date": "2026-11-13",
+      "weekday": "Fri",
+      "duration_min": 60,
+      "requires_presence": false,
+      "notes": null
+    },
+    {
+      "id": "T10",
+      "title": "Weekend visit",
+      "type": "visit",
+      "on_date": "2026-11-14",
+      "weekday": "Sat",
+      "duration_min": 180,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T11",
+      "title": "Utility and care bills",
+      "type": "finance",
+      "on_date": "2026-11-08",
+      "weekday": "Sun",
+      "duration_min": 45,
+      "requires_presence": false,
+      "notes": null
+    },
+    {
+      "id": "T12",
+      "title": "Bathroom rail installation visit",
+      "type": "household",
+      "on_date": "2026-11-09",
+      "weekday": "Mon",
+      "duration_min": 150,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T13",
+      "title": "Wednesday overnight stay",
+      "type": "night",
+      "on_date": "2026-11-11",
+      "weekday": "Wed",
+      "duration_min": 540,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T14",
+      "title": "Diabetes clinic appointment",
+      "type": "appointment",
+      "on_date": "2026-11-19",
+      "weekday": "Thu",
+      "duration_min": 165,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T15",
+      "title": "Pill organiser refill",
+      "type": "medication",
+      "on_date": "2026-11-20",
+      "weekday": "Fri",
+      "duration_min": 60,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T16",
+      "title": "Saturday overnight stay",
+      "type": "night",
+      "on_date": "2026-11-21",
+      "weekday": "Sat",
+      "duration_min": 540,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T17",
+      "title": "Weekend visit",
+      "type": "visit",
+      "on_date": "2026-11-15",
+      "weekday": "Sun",
+      "duration_min": 180,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T18",
+      "title": "Transport to eye test",
+      "type": "transport",
+      "on_date": "2026-11-16",
+      "weekday": "Mon",
+      "duration_min": 105,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T19",
+      "title": "Care allowance claim",
+      "type": "admin",
+      "on_date": "2026-11-17",
+      "weekday": "Tue",
+      "duration_min": 75,
+      "requires_presence": false,
+      "notes": null
+    },
+    {
+      "id": "T20",
+      "title": "Deep clean and laundry",
+      "type": "household",
+      "on_date": "2026-11-18",
+      "weekday": "Wed",
+      "duration_min": 150,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T21",
+      "title": "Thursday overnight stay",
+      "type": "night",
+      "on_date": "2026-11-26",
+      "weekday": "Thu",
+      "duration_min": 540,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T22",
+      "title": "Follow-up nephrology appointment",
+      "type": "appointment",
+      "on_date": "2026-11-27",
+      "weekday": "Fri",
+      "duration_min": 150,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T23",
+      "title": "Pharmacy account and receipts",
+      "type": "finance",
+      "on_date": "2026-11-28",
+      "weekday": "Sat",
+      "duration_min": 45,
+      "requires_presence": false,
+      "notes": null
+    },
+    {
+      "id": "T24",
+      "title": "Weekend visit",
+      "type": "visit",
+      "on_date": "2026-11-22",
+      "weekday": "Sun",
+      "duration_min": 180,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T25",
+      "title": "Pill organiser refill",
+      "type": "medication",
+      "on_date": "2026-11-23",
+      "weekday": "Mon",
+      "duration_min": 60,
+      "requires_presence": true,
+      "notes": null
+    },
+    {
+      "id": "T26",
+      "title": "Transport to physiotherapy",
+      "type": "transport",
+      "on_date": "2026-11-25",
+      "weekday": "Wed",
+      "duration_min": 120,
+      "requires_presence": true,
+      "notes": null
+    }
+  ]
+}

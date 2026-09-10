@@ -8,6 +8,8 @@ Three of the five nodes are deterministic. They are real graph nodes rather than
 helper functions because the fairness verdict has to sit inside the negotiation,
 not beside it: the model must not be able to route around the arithmetic.
 
+  recall     deterministic: what changed since last period, and every precedent
+             the family's past decisions created, applied with provenance
   propose    LLM, except round one which is a deterministic seed
   critique   LLM, one call per principal, each with only their own private view
   evaluate   deterministic, no model
@@ -42,8 +44,8 @@ from shoulder.agents.principal import (
     critique_allocation,
 )
 from shoulder.config import FAIRNESS_TOLERANCE, MAX_ROUNDS
-from shoulder.hooks.authority import AuthorityGuard, EnvelopeContext
-from shoulder.ledger import Ledger
+from shoulder.hooks.authority import AuthorityGuard, EnvelopeContext, decide, describe_done
+from shoulder.ledger import Ledger, private_scope
 from shoulder.models.core import (
     Allocation,
     Circle,
@@ -52,7 +54,9 @@ from shoulder.models.core import (
     FairnessReport,
     NegotiationOutcome,
     NegotiationRound,
+    Precedent,
 )
+from shoulder.precedent import accepting, recall
 from shoulder.tools.fairness import build_fairness_report, set_active_circle
 
 
@@ -95,13 +99,25 @@ class NegotiationState:
         max_rounds: int = MAX_ROUNDS,
         transport: str = "local",
         ledger: Ledger | None = None,
+        precedents: list[Precedent] | None = None,
+        changes: dict[str, tuple[list[str], list[str]]] | None = None,
+        models: dict[str, Any] | None = None,
     ) -> None:
+        # `full_circle` is every task this period. `circle` becomes what the
+        # family actually splits, once recall has taken out what precedents cover.
+        self.full_circle = circle
         self.circle = circle
         self.max_rounds = max_rounds
         self.transport = transport
         self.round_number = 0
         self.tasks_by_id = {t.id: t for t in circle.tasks}
         self.ledger = ledger or Ledger(circle.period)
+        self.precedents = list(precedents or [])
+        self.changes = changes or {}
+        models = models or {}
+        self.covered: dict[str, str] = {}
+        self.applied: list[str] = []
+        self.settled_by_precedent: str | None = None
 
         self.allocation: Allocation | None = None
         self.report: FairnessReport | None = None
@@ -126,9 +142,12 @@ class NegotiationState:
             ledger=self.ledger,
             context=self.envelope_context,
             on_escalation=self.escalations.append,
+            precedents=self.precedents,
             echo=True,
         )
-        self.convener = build_convener_agent(hooks=[self.authority])
+        self.convener = build_convener_agent(
+            hooks=[self.authority], model=models.get("convener")
+        )
 
         # Over A2A each principal already runs in its own process, with its own
         # privacy guard and its own private ledger, so no local agents are built
@@ -143,7 +162,9 @@ class NegotiationState:
         else:
             self.a2a = None
             self.principal_agents = {
-                p.id: build_principal_agent(p, ledger=self.ledger, echo=True)
+                p.id: build_principal_agent(
+                    p, ledger=self.ledger, model=models.get(p.id), echo=True
+                )
                 for p in circle.principals
             }
 
@@ -180,6 +201,9 @@ class NegotiationState:
             final_allocation=self.best_allocation or self.allocation,
             final_report=self.best_report or self.report,
             escalations=self.escalations,
+            covered=self.covered,
+            applied_precedents=self.applied,
+            settled_by_precedent=self.settled_by_precedent,
         )
 
 
@@ -202,6 +226,76 @@ class _Node(MultiAgentBase):
 
     def run(self) -> None:  # pragma: no cover - overridden
         raise NotImplementedError
+
+
+class RecallNode(_Node):
+    """Start from everything the family has already said. Deterministic.
+
+    Two kinds of memory come in here. What each person changed since last period
+    (their own session), and what the family decided last time (precedents).
+    Precedents that shape the load are applied before anyone negotiates, each
+    one checked against the authority envelope and written to the ledger with
+    the decision it rests on.
+    """
+
+    def run(self) -> None:
+        s = self.state
+        for pid, (public, private) in s.changes.items():
+            for change in public:
+                print(f"  [recall]   {change}")
+                s.ledger.record(
+                    "noted_change",
+                    f"Noted a change since last month: {change}",
+                    actor=f"agent:{pid}",
+                    justification=(
+                        "People's limits change. Nobody should have to start again "
+                        "each month to say so."
+                    ),
+                )
+            for change in private:
+                s.ledger.record(
+                    "noted_change",
+                    change,
+                    actor=f"agent:{pid}",
+                    scope=private_scope(pid),
+                    justification="This stays with your agent. Your family sees only the effect.",
+                )
+
+        if not s.precedents:
+            return
+        reduced, covered = recall(s.full_circle, s.precedents)
+        if not covered:
+            return
+
+        report = build_fairness_report(s.full_circle, seed_allocation(s.full_circle))
+        ctx = EnvelopeContext(s.full_circle, seed_allocation(s.full_circle), report, 0)
+        by_precedent: dict[str, list[str]] = {}
+        for task_id, p in covered.items():
+            by_precedent.setdefault(p.id, []).append(task_id)
+        for pid, task_ids in by_precedent.items():
+            p = next(x for x in s.precedents if x.id == pid)
+            tool = "arrange_paid_help" if p.kind == "paid_help" else "drop_task"
+            args = {"task_ids": task_ids} if tool == "arrange_paid_help" else {"task_id": task_ids[0]}
+            decision = decide(tool, args, ctx, s.precedents)
+            if not decision.allowed:
+                continue
+            summary = describe_done(tool, {"task_ids": task_ids}, ctx)
+            print(f"  [recall]   {summary} ({p.provenance()})")
+            s.ledger.record(
+                "applied_precedent",
+                summary,
+                justification=decision.why,
+                details={"precedent_id": p.id, "task_ids": task_ids},
+            )
+            for task_id in task_ids:
+                s.covered[task_id] = p.id
+            s.applied.append(p.id)
+
+        s.circle = reduced.model_copy(
+            update={"tasks": [t for t in s.full_circle.tasks if t.id not in s.covered]}
+        )
+        s.tasks_by_id = {t.id: t for t in s.circle.tasks}
+        set_active_circle(s.circle)
 
 
 class ProposeNode(_Node):
@@ -375,6 +469,28 @@ class EvaluateNode(_Node):
         s.settled = s.report.settled and not vetoed
         s.exhausted = (not s.settled) and s.round_number >= s.max_rounds
 
+        # Out of rounds, but the family has said before that a split this even
+        # may stand. Only after every round was tried, only with every stated
+        # limit intact, and only if nobody objects now.
+        best = s.best_report
+        if s.exhausted and not vetoed and best is not None:
+            accepted = accepting(s.precedents, best.max_deviation)
+            if accepted is not None:
+                s.settled, s.exhausted = True, False
+                s.settled_by_precedent = accepted.id
+                s.applied.append(accepted.id)
+                print(f"  [recall]   within what the family accepted "
+                      f"({accepted.provenance()}), publishing instead of asking")
+                s.ledger.record(
+                    "applied_precedent",
+                    f"Published the fairest split found without asking again. The "
+                    f"spread is {_pct(best.max_deviation)}, within what the family "
+                    f"already accepted.",
+                    justification=f"{accepted.provenance()}: {accepted.text}",
+                    round_number=s.round_number,
+                    details={"precedent_id": accepted.id},
+                )
+
         print(f"  [evaluate] proportional={s.report.proportional} "
               f"envy_free={s.report.envy_free} "
               f"violations={len(s.report.hard_violations)} "
@@ -401,6 +517,9 @@ class EvaluateNode(_Node):
 class SettleNode(_Node):
     def run(self) -> None:
         s = self.state
+        if s.settled_by_precedent:
+            print("  [settle]   rota published under a past decision")
+            return  # the precedent entry above already says what was published and why
         print("  [settle]   invariant holds, rota published")
         s.ledger.record(
             "published_rota",
@@ -459,12 +578,14 @@ def build_negotiation_graph(state: NegotiationState):
     """Wire the graph, including the revision cycle."""
     builder = GraphBuilder()
 
+    builder.add_node(RecallNode(state, "recall"), "recall")
     builder.add_node(ProposeNode(state, "propose"), "propose")
     builder.add_node(CritiqueNode(state, "critique"), "critique")
     builder.add_node(EvaluateNode(state, "evaluate"), "evaluate")
     builder.add_node(SettleNode(state, "settle"), "settle")
     builder.add_node(EscalateNode(state, "escalate"), "escalate")
 
+    builder.add_edge("recall", "propose")
     builder.add_edge("propose", "critique")
     builder.add_edge("critique", "evaluate")
 
@@ -475,9 +596,9 @@ def build_negotiation_graph(state: NegotiationState):
     builder.add_edge("evaluate", "settle", condition=lambda _s: state.settled)
     builder.add_edge("evaluate", "escalate", condition=lambda _s: state.exhausted)
 
-    builder.set_entry_point("propose")
+    builder.set_entry_point("recall")
     builder.reset_on_revisit(True)
-    builder.set_max_node_executions(4 * MAX_ROUNDS + 6)
+    builder.set_max_node_executions(4 * MAX_ROUNDS + 7)
     builder.set_graph_id("shoulder-negotiation")
     return builder.build()
 
@@ -487,15 +608,28 @@ def negotiate(
     max_rounds: int = MAX_ROUNDS,
     transport: str = "local",
     ledger: Ledger | None = None,
+    precedents: list[Precedent] | None = None,
+    changes: dict[str, tuple[list[str], list[str]]] | None = None,
+    models: dict[str, Any] | None = None,
 ) -> NegotiationOutcome:
     """Run one full negotiation for a circle and return everything it produced.
 
     Pass a `ledger` to keep the record of what was done unattended; the CLI
-    persists it and writes the family's view to fixtures.
+    persists it and writes the family's view to fixtures. `precedents` are the
+    family's past decisions and `changes` what each person changed since last
+    period; both are applied by the recall node. `models` replaces the Bedrock
+    model for the Convener ("convener") or a principal (by id), which is how the
+    offline demos and tests run the real graph with no network.
     """
     set_active_circle(circle)
     state = NegotiationState(
-        circle, max_rounds=max_rounds, transport=transport, ledger=ledger
+        circle,
+        max_rounds=max_rounds,
+        transport=transport,
+        ledger=ledger,
+        precedents=precedents,
+        changes=changes,
+        models=models,
     )
     graph = build_negotiation_graph(state)
     graph(

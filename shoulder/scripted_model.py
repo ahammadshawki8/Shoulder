@@ -38,9 +38,18 @@ class ScriptedModel(Model):
     A2A server, which is the path the privacy guard has to cover.
     """
 
-    def __init__(self, script: Script, chunk_size: int = 12) -> None:
+    def __init__(
+        self,
+        script: Script,
+        chunk_size: int = 12,
+        structured: Callable[[type, list[dict[str, Any]]], dict[str, Any]] | None = None,
+    ) -> None:
+        """`structured` answers the deprecated structured_output path, which the
+        Convener's revise and escalation calls still use: given the output model
+        and the prompt messages, return the fields."""
         self._script = script if callable(script) else list(script)
         self.chunk_size = chunk_size
+        self._structured = structured
         self.calls = 0
 
     def update_config(self, **model_config: Any) -> None:
@@ -85,6 +94,25 @@ class ScriptedModel(Model):
     async def structured_output(  # type: ignore[override]
         self, output_model, prompt, system_prompt=None, **kwargs
     ) -> AsyncGenerator[dict[str, Any], None]:
+        if self._structured is not None:
+            self.calls += 1
+            yield {"output": output_model(**self._structured(output_model, prompt))}
+            return
         turn = self._next(prompt)
         data = turn.input if isinstance(turn, ToolCall) else json.loads(turn)
         yield {"output": output_model(**data)}
+
+
+def last_text(messages: list[dict[str, Any]]) -> str:
+    """The text of the most recent message, for scripts that react to a prompt."""
+    for message in reversed(messages):
+        texts = [b["text"] for b in message.get("content", []) if "text" in b]
+        if texts:
+            return "\n".join(texts)
+    return ""
+
+
+def has_tool_result(messages: list[dict[str, Any]]) -> bool:
+    return bool(messages) and any(
+        "toolResult" in b for b in messages[-1].get("content", [])
+    )

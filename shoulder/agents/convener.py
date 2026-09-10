@@ -26,7 +26,9 @@ from shoulder.models.core import (
     Circle,
     Critique,
     EscalationCard,
+    EscalationOption,
     FairnessReport,
+    OptionEffect,
     Position,
     _Lenient,
 )
@@ -37,6 +39,7 @@ from shoulder.tools.fairness import (
     personal_disutility,
     task_load,
 )
+from shoulder.tools.remedies import best_paid_help, price_effect, valid_task_ids
 
 CONVENER_PROMPT = """You are the Convener for a family arranging care for their \
 mother. Three adult siblings each have their own agent. You coordinate between
@@ -397,6 +400,24 @@ admitting the limits do not allow one.
     )
 
 
+def _engine_findings(circle: Circle, allocation: Allocation, report: FairnessReport) -> str:
+    """What the deterministic engine can say about remedies, for the model to use.
+
+    The model is better at judging what a family might accept than at searching
+    325 pairs of tasks. So the search is done here and handed over as a fact.
+    """
+    found = best_paid_help(circle, allocation, report)
+    if found is None:
+        return "  No paid help for one or two tasks would make the split fairer."
+    ids, deviation = found
+    tasks = [circle.task(t) for t in ids]
+    listed = ", ".join(f"{t.id} {t.title} ({t.weekday})" for t in tasks if t)
+    return (
+        f"  Paid help covering {listed} would move the worst deviation from "
+        f"{report.max_deviation} to {deviation}."
+    )
+
+
 def attempt_remedies(
     agent: Agent,
     circle: Circle,
@@ -439,6 +460,9 @@ CURRENT SPLIT
 
 WHAT THE FAIRNESS TOOLS SAY
 {_fairness_brief(report)}
+
+WHAT THE FAIRNESS ENGINE FOUND
+{_engine_findings(circle, allocation, report)}
 
 You have tools that act, not only tools that measure. If one action would
 genuinely help this family close the gap, take the single most helpful one. If
@@ -493,6 +517,9 @@ WHAT YOU TRIED
 WHAT THE SIBLINGS SAID
 {chr(10).join(f'  {c.principal_id}: {c.verdict} ({c.reason_class}) - {c.message}' for c in critiques)}
 
+WHAT THE FAIRNESS ENGINE FOUND
+{_engine_findings(circle, allocation, report)}
+
 Write the escalation card for the family.
 
   headline: one sentence, factual, naming who is carrying more and by how much.
@@ -503,6 +530,18 @@ Write the escalation card for the family.
     the option of leaving it as it stands.
   what_i_will_not_decide: say clearly that choosing between these is theirs, and
     why you are not the right one to choose.
+
+Every option carries an `effect`, which is what choosing it would do in terms
+the system can apply. Use exactly one of these kinds:
+  accept_split    leave the split as it stands
+  paid_help       paid help covers the tasks in task_ids (use real task ids)
+  remove_tasks    the tasks in task_ids come off the plan
+  none            anything else, such as the family talking it through
+Leave fairness_delta at 0. It is computed for you from the effect.
+
+Never offer an option that asks a named person to give up, relax or change one
+of their stated limits or their capacity. Only that person can revisit their
+own limits, and they do it privately with their own agent.
 
 Set kind to "{kind}". Never suggest that anyone is not pulling their weight. One
 of them may be carrying something you cannot see.
@@ -523,8 +562,9 @@ of them may be carrying something you cannot see.
     )
     card.period = circle.period
     card.kind = kind  # type: ignore[assignment]
-    if not card.id:
-        card.id = f"esc-{circle.id}-{circle.period}"
+    # A stable id, not the model's: the family store and the precedents that
+    # cite this card need to find it again.
+    card.id = f"esc-{circle.id}-{circle.period}-{kind}"
 
     card.headline = clean(card.headline) or report.headline()
     card.the_tension = clean(card.the_tension)
@@ -533,4 +573,22 @@ of them may be carrying something you cannot see.
     for option in card.options:
         option.label = clean(option.label)
         option.consequence = clean(option.consequence)
+        # The effect is checked and the number is computed. Nothing numeric on
+        # this card is taken from the model.
+        if option.effect is not None:
+            option.effect.task_ids = valid_task_ids(circle, option.effect.task_ids)
+            option.effect.action = ""
+            option.effect.principal_id = ""
+            if option.effect.kind in ("paid_help", "remove_tasks") and not option.effect.task_ids:
+                option.effect.kind = "none"
+            if option.effect.kind == "decline_action":
+                option.effect.kind = "none"
+        option.fairness_delta = price_effect(option.effect, circle, allocation, report)
+    if not any(o.effect and o.effect.kind == "accept_split" for o in card.options):
+        card.options.insert(0, EscalationOption(
+            label="Keep the current split",
+            consequence="Every stated limit is respected and the care is covered, "
+            "with the load uneven as described.",
+            effect=OptionEffect(kind="accept_split"),
+        ))
     return card

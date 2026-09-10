@@ -305,7 +305,8 @@ flowchart TB
 
     subgraph Convener["Convener - Strands Graph"]
         N1[intake] --> N2[demand_model]
-        N2 --> N3[propose]
+        N2 --> N0["recall<br/>drift + precedents"]
+        N0 --> N3[propose]
         N3 --> N4["critique<br/>fan-out via A2A"]
         N4 --> N5[evaluate]
         N5 -->|not settled| N6[revise]
@@ -441,10 +442,10 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 - [x] Demo proof: privacy hook visibly catching a deliberate leak attempt (`python -m shoulder.demos.leak`)
 
 ### Tier 5 - Memory and precedent
-- [ ] Per-principal session persistence (preferences drift over time)
-- [ ] Family session: rota history + resolved escalations
-- [ ] Precedent extraction from resolved escalations
-- [ ] Precedent application in the next period, with provenance shown
+- [x] Per-principal session persistence (preferences drift over time)
+- [x] Family session: rota history + resolved escalations
+- [x] Precedent extraction from resolved escalations
+- [x] Precedent application in the next period, with provenance shown (`python -m shoulder.demos.next_month`)
 
 ### Tier 6 - Product surface
 - [ ] Private intake screen (privacy tiers visible - the trust moment)
@@ -713,3 +714,69 @@ forced to act. The deterministic version of that beat is `demos.envelope`.
 
 - **Next:** Tier 5 (memory and precedent) and Tier 6 (four screens, fairness bar as hero), then the
   Block 2 handoff commit.
+
+### 2026-09-11 - Session 3 continued, Tier 5 complete (Ashfaq)
+
+**The loop, end to end** (93 tests, all offline):
+
+```
+python -m shoulder.cli                        October: negotiate, queue escalations
+python -m shoulder.decide                     answer them, one card at a time (--precedents, --retire)
+python -m shoulder.cli --period 2026-11       November: applies what was decided
+python -m shoulder.demos.next_month [--live] [--write-fixtures]   both months back to back
+```
+
+- **Typed option effects** (`OptionEffect` on every `EscalationOption`): `accept_split`,
+  `paid_help(task_ids)`, `remove_tasks(task_ids)`, `decline_action(action, principal_id)`, `none`.
+  This is what makes a decision reusable. It also fixed a real invariant break: **the model was
+  writing `fairness_delta` itself** (every value 0.0). `write_escalation` now sanitises the effects
+  and sets every delta from `shoulder/tools/remedies.py`; the model is told to leave it at 0.
+- **The escalation prompt now forbids options that ask a named person to give up a limit.** The
+  previous live card offered "Ask Farah to expand availability to Friday or Saturday or to accept
+  night shifts", i.e. pressure on the one person hiding chemotherapy. Only a person can revisit their
+  own limits, privately. A "Keep the current split" option is added in code if the model omits it.
+- **The engine finds remedies; the model judges them.** `best_paid_help` searches every one or two
+  task set and hands the best to the Convener as a fact, in both the remedies and escalation
+  prompts. For the demo family: paid help for the Wednesday overnight stay and the follow-up
+  nephrology appointment takes 23 percent to 13 percent.
+- `shoulder/precedent.py`: `extract()` builds a `Precedent` from the chosen option's effect, in code.
+  Recurring tasks are matched by **title**, since ids restart each month. `provenance()` renders
+  "Amina decided this on 11 Sep" in local time (stored UTC).
+- **Where precedents apply:** a new deterministic `recall` graph node (entry point) takes covered
+  tasks out of the family's split before anyone negotiates, each through the envelope's `decide()`;
+  the **envelope widens or closes only by precedent** (paid help for those tasks becomes routine;
+  a declined action is neither taken nor raised again, logged as `applied_precedent`); and
+  `accept_split` publishes the best split **only after every round was tried**, with no veto and
+  every limit intact.
+- `shoulder/store/family.py`: SQLite rotas, escalations (open or resolved), resolutions,
+  precedents. **One decision answers the same question everywhere**: choosing paid help on the
+  fairness card also resolves the envelope's paid-help card for the same tasks. A card cannot be
+  decided twice; a newer precedent with the same rule replaces the older; `retire` stops one.
+- `shoulder/store/principal.py`: each person's profile saved per period in their own private file,
+  and `drift()` split into public (Position changes, noted in the family ledger by recall) and
+  private (constraint or reason changes, noted in their private ledger only).
+- `shoulder/session.py`: `run_period()` is the loop the Tier 8 schedule should call.
+- Seed: `build_tasks(period)` / `build_circle(period)` generate any month from the weekly pattern.
+  October is byte-identical to before (checked against the committed fixture).
+- `shoulder/demos/offline.py`: scripted models that run the real graph with no network. The
+  Convener script acts on the engine's findings in its own prompt; the siblings accept.
+
+**The numbers the "It learns" beat can honestly show** (offline and live agree on the shape):
+October 23 percent, two decisions asked (the fairness card and the envelope's paid-help card).
+The family chooses paid help once. November: recall arranges it, cites the decision, the re-seeded
+split is 4 percent and settles in round one, **zero decisions asked**. The storyboard's "4 to 1" is
+not what this family produces; use the real "2 to 0".
+
+**Fixtures for Tier 6** (from the live run): October at `fixtures/` root, November at
+`fixtures/2026-11/`, and `fixtures/family.json` with `history` (per month: escalations asked,
+resolved, deviation, settled, precedents applied), every card with its status, every resolution,
+and every precedent with its provenance line.
+
+**Fragile / honest limits:**
+- Matching recurring tasks by title means renaming a task silently ends a precedent. Fine for the
+  seed; real intake should give recurring tasks a stable key.
+- `accept_split` is an open-ended acceptance. It should expire or come back for review; not built.
+- Drift is computed by the CLI session in process. In A2A mode each principal's profile would live
+  in their own server; not wired.
+- The live Convener's remedies step is still a model choice; it may or may not reach for paid help.
+  The card's paid-help option comes from the engine finding either way.

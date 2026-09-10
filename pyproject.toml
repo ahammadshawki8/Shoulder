@@ -36,4 +36,7 @@ addopts = "-q"
 filterwarnings = [
     # Legacy A2A streaming. The reply is held (shoulder.a2a.serve), so moot.
     "ignore:The default A2A response stream:UserWarning",
+    # The Convener's revise and escalation calls still use the deprecated
+    # structured_output path (CLAUDE.md section 15, Session 3, finding 3).
+    "ignore:Agent.structured_output:DeprecationWarning",
 ]

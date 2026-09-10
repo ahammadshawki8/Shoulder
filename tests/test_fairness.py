@@ -226,10 +226,13 @@ class TestSeedAndRepair:
 
 
 class TestDemoCircle:
-    def test_every_task_lands_on_the_weekday_its_title_claims(self):
+    @pytest.mark.parametrize("period", ["2026-10", "2026-11", "2027-02"])
+    def test_every_task_lands_on_the_weekday_its_title_claims(self, period):
         """Guards a real bug: a 'Saturday overnight' that fell on a Tuesday and
-        became impossible for anyone to do."""
-        circle = build_circle()
+        became impossible for anyone to do. Holds for every month, because the
+        schedule is a weekly pattern."""
+        circle = build_circle(period)
+        assert all(t.on_date.strftime("%Y-%m") == period for t in circle.tasks)
         names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         for task in circle.tasks:
             assert task.weekday == names[task.on_date.weekday()]

@@ -133,6 +133,24 @@ not change what Farah said they can carry."*
 Everything it does without asking is written to an **agent ledger**, in plain words, with the reason
 it was allowed to act alone. `python -m shoulder.demos.envelope` shows the envelope at work.
 
+### It learns, but only what you decided
+
+Care recurs, so Shoulder remembers. Each person's agent keeps what they said, month to month, and
+notices what changed. A change to someone's position is noted for the family; a change to a private
+reason stays with that person's agent.
+
+Every option on an escalation card carries a typed effect: accept the split, paid help for these
+tasks, take these tasks off the plan, or don't do that again. The fairness consequence of each is
+computed by the engine, never written by the model. When the family chooses one, code turns it into
+a **precedent**, and next month it is applied without asking, cited back to whoever decided it:
+
+> *Arranged paid help for Wednesday overnight stay (Wed 11 Nov); Follow-up nephrology appointment
+> (Fri 27 Nov), without asking.* The family decided this on 11 Sep.
+
+In the demo family that one decision takes October's 23 percent spread to November's 4 percent, and
+the number of decisions the family is asked to make from two to zero. Nothing is learned that a
+person did not decide. `python -m shoulder.demos.next_month` runs both months back to back.
+
 ## Running it
 
 Requires Python 3.11 or 3.12 and AWS credentials with Amazon Bedrock access in `us-east-1`.
@@ -146,19 +164,27 @@ pip install -e ".[dev]"
 
 python -m shoulder.cli --dry             # deterministic fairness engine, no model calls, no network
 python -m shoulder.cli                   # full multi-agent negotiation, in process
+python -m shoulder.decide                # answer what it escalated, one card at a time
+python -m shoulder.cli --period 2026-11  # the next month, applying what you decided
 python -m shoulder.a2a.demo              # the same negotiation across three live A2A servers
 python -m shoulder.demos.leak            # the privacy hook catching a leak, no AWS needed
 python -m shoulder.demos.leak --live     # the same, with a real model on Bedrock
 python -m shoulder.demos.envelope        # the authority envelope at work, no AWS needed
-pytest                                   # 64 tests, no AWS needed
+python -m shoulder.demos.next_month      # two months back to back: it learns, no AWS needed
+pytest                                   # 93 tests, no AWS needed
 ```
+
+Runs remember their history in `.shoulder/` (SQLite, never committed). Delete it to start the family
+over.
 
 `--dry` runs the entire fair division engine with no network access, so the maths can be inspected
 without credentials. The two demos default to a scripted model that stands in for a misbehaving one,
 so the hooks can be shown on any machine.
 
 A full run writes JSON to `fixtures/`: the circle, every negotiation round, the final rota, the
-fairness report, the escalation cards and the family's ledger.
+fairness report, the escalation cards and the family's ledger. Later months go to
+`fixtures/<period>/`, and `fixtures/family.json` holds the history, every decision and every
+precedent.
 
 ## Repository layout
 
@@ -174,6 +200,9 @@ fairness report, the escalation cards and the family's ledger.
 | `shoulder/hooks/authority.py` | The authority envelope: what the agent may do alone, and the cards for what it may not. |
 | `shoulder/tools/actions.py` | Tools that act in the world, reachable only through the envelope. |
 | `shoulder/ledger.py` | The agent ledger. Family entries and each person's private entries, kept apart. |
+| `shoulder/precedent.py` | Turning a family's decision into a rule, and applying it next time. |
+| `shoulder/session.py` | One period end to end, with memory: the loop the weekly schedule runs. |
+| `shoulder/store/` | SQLite: the family's session (rotas, cards, decisions, precedents) and each person's own. |
 | `shoulder/demos/` | Runnable demonstrations of both hooks. |
 | `shoulder/seed/demo_circle.py` | The demo family. Entirely fictional. |
 | `tests/` | Tests for the engine, both hooks, the ledger, the privacy boundary over A2A, and the demo scenario. |

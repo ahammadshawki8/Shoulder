@@ -16,6 +16,12 @@ tool gets no authority until someone decides it should have some.
 
 An out-of-envelope action is never an error. From the model's side the tool
 returns "not done, raised with the family", and the negotiation carries on.
+
+The envelope moves only when the family moves it. A precedent (Tier 5) can
+widen it, "paid help covers the Wednesday overnight stay", after which booking
+that is routine; or close a question, "keep care within the family", after
+which the agent neither takes the action nor raises it again. Either way the
+ledger cites the decision it relied on.
 """
 
 from __future__ import annotations
@@ -35,8 +41,12 @@ from shoulder.models.core import (
     EscalationCard,
     EscalationOption,
     FairnessReport,
+    OptionEffect,
+    Precedent,
 )
+from shoulder.precedent import covering, declining
 from shoulder.tools.fairness import FAIRNESS_TOOLS, build_fairness_report
+from shoulder.tools.remedies import fairness_without
 
 READ_ONLY_TOOLS = {t.tool_name for t in FAIRNESS_TOOLS}
 
@@ -74,12 +84,35 @@ class EnvelopeContext:
 class Decision:
     allowed: bool
     why: str
+    # The family decision this rests on, when it rests on one.
+    precedent: Precedent | None = None
 
 
-def decide(tool_name: str, args: dict[str, Any], ctx: EnvelopeContext | None) -> Decision:
+def _by_precedent(p: Precedent, allowed: bool) -> Decision:
+    return Decision(allowed, f"{p.provenance()}: {p.text}", precedent=p)
+
+
+def decide(
+    tool_name: str,
+    args: dict[str, Any],
+    ctx: EnvelopeContext | None,
+    precedents: list[Precedent] | tuple[Precedent, ...] = (),
+) -> Decision:
     """The envelope as a pure function. Same call, same answer, every time."""
     if tool_name in READ_ONLY_TOOLS:
         return Decision(True, "Measuring changes nothing.")
+
+    precedents = list(precedents)
+    declined = declining(precedents, tool_name, str(args.get("principal_id") or ""))
+    if declined is not None:
+        return _by_precedent(declined, allowed=False)
+
+    if tool_name in ("arrange_paid_help", "drop_task") and ctx is not None:
+        kind = "paid_help" if tool_name == "arrange_paid_help" else "remove_tasks"
+        tasks = _tasks(ctx, args.get("task_ids") or args.get("task_id"))
+        granted = [covering(precedents, kind, t) for t in tasks]
+        if tasks and all(granted):
+            return _by_precedent(granted[0], allowed=True)  # type: ignore[arg-type]
 
     if tool_name == "send_reminder":
         if ctx is None:
@@ -134,17 +167,7 @@ def _pct(value: float) -> str:
 
 def _without(ctx: EnvelopeContext, task_ids: set[str]) -> FairnessReport:
     """The fairness report if these tasks left the family's plan entirely."""
-    circle = ctx.circle.model_copy(
-        update={"tasks": [t for t in ctx.circle.tasks if t.id not in task_ids]}
-    )
-    allocation = Allocation(
-        period=ctx.allocation.period,
-        round_number=ctx.allocation.round_number,
-        assignments={
-            t: p for t, p in ctx.allocation.assignments.items() if t not in task_ids
-        },
-    )
-    return build_fairness_report(circle, allocation)
+    return fairness_without(ctx.circle, ctx.allocation, task_ids)
 
 
 def describe(tool_name: str, args: dict[str, Any], ctx: EnvelopeContext | None) -> str:
@@ -166,11 +189,15 @@ def describe(tool_name: str, args: dict[str, Any], ctx: EnvelopeContext | None) 
 
 def describe_done(tool_name: str, args: dict[str, Any], ctx: EnvelopeContext | None) -> str:
     """The ledger line for an action that ran: "Sent Amina a reminder about ..."."""
+    tasks = _tasks(ctx, args.get("task_ids") or args.get("task_id"))
     if tool_name == "send_reminder":
-        tasks = _tasks(ctx, args.get("task_ids"))
         person = ctx.circle.principal(str(args.get("principal_id"))) if ctx else None
         who = person.name if person else str(args.get("principal_id", "someone"))
         return f"Sent {who} a reminder about {_titles(tasks) or 'their tasks'}."
+    if tool_name == "arrange_paid_help":
+        return f"Arranged paid help for {_titles(tasks) or 'some of the care'}, without asking."
+    if tool_name == "drop_task":
+        return f"Took {_titles(tasks) or 'a task'} off the plan, without asking."
     return f"Ran {tool_name}."
 
 
@@ -223,7 +250,11 @@ def build_card(
         the_tension=decision.why,
         options=[
             EscalationOption(label="Go ahead with it", consequence="Someone in the family does it, or asks me to."),
-            EscalationOption(label="Leave it", consequence="Nothing changes."),
+            EscalationOption(
+                label="Leave it",
+                consequence="Nothing changes, and I will not raise it again.",
+                effect=OptionEffect(kind="decline_action", action=tool_name),
+            ),
         ],
         what_i_will_not_decide="Whether this should happen at all. That is yours.",
     )
@@ -276,14 +307,20 @@ def _card_for_less_family_work(
                     label="Bring in paid help for these tasks",
                     consequence=(
                         f"The spread goes from {_pct(before)} to {_pct(after)}. You "
-                        f"agree between you who pays, and {recipient} has a say in it."
+                        f"agree between you who pays, and {recipient} has a say in it. "
+                        f"I will arrange the same each month until you say otherwise."
                     ),
                     fairness_delta=round(after - before, 3),
+                    effect=OptionEffect(kind="paid_help", task_ids=sorted(ids)),
                 ),
                 EscalationOption(
                     label="Keep this care within the family",
-                    consequence="Nothing changes. The current split stands.",
+                    consequence=(
+                        "Nothing changes. The current split stands, and I will not "
+                        "suggest paid help again."
+                    ),
                     fairness_delta=0.0,
+                    effect=OptionEffect(kind="decline_action", action="arrange_paid_help"),
                 ),
             ],
             what_i_will_not_decide=(
@@ -307,14 +344,16 @@ def _card_for_less_family_work(
         the_tension=f"{spread} {decision.why}",
         options=[
             EscalationOption(
-                label="Take it off the plan this month",
+                label="Take it off the plan",
                 consequence=f"The spread goes from {_pct(before)} to {_pct(after)}.",
                 fairness_delta=round(after - before, 3),
+                effect=OptionEffect(kind="remove_tasks", task_ids=sorted(ids)),
             ),
             EscalationOption(
                 label="Keep it in the plan",
                 consequence="Nothing changes. The current split stands.",
                 fairness_delta=0.0,
+                effect=OptionEffect(kind="decline_action", action="drop_task"),
             ),
         ],
         what_i_will_not_decide=(
@@ -359,8 +398,11 @@ def _card_for_capacity(
         options=[
             EscalationOption(
                 label=f"Leave {name}'s capacity as they set it",
-                consequence="Nothing changes.",
+                consequence="Nothing changes, and I will not raise it again.",
                 fairness_delta=0.0,
+                effect=OptionEffect(
+                    kind="decline_action", action="change_capacity", principal_id=principal_id
+                ),
             ),
             EscalationOption(
                 label=f"{name} revisits it, if they choose to",
@@ -394,11 +436,13 @@ class AuthorityGuard(HookProvider):
         ledger: Any = None,
         context: Callable[[], EnvelopeContext | None] = lambda: None,
         on_escalation: Callable[[EscalationCard], None] | None = None,
+        precedents: list[Precedent] | None = None,
         echo: bool = False,
     ) -> None:
         self.ledger = ledger
         self.context = context
         self.on_escalation = on_escalation
+        self.precedents = list(precedents or [])
         self.echo = echo
         self.cards: list[EscalationCard] = []
         self.decisions: list[tuple[str, dict[str, Any], Decision]] = []
@@ -420,10 +464,37 @@ class AuthorityGuard(HookProvider):
             return
 
         ctx = self.context()
-        decision = decide(name, args, ctx)
+        decision = decide(name, args, ctx, self.precedents)
         self.decisions.append((name, args, decision))
         what = describe(name, args, ctx)
         round_number = ctx.round_number if ctx else None
+
+        if decision.precedent is not None:
+            # The family has already answered this. Act on it, or leave it, and
+            # say which decision was relied on. No new card either way.
+            if self.echo:
+                verdict = "done" if decision.allowed else "not done"
+                print(f"  [precedent] {what}: {verdict}, as already decided")
+            if self.ledger is not None:
+                summary = (
+                    describe_done(name, args, ctx)
+                    if decision.allowed
+                    else f"Did not go ahead with {what}, and did not ask again."
+                )
+                self.ledger.record(
+                    "applied_precedent",
+                    summary,
+                    justification=decision.why,
+                    round_number=round_number,
+                    details={
+                        "tool": name,
+                        "input": args,
+                        "precedent_id": decision.precedent.id,
+                    },
+                )
+            if not decision.allowed:
+                event.cancel_tool = f"Not done. The family already decided: {decision.why}"
+            return
 
         if decision.allowed:
             if self.echo:

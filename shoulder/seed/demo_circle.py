@@ -25,12 +25,30 @@ from datetime import date, timedelta
 from shoulder.models.core import CareTask, Circle, Constraint, Principal, Tier
 
 PERIOD = "2026-10"
+NEXT_PERIOD = "2026-11"
 _START = date(2026, 10, 1)
 _WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
-def _day(offset: int) -> date:
-    return _START + timedelta(days=offset)
+def _month_start(period: str) -> date:
+    year, month = (int(x) for x in period.split("-"))
+    return date(year, month, 1)
+
+
+def _day(offset: int, period: str = PERIOD) -> date:
+    """Where an October offset lands in any month: same weekday, same week.
+
+    The schedule is a weekly pattern, so "week two's Wednesday overnight stay"
+    means something in every month. October 2026 starts on a Thursday, so an
+    offset is (week * 7) plus the day within the first week; each task lands on
+    the first occurrence of its weekday in the target month plus whole weeks.
+    For October this reproduces the original dates exactly. Four weeks always
+    fit, because a first occurrence falls on day 7 at the latest.
+    """
+    weekday = (_START + timedelta(days=offset)).weekday()
+    start = _month_start(period)
+    first = start + timedelta(days=(weekday - start.weekday()) % 7)
+    return first + timedelta(weeks=offset // 7)
 
 
 def _task(
@@ -41,8 +59,9 @@ def _task(
     duration_min: int,
     requires_presence: bool = True,
     notes: str | None = None,
+    period: str = PERIOD,
 ) -> CareTask:
-    d = _day(offset)
+    d = _day(offset, period)
     return CareTask(
         id=f"T{n:02d}",
         title=title,
@@ -55,8 +74,10 @@ def _task(
     )
 
 
-def build_tasks() -> list[CareTask]:
+def build_tasks(period: str = PERIOD) -> list[CareTask]:
     """One month of care for a parent with reduced mobility and diabetes.
+
+    The same weekly pattern for any month (see `_day`), because care recurs.
 
     1 October 2026 is a Thursday. Offsets below are chosen so that every task
     lands on the weekday its title claims. A mismatch here silently produces
@@ -96,7 +117,7 @@ def build_tasks() -> list[CareTask]:
         ("Transport to physiotherapy", "transport", 27, 120, True),
     ]
     return [
-        _task(i + 1, title, ttype, offset, dur, presence)
+        _task(i + 1, title, ttype, offset, dur, presence, period=period)
         for i, (title, ttype, offset, dur, presence) in enumerate(specs)
     ]
 
@@ -195,11 +216,11 @@ def build_principals() -> list[Principal]:
     return [amina, rian, farah]
 
 
-def build_circle() -> Circle:
+def build_circle(period: str = PERIOD) -> Circle:
     return Circle(
         id="rahman-family",
         care_recipient="Nasrin, 74, their mother",
-        period=PERIOD,
+        period=period,
         principals=build_principals(),
-        tasks=build_tasks(),
+        tasks=build_tasks(period),
     )
