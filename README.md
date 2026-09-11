@@ -177,6 +177,31 @@ pytest                                   # 93 tests, no AWS needed
 Runs remember their history in `.shoulder/` (SQLite, never committed). Delete it to start the family
 over.
 
+### The product surface
+
+The screens are a Vite and React app in `web/`, built against the JSON in `fixtures/` from real
+runs. It needs Node 18 or later, and no AWS credentials at all.
+
+```bash
+cd web
+npm install
+npm run dev                             # then open http://localhost:5173
+```
+
+| Screen | What it shows |
+|---|---|
+| Why | The problem and why it persists, with sources |
+| Your agent | Private intake: what each person tells their own agent, beside what their family actually sees |
+| This month | The negotiation, round by round, with the fairness bar; then the month's rota |
+| Needs you | The escalation inbox, one decision at a time; empty when nothing needs you |
+| What I did | The agent ledger: every unattended action and why it was allowed |
+| Under the hood | The privacy hook's live catch, the authority envelope, the wire, the architecture |
+
+Switch between October and November at the top to see what it learned. `#/month/2026-10/2` opens a
+given round directly, and `?theme=dark` forces a theme, which helps when recording.
+
+![Architecture](docs/architecture.svg)
+
 `--dry` runs the entire fair division engine with no network access, so the maths can be inspected
 without credentials. The two demos default to a scripted model that stands in for a misbehaving one,
 so the hooks can be shown on any machine.
@@ -203,6 +228,8 @@ precedent.
 | `shoulder/precedent.py` | Turning a family's decision into a rule, and applying it next time. |
 | `shoulder/session.py` | One period end to end, with memory: the loop the weekly schedule runs. |
 | `shoulder/store/` | SQLite: the family's session (rotas, cards, decisions, precedents) and each person's own. |
+| `web/` | The product surface: six screens in Vite and React, reading `fixtures/`. |
+| `docs/` | The architecture diagram, exported from the mermaid source in CLAUDE.md. |
 | `shoulder/demos/` | Runnable demonstrations of both hooks. |
 | `shoulder/seed/demo_circle.py` | The demo family. Entirely fictional. |
 | `tests/` | Tests for the engine, both hooks, the ledger, the privacy boundary over A2A, and the demo scenario. |

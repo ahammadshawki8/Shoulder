@@ -443,10 +443,22 @@ class LedgerEntry(BaseModel):
 
 
 class NegotiationRound(BaseModel):
+    """One round. `report` is the split the round ended with (the working rota).
+
+    When a round proposes moves that make the split less even, the working rota
+    does not keep them, so `report` alone would show every such round as
+    identical. `tried` is what the round actually proposed, `moves` what changed
+    hands in it, and `kept` whether it stood. The fairness bar needs all three
+    to show the negotiation honestly: what was tried, and what survived.
+    """
+
     round_number: int
     allocation: Allocation
     critiques: list[Critique]
     report: FairnessReport
+    tried: FairnessReport | None = None
+    moves: list[str] = Field(default_factory=list)
+    kept: bool = True
 
 
 class NegotiationOutcome(BaseModel):

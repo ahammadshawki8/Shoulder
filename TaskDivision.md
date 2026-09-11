@@ -101,26 +101,26 @@ Start by reading `CLAUDE.md` end to end, especially **§1 Hard rules** and **§8
 Build toward the storyboard in §8 - it defines what the screens must show.
 
 **Tier 4 - Guardrails · DO NOT CUT THIS TIER**
-- [ ] Privacy hook: blocks any `tier: private` fact on outbound A2A messages. The A2A transport is live, so there is a real outbound surface to hook. See `shoulder/a2a/client.py` and the wire log it writes.
-- [ ] Authority-envelope hook: an out-of-envelope action becomes an escalation card, not an error
-- [ ] Ledger: every unattended action recorded with timestamp + justification
-- [ ] **A runnable script that visibly demonstrates the privacy hook catching a deliberate leak attempt.** This is the most persuasive five seconds of the video - it must be showable on screen.
+- [x] Privacy hook: blocks any `tier: private` fact on outbound A2A messages. The A2A transport is live, so there is a real outbound surface to hook. See `shoulder/a2a/client.py` and the wire log it writes.
+- [x] Authority-envelope hook: an out-of-envelope action becomes an escalation card, not an error
+- [x] Ledger: every unattended action recorded with timestamp + justification
+- [x] **A runnable script that visibly demonstrates the privacy hook catching a deliberate leak attempt.** This is the most persuasive five seconds of the video - it must be showable on screen.
 
 **Tier 5 - Memory and precedent**
-- [ ] Per-principal session persistence (preferences drift)
-- [ ] Family session: rota history + resolved escalations
-- [ ] Precedent extraction from resolved escalations, applied next period **with provenance shown**
+- [x] Per-principal session persistence (preferences drift)
+- [x] Family session: rota history + resolved escalations
+- [x] Precedent extraction from resolved escalations, applied next period **with provenance shown**
       ("Last time you decided whoever hosts doesn't also drive")
 
 **Tier 6 - Product surface** *(the half judges actually see - 40% of the rubric)*
-- [ ] Private intake screen, privacy tiers visibly marked - **this is the trust moment, spend time here**
-- [ ] Rota + fairness bar - the hero component, animating across negotiation rounds
-- [ ] Escalation inbox - one decision per screen, warm empty state
-- [ ] Agent ledger
-- [ ] Light/dark, keyboard accessible, responsive
+- [x] Private intake screen, privacy tiers visibly marked - **this is the trust moment, spend time here**
+- [x] Rota + fairness bar - the hero component, animating across negotiation rounds
+- [x] Escalation inbox - one decision per screen, warm empty state
+- [x] Agent ledger
+- [x] Light/dark, keyboard accessible, responsive
 
 **Also**
-- [ ] Export the `CLAUDE.md` §9 mermaid diagram as a clean PNG/SVG into `docs/`
+- [x] Export the `CLAUDE.md` §9 mermaid diagram as a clean PNG/SVG into `docs/`
 
 **Definition of Done - Shawki must be able to verify without asking:**
 1. `npm run dev` renders all four screens against `fixtures/` with no AWS credentials present

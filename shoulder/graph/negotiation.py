@@ -118,6 +118,10 @@ class NegotiationState:
         self.covered: dict[str, str] = {}
         self.applied: list[str] = []
         self.settled_by_precedent: str | None = None
+        # What the current round proposed, before the hill climb judged it.
+        self.round_tried: FairnessReport | None = None
+        self.round_moves: list[str] = []
+        self.round_kept = True
 
         self.allocation: Allocation | None = None
         self.report: FairnessReport | None = None
@@ -304,6 +308,7 @@ class ProposeNode(_Node):
     def run(self) -> None:
         s = self.state
         s.round_number += 1
+        s.round_tried, s.round_moves, s.round_kept = None, [], True
 
         if s.round_number == 1:
             s.allocation = seed_allocation(s.circle)
@@ -370,12 +375,14 @@ class ProposeNode(_Node):
             # working rota does not keep it. Without this the negotiation can
             # wander away from a good answer it already had.
             trial = build_fairness_report(s.circle, s.allocation)
+            s.round_tried, s.round_moves = trial, moves
             feasible = not trial.hard_violations and not trial.unassigned_tasks
             if (
                 s.best_report is not None
                 and feasible
                 and trial.max_deviation > s.best_report.max_deviation
             ):
+                s.round_kept = False
                 print(f"  [reject]   round {s.round_number} moves made it worse "
                       f"({trial.max_deviation} vs {s.best_report.max_deviation}), "
                       f"keeping the better split")
@@ -460,6 +467,9 @@ class EvaluateNode(_Node):
                 allocation=s.allocation,
                 critiques=list(s.critiques),
                 report=s.report,
+                tried=s.round_tried,
+                moves=s.round_moves,
+                kept=s.round_kept,
             )
         )
 
@@ -498,8 +508,8 @@ class EvaluateNode(_Node):
               f"deviation={s.report.max_deviation}")
         s.ledger.record(
             "measured_fairness",
-            f"Measured round {s.round_number}: {s.report.headline()} The worst "
-            f"deviation is {_pct(s.report.max_deviation)} against a limit of "
+            f"Measured round {s.round_number}: {s.report.headline()} The spread "
+            f"is {_pct(s.report.max_deviation)} against a limit of "
             f"{_pct(FAIRNESS_TOLERANCE)}.",
             justification=(
                 "Fairness is computed by a fixed rule, never estimated by a model. "

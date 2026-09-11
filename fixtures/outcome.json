@@ -44,21 +44,21 @@
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "I can manage these tasks."
+          "message": "This schedule works for me."
         },
         {
           "principal_id": "rian",
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This share works for me."
+          "message": "This schedule works for me."
         },
         {
           "principal_id": "farah",
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This schedule works for me."
+          "message": "I can manage this share."
         }
       ],
       "report": {
@@ -120,7 +120,10 @@
         ],
         "unassigned_tasks": [],
         "hard_violations": []
-      }
+      },
+      "tried": null,
+      "moves": [],
+      "kept": true
     },
     {
       "round_number": 2,
@@ -163,21 +166,21 @@
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This share works for me."
+          "message": "This allocation works for me."
         },
         {
           "principal_id": "rian",
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This share works for me."
+          "message": "This works for me."
         },
         {
           "principal_id": "farah",
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This allocation works for me."
+          "message": "This schedule works for me."
         }
       ],
       "report": {
@@ -239,7 +242,69 @@
         ],
         "unassigned_tasks": [],
         "hard_violations": []
-      }
+      },
+      "tried": {
+        "period": "2026-10",
+        "round_number": 2,
+        "burdens": [
+          {
+            "principal_id": "amina",
+            "name": "Amina",
+            "task_count": 5,
+            "raw_hours": 20.75,
+            "weighted_burden": 39.122,
+            "capacity": 0.85,
+            "adjusted_share": 46.026,
+            "percent_of_total": 25.6
+          },
+          {
+            "principal_id": "rian",
+            "name": "Rian",
+            "task_count": 6,
+            "raw_hours": 26.75,
+            "weighted_burden": 80.0,
+            "capacity": 0.6,
+            "adjusted_share": 133.333,
+            "percent_of_total": 52.3
+          },
+          {
+            "principal_id": "farah",
+            "name": "Farah",
+            "task_count": 15,
+            "raw_hours": 30.5,
+            "weighted_burden": 33.83,
+            "capacity": 0.7,
+            "adjusted_share": 48.329,
+            "percent_of_total": 22.1
+          }
+        ],
+        "total_weighted_burden": 152.952,
+        "mean_adjusted_share": 75.896,
+        "max_deviation": 0.757,
+        "proportional": false,
+        "envy_free": false,
+        "envy_pairs": [
+          {
+            "envious": "rian",
+            "envied": "amina",
+            "magnitude": 58.422
+          },
+          {
+            "envious": "rian",
+            "envied": "farah",
+            "magnitude": 38.898
+          }
+        ],
+        "unassigned_tasks": [],
+        "hard_violations": []
+      },
+      "moves": [
+        "Pharmacy run and pill organiser (Fri) from Amina to Rian",
+        "Weekend visit (Sat) from Amina to Rian",
+        "Pill organiser refill (Fri) from Amina to Rian",
+        "Saturday overnight stay (Sat) from Amina to Rian"
+      ],
+      "kept": false
     },
     {
       "round_number": 3,
@@ -282,14 +347,14 @@
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "I can make this work."
+          "message": "This works for me."
         },
         {
           "principal_id": "rian",
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This share works for me."
+          "message": "This works for me."
         },
         {
           "principal_id": "farah",
@@ -358,7 +423,69 @@
         ],
         "unassigned_tasks": [],
         "hard_violations": []
-      }
+      },
+      "tried": {
+        "period": "2026-10",
+        "round_number": 3,
+        "burdens": [
+          {
+            "principal_id": "amina",
+            "name": "Amina",
+            "task_count": 5,
+            "raw_hours": 20.75,
+            "weighted_burden": 39.122,
+            "capacity": 0.85,
+            "adjusted_share": 46.026,
+            "percent_of_total": 25.6
+          },
+          {
+            "principal_id": "rian",
+            "name": "Rian",
+            "task_count": 6,
+            "raw_hours": 26.75,
+            "weighted_burden": 80.0,
+            "capacity": 0.6,
+            "adjusted_share": 133.333,
+            "percent_of_total": 52.3
+          },
+          {
+            "principal_id": "farah",
+            "name": "Farah",
+            "task_count": 15,
+            "raw_hours": 30.5,
+            "weighted_burden": 33.83,
+            "capacity": 0.7,
+            "adjusted_share": 48.329,
+            "percent_of_total": 22.1
+          }
+        ],
+        "total_weighted_burden": 152.952,
+        "mean_adjusted_share": 75.896,
+        "max_deviation": 0.757,
+        "proportional": false,
+        "envy_free": false,
+        "envy_pairs": [
+          {
+            "envious": "rian",
+            "envied": "amina",
+            "magnitude": 58.422
+          },
+          {
+            "envious": "rian",
+            "envied": "farah",
+            "magnitude": 38.898
+          }
+        ],
+        "unassigned_tasks": [],
+        "hard_violations": []
+      },
+      "moves": [
+        "Pharmacy run and pill organiser (Fri) from Amina to Rian",
+        "Weekend visit (Sat) from Amina to Rian",
+        "Pill organiser refill (Fri) from Amina to Rian",
+        "Saturday overnight stay (Sat) from Amina to Rian"
+      ],
+      "kept": false
     },
     {
       "round_number": 4,
@@ -401,21 +528,21 @@
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "I can do these tasks."
+          "message": "I can do this share."
         },
         {
           "principal_id": "rian",
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This share works for me."
+          "message": "This works for me."
         },
         {
           "principal_id": "farah",
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This share works for me."
+          "message": "This works for me."
         }
       ],
       "report": {
@@ -477,7 +604,68 @@
         ],
         "unassigned_tasks": [],
         "hard_violations": []
-      }
+      },
+      "tried": {
+        "period": "2026-10",
+        "round_number": 4,
+        "burdens": [
+          {
+            "principal_id": "amina",
+            "name": "Amina",
+            "task_count": 5,
+            "raw_hours": 20.75,
+            "weighted_burden": 39.122,
+            "capacity": 0.85,
+            "adjusted_share": 46.026,
+            "percent_of_total": 25.6
+          },
+          {
+            "principal_id": "rian",
+            "name": "Rian",
+            "task_count": 6,
+            "raw_hours": 26.75,
+            "weighted_burden": 80.0,
+            "capacity": 0.6,
+            "adjusted_share": 133.333,
+            "percent_of_total": 52.3
+          },
+          {
+            "principal_id": "farah",
+            "name": "Farah",
+            "task_count": 15,
+            "raw_hours": 30.5,
+            "weighted_burden": 33.83,
+            "capacity": 0.7,
+            "adjusted_share": 48.329,
+            "percent_of_total": 22.1
+          }
+        ],
+        "total_weighted_burden": 152.952,
+        "mean_adjusted_share": 75.896,
+        "max_deviation": 0.757,
+        "proportional": false,
+        "envy_free": false,
+        "envy_pairs": [
+          {
+            "envious": "rian",
+            "envied": "amina",
+            "magnitude": 58.422
+          },
+          {
+            "envious": "rian",
+            "envied": "farah",
+            "magnitude": 38.898
+          }
+        ],
+        "unassigned_tasks": [],
+        "hard_violations": []
+      },
+      "moves": [
+        "Pharmacy run and pill organiser (Fri) from Amina to Rian",
+        "Weekend visit (Sat) from Amina to Rian",
+        "Saturday overnight stay (Sat) from Amina to Rian"
+      ],
+      "kept": false
     }
   ],
   "final_allocation": {
@@ -578,29 +766,18 @@
       "id": "esc-rahman-family-2026-10-fairness_breach",
       "period": "2026-10",
       "kind": "fairness_breach",
-      "headline": "Amina is carrying an adjusted share of 70.48 while Farah carries 48.33, a 22-point gap against a circle mean of 62.67.",
+      "headline": "Amina is carrying 46 percent more than Farah.",
       "what_i_tried": [
-        "Moved the overnight stay, weekend visit, and both medication tasks from Amina to Rian to shift 855 weighted minutes off the highest carrier",
-        "Moved the Saturday overnight stay, Friday medication task, and two other permitted tasks from Amina to Rian to consolidate weekend work",
-        "Attempted two other configurations that transferred Amina's heaviest movable tasks to Rian",
-        "Each move made the deviation worse, so none were kept"
+        "Built an opening split from everyone's stated availability and capacity.",
+        "Tried moving four tasks from Amina to Rian on the weekend, but the split became less even.",
+        "Tried moving those same tasks again with adjusted reasoning about distance, but the result was still further from fair.",
+        "Tried moving three of Amina's heaviest tasks to Rian, stopping at the task cap, but again the split moved in the wrong direction."
       ],
-      "the_tension": "Every task that might move from Amina to Farah is blocked by stated limits. Farah refuses night shifts, which rules out the two overnight stays. Farah is unavailable Friday and Saturday, which rules out the weekend visit and the Friday medication task. The only sibling who can receive tasks from Amina is Rian, but every attempted move in that direction made the overall split less proportional. The gap cannot close within the limits on record.",
+      "the_tension": "Every attempt to lighten Amina's load had to send tasks to Rian because Farah is unavailable on Friday and Saturday and has declined night tasks. The tasks Amina holds that can move are all on those weekend days or overnight. Rian is already close to the cap on number of tasks. The distance from Rian's home to your mother changes how much these tasks weigh, but not in a way that narrows the gap. The moves available within everyone's stated limits do not bring this closer to fair.",
       "options": [
         {
-          "label": "Leave the split as it stands",
-          "consequence": "Amina continues carrying a significantly higher adjusted share than Farah. All three siblings accepted their assignments, but the proportionality gap remains outside tolerance.",
-          "fairness_delta": 0.0,
-          "effect": {
-            "kind": "accept_split",
-            "task_ids": [],
-            "action": "",
-            "principal_id": ""
-          }
-        },
-        {
-          "label": "Bring in paid help for the Wednesday overnight stay and Friday nephrology appointment",
-          "consequence": "Those two tasks come off the family schedule. The fairness tools show this would bring the worst deviation to 0.129, within tolerance.",
+          "label": "Bring in paid help for the Wednesday overnight stay and the Friday nephrology appointment",
+          "consequence": "The load becomes more evenly distributed across the three of you. Those two tasks come off your plates entirely.",
           "fairness_delta": -0.1,
           "effect": {
             "kind": "paid_help",
@@ -613,8 +790,19 @@
           }
         },
         {
-          "label": "Talk it through as a family",
-          "consequence": "You may find a solution I cannot see, such as one sibling revisiting a limit or adjusting declared capacity. That conversation belongs to you.",
+          "label": "Leave the plan as it stands",
+          "consequence": "Amina continues to carry a heavier load than the others relative to what each of you said you can manage. Everyone has already said they accept it.",
+          "fairness_delta": 0.0,
+          "effect": {
+            "kind": "accept_split",
+            "task_ids": [],
+            "action": "",
+            "principal_id": ""
+          }
+        },
+        {
+          "label": "Talk together about whether any limits can shift, or whether other tasks might come off the plan",
+          "consequence": "You would need to decide together which tasks matter most and whether anyone has room to stretch in ways they have not yet named.",
           "fairness_delta": 0.0,
           "effect": {
             "kind": "none",
@@ -624,8 +812,8 @@
           }
         }
       ],
-      "what_i_will_not_decide": "I hold the stated limits and compute proportionality, but I do not decide whether paid help is worth the cost, whether anyone should reconsider a boundary, or whether an imperfect split is good enough this month. Those choices require judgment about your mother's needs, your family's resources, and what each of you is carrying outside this plan. That judgment is yours, not mine.",
-      "created_at": "2026-09-10T21:41:57+00:00"
+      "what_i_will_not_decide": "I can tell you the split is uneven, but I cannot tell you whether that unevenness is worth accepting, whether paid help is the right call, or which tasks matter most. Those decisions belong to the people who know your mother and know what you each are carrying outside this plan.",
+      "created_at": "2026-09-11T13:20:45+00:00"
     },
     {
       "id": "esc-rahman-family-2026-10-arrange_paid_help-1",
@@ -637,7 +825,7 @@
         "Found that paid help for Wednesday overnight stay (Wed 14 Oct); Follow-up nephrology appointment (Fri 23 Oct) would take 11.5 hours of care off Amina and Rian.",
         "Stopped before booking anything."
       ],
-      "the_tension": "The worst deviation would go from 23 percent to 13 percent, against a limit of 15 percent. It also means spending money, and someone new in Nasrin's home.",
+      "the_tension": "The spread of the load would go from 23 percent to 13 percent, against a limit of 15 percent. It also means spending money, and someone new in Nasrin's home.",
       "options": [
         {
           "label": "Bring in paid help for these tasks",
@@ -666,7 +854,7 @@
         }
       ],
       "what_i_will_not_decide": "Whether to pay for care, who pays, and whether someone new comes into Nasrin's home. Those choices belong to your family, and to Nasrin.",
-      "created_at": "2026-09-10T21:41:38+00:00"
+      "created_at": "2026-09-11T13:20:27+00:00"
     }
   ],
   "covered": {},

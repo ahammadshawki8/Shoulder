@@ -49,7 +49,7 @@
           "verdict": "accept",
           "reason_class": "none",
           "contested_task_ids": [],
-          "message": "This works for me."
+          "message": "This share works for me."
         },
         {
           "principal_id": "farah",
@@ -118,7 +118,10 @@
         ],
         "unassigned_tasks": [],
         "hard_violations": []
-      }
+      },
+      "tried": null,
+      "moves": [],
+      "kept": true
     }
   ],
   "final_allocation": {
@@ -214,11 +217,11 @@
   },
   "escalations": [],
   "covered": {
-    "T13": "P-affa5b06",
-    "T22": "P-affa5b06"
+    "T13": "P-eefa6e8e",
+    "T22": "P-eefa6e8e"
   },
   "applied_precedents": [
-    "P-affa5b06"
+    "P-eefa6e8e"
   ],
   "settled_by_precedent": null
 }

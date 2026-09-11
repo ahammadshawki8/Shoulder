@@ -281,7 +281,7 @@ def _card_for_less_family_work(
     carried_by = " and ".join(holders) if holders else "the family"
     recipient = _recipient(ctx.circle)
     spread = (
-        f"The worst deviation would go from {_pct(before)} to {_pct(after)}, "
+        f"The spread of the load would go from {_pct(before)} to {_pct(after)}, "
         f"against a limit of {_pct(FAIRNESS_TOLERANCE)}."
     )
 
@@ -392,7 +392,7 @@ def _card_for_capacity(
             f"Left it exactly as {name} set it.",
         ],
         the_tension=(
-            f"At {new_capacity}, the worst deviation would be {_pct(after)} instead "
+            f"At {new_capacity}, the spread of the load would be {_pct(after)} instead "
             f"of {_pct(before)}. {decision.why}"
         ),
         options=[

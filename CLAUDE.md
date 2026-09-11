@@ -448,11 +448,11 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 - [x] Precedent application in the next period, with provenance shown (`python -m shoulder.demos.next_month`)
 
 ### Tier 6 - Product surface
-- [ ] Private intake screen (privacy tiers visible - the trust moment)
-- [ ] Rota + fairness bar (hero component, animates across rounds)
-- [ ] Escalation inbox (one decision per screen; warm empty state)
-- [ ] Agent ledger
-- [ ] Light/dark, keyboard accessible, responsive
+- [x] Private intake screen (privacy tiers visible - the trust moment)
+- [x] Rota + fairness bar (hero component, animates across rounds)
+- [x] Escalation inbox (one decision per screen; warm empty state)
+- [x] Agent ledger
+- [x] Light/dark, keyboard accessible, responsive
 
 ### Tier 7 - Evals
 - [ ] Fairness: invariant holds across N generated circles
@@ -470,7 +470,7 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 
 ### Tier 9 - Submission
 - [ ] README with problem, architecture, setup, research citations
-- [ ] Architecture diagram exported as an image
+- [x] Architecture diagram exported as an image (`docs/architecture.svg` and `.png`, ELK layout)
 - [ ] `make demo` runs from a clean clone with seeded data
 - [ ] Public repo, MIT license visible in About
 - [ ] AWS Builder ID obtained
@@ -780,3 +780,59 @@ and every precedent with its provenance line.
   in their own server; not wired.
 - The live Convener's remedies step is still a model choice; it may or may not reach for paid help.
   The card's paid-help option comes from the engine finding either way.
+
+### 2026-09-11 - Session 3 continued, Tier 6 complete, Block 2 handoff (Ashfaq -> Shawki)
+
+**Run it:** `cd web && npm install && npm run dev`, open http://localhost:5173. No AWS needed; it
+reads `fixtures/` (imported through a Vite alias, `server.fs.allow` covers the repo root). 95 Python
+tests pass.
+
+**Six screens, mapped to the storyboard in section 8** (switch October / November at the top):
+
+| Beat | Screen | Notes |
+|---|---|---|
+| 0:00 to 0:45 problem, NegotiAge | Why | Every figure from section 4, sources listed |
+| 0:45 to 1:20 private intake | Your agent | Per sibling. Left: answers, tier toggles, private reasons, the words the guard blocks. Right: what the family sees, recomputed live by a JS mirror of `to_position()`. Farah's "Replay the moment" types her reason while the family view does not move |
+| 1:20 to 2:10 negotiation | This month | Round player with the fairness bar, the Convener's moves, each agent's answer, then the rota calendar. Paid help shows dashed in November |
+| 2:10 to 2:45 escalation | Needs you | One card per screen, options priced by the engine, "what I will not decide", Decide. Recording a choice shows the standing rule it becomes and answers duplicate cards |
+| 2:45 to 3:05 it learns | Needs you (November) | Warm empty state: "Nothing needs you this month", 2 to 0, and the decision cited with provenance |
+| 3:05 to 3:30 how it is built | Under the hood | The live privacy catch (draft vs wire), the envelope's decisions, the wire log re-audited in the browser, and the architecture rendered from this file's section 9 mermaid |
+| (ledger) | What I did | Every family-scope entry, by round, filterable, with justifications |
+
+**The fairness bar needed a data change first.** Since the Block 1 hill climb, each round recorded
+the split it *kept*, so October's four rounds were identical and the bar could not move.
+`NegotiationRound` now carries `tried` (what the round proposed), `moves` and `kept`. The bar shows
+solid bars for the working rota and a thin bar beneath for what the round tried, on one scale across
+every round; a rejected round is marked with a red dot. Labels always give the signed figure ("12
+percent above fair"), because "within range" beside a headline saying Amina carries 46 percent more
+read as a contradiction.
+
+**Escalation copy is now written for a family.** The first live card led with "70.48 adjusted share
+... against a mean of 62.67". The headline is now the engine's own `report.headline()`, and the model
+is told to use no numbers or engineering words; the engine's figures sit beside its prose. The same
+review changed "worst deviation" to "spread" in the envelope cards and the ledger.
+
+**Design:** Fraunces for headings, Source Sans 3 for text, bundled with `@fontsource` so the UI renders
+offline. One identity colour per sibling on every screen (Amina blue, Rian orange, Farah aqua),
+validated with the dataviz palette checks against both surfaces, all pairs, light and dark; the aqua
+light step sits at 2.66:1, so every bar carries a visible name label and the chart has a table view.
+Light and dark tokens, theme toggle (saved), `prefers-reduced-motion` honoured, focus rings, every
+chart value reachable by keyboard with a tooltip. `#/month/2026-10/2` opens a round;
+`?theme=dark` forces a theme (for recording).
+
+**Fixtures** were regenerated by `python -m shoulder.demos.next_month --live --write-fixtures`
+after the copy changes; every family-visible file passes `scan_for_leaks`.
+
+**Fragile / honest limits:**
+- Decisions in the inbox are held in memory (reload replays the month); the UI does not write
+  back to `.shoulder/`. Tier 8's live link would need a small API over `FamilyStore`.
+- The intake screen edits are local and illustrate the projection; they do not persist.
+- Headless Chrome cannot go below about 500px wide, so the 400px check was done by reasoning plus a
+  560px screenshot, not a true 400px render. Check on a real phone before recording.
+- The mermaid bundle is large but lazy: it loads only when "Under the hood" opens.
+- "Nobody opened an app" is shown as "negotiated by the agents"; the schedule itself is Tier 8.
+
+**Handoff to Shawki (Block 3):** verify with `pytest`, `python -m shoulder.demos.leak`, and
+`cd web && npm run dev`. The work is on `ashfaqstu/Shoulder` `main`; add `ashfaqstu` as a
+collaborator or merge the pull request. Next: Tier 8 (AgentCore, the schedule, a live link that can
+serve `web/` and a thin API over `FamilyStore`), README polish, Devpost draft by Sat 13 Sep.

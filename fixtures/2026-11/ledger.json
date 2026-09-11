@@ -1,8 +1,8 @@
 [
   {
-    "id": "a08a817db97f",
+    "id": "1ef45acf5c5a",
     "seq": 1,
-    "at": "2026-09-10T21:41:58+00:00",
+    "at": "2026-09-11T13:20:46+00:00",
     "period": "2026-11",
     "round_number": null,
     "actor": "agent:amina",
@@ -13,9 +13,9 @@
     "details": {}
   },
   {
-    "id": "43fccd5371d7",
+    "id": "6f329db3d72b",
     "seq": 3,
-    "at": "2026-09-10T21:41:58+00:00",
+    "at": "2026-09-11T13:20:46+00:00",
     "period": "2026-11",
     "round_number": null,
     "actor": "convener",
@@ -24,7 +24,7 @@
     "justification": "The family decided this on 11 Sep: Paid help covers the Wednesday overnight stay and the follow-up nephrology appointment each month.",
     "scope": "family",
     "details": {
-      "precedent_id": "P-affa5b06",
+      "precedent_id": "P-eefa6e8e",
       "task_ids": [
         "T13",
         "T22"
@@ -32,9 +32,9 @@
     }
   },
   {
-    "id": "c92d5d0df7c1",
+    "id": "ad39a6290f82",
     "seq": 4,
-    "at": "2026-09-10T21:41:58+00:00",
+    "at": "2026-09-11T13:20:46+00:00",
     "period": "2026-11",
     "round_number": 1,
     "actor": "convener",
@@ -45,9 +45,9 @@
     "details": {}
   },
   {
-    "id": "5c36add6934f",
+    "id": "4da6adadd42a",
     "seq": 5,
-    "at": "2026-09-10T21:42:07+00:00",
+    "at": "2026-09-11T13:20:54+00:00",
     "period": "2026-11",
     "round_number": 1,
     "actor": "agent:amina",
@@ -63,14 +63,14 @@
     }
   },
   {
-    "id": "094272eb46fb",
+    "id": "b8f1d808dc79",
     "seq": 6,
-    "at": "2026-09-10T21:42:17+00:00",
+    "at": "2026-09-11T13:21:03+00:00",
     "period": "2026-11",
     "round_number": 1,
     "actor": "agent:rian",
     "kind": "asked_for_view",
-    "summary": "Asked Rian's agent whether this share works: it works. \"This works for me.\"",
+    "summary": "Asked Rian's agent whether this share works: it works. \"This share works for me.\"",
     "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
     "scope": "family",
     "details": {
@@ -81,9 +81,9 @@
     }
   },
   {
-    "id": "70ed4de4f862",
+    "id": "763b141d7e04",
     "seq": 7,
-    "at": "2026-09-10T21:42:27+00:00",
+    "at": "2026-09-11T13:21:14+00:00",
     "period": "2026-11",
     "round_number": 1,
     "actor": "agent:farah",
@@ -99,14 +99,14 @@
     }
   },
   {
-    "id": "817036b8c85d",
+    "id": "a6999aaaf96f",
     "seq": 8,
-    "at": "2026-09-10T21:42:27+00:00",
+    "at": "2026-09-11T13:21:14+00:00",
     "period": "2026-11",
     "round_number": 1,
     "actor": "convener",
     "kind": "measured_fairness",
-    "summary": "Measured round 1: Amina is carrying 7 percent more than Farah. The worst deviation is 4 percent against a limit of 15 percent.",
+    "summary": "Measured round 1: Amina is carrying 7 percent more than Farah. The spread is 4 percent against a limit of 15 percent.",
     "justification": "Fairness is computed by a fixed rule, never estimated by a model. Same inputs, same answer, every time.",
     "scope": "family",
     "details": {
@@ -116,9 +116,9 @@
     }
   },
   {
-    "id": "adc5a005e2b8",
+    "id": "61f870b6c603",
     "seq": 9,
-    "at": "2026-09-10T21:42:27+00:00",
+    "at": "2026-09-11T13:21:14+00:00",
     "period": "2026-11",
     "round_number": 1,
     "actor": "convener",

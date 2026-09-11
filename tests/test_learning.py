@@ -49,6 +49,23 @@ def test_every_number_on_the_card_comes_from_the_engine(october):
         assert option.fairness_delta == expected
 
 
+def test_the_headline_a_family_reads_first_comes_from_the_engine(october):
+    """The first live card led with "70.48 adjusted share ... against a mean of
+    62.67". The headline is now the fairness report's own sentence."""
+    _state, run = october
+    card = run.outcome.escalations[0]
+    assert card.headline == run.outcome.final_report.headline()
+
+
+def test_every_round_records_what_it_tried(october):
+    """The fairness bar shows what each round tried beside what it kept. Without
+    this every rejected round would look identical to the one before it."""
+    _state, run = october
+    later = run.outcome.rounds[1:]
+    assert later and all(r.tried is not None for r in later)
+    assert run.outcome.rounds[0].tried is None
+
+
 def test_a_decision_in_october_is_applied_in_november(october):
     state, oct_run = october
     store = FamilyStore(state)

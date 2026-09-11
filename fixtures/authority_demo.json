@@ -50,7 +50,7 @@
         "Found that paid help for Wednesday overnight stay (Wed 14 Oct); Follow-up nephrology appointment (Fri 23 Oct) would take 11.5 hours of care off Amina and Rian.",
         "Stopped before booking anything."
       ],
-      "the_tension": "The worst deviation would go from 23 percent to 13 percent, against a limit of 15 percent. It also means spending money, and someone new in Nasrin's home.",
+      "the_tension": "The spread of the load would go from 23 percent to 13 percent, against a limit of 15 percent. It also means spending money, and someone new in Nasrin's home.",
       "options": [
         {
           "label": "Bring in paid help for these tasks",
@@ -79,7 +79,7 @@
         }
       ],
       "what_i_will_not_decide": "Whether to pay for care, who pays, and whether someone new comes into Nasrin's home. Those choices belong to your family, and to Nasrin.",
-      "created_at": "2026-09-10T21:43:09+00:00"
+      "created_at": "2026-09-11T13:17:55+00:00"
     },
     {
       "id": "esc-rahman-family-2026-10-change_capacity-2",
@@ -90,7 +90,7 @@
         "Worked out the split as if Farah's capacity were 0.5 instead of 0.7.",
         "Left it exactly as Farah set it."
       ],
-      "the_tension": "At 0.5, the worst deviation would be 2 percent instead of 23 percent. Only a person can change what they said they can carry. I work from what they told me.",
+      "the_tension": "At 0.5, the spread of the load would be 2 percent instead of 23 percent. Only a person can change what they said they can carry. I work from what they told me.",
       "options": [
         {
           "label": "Leave Farah's capacity as they set it",
@@ -111,14 +111,14 @@
         }
       ],
       "what_i_will_not_decide": "How much Farah can carry. Only Farah knows that.",
-      "created_at": "2026-09-10T21:43:09+00:00"
+      "created_at": "2026-09-11T13:17:55+00:00"
     }
   ],
   "ledger": [
     {
-      "id": "22b10e680ab0",
+      "id": "a742f5b5470e",
       "seq": 1,
-      "at": "2026-09-10T21:43:09+00:00",
+      "at": "2026-09-11T13:17:55+00:00",
       "period": "2026-10",
       "round_number": null,
       "actor": "convener",
@@ -138,9 +138,9 @@
       }
     },
     {
-      "id": "89d48cc7a902",
+      "id": "636a88779526",
       "seq": 2,
-      "at": "2026-09-10T21:43:09+00:00",
+      "at": "2026-09-11T13:17:55+00:00",
       "period": "2026-10",
       "round_number": null,
       "actor": "convener",
@@ -161,9 +161,9 @@
       }
     },
     {
-      "id": "a1ac457f300c",
+      "id": "3852da128d7a",
       "seq": 3,
-      "at": "2026-09-10T21:43:09+00:00",
+      "at": "2026-09-11T13:17:55+00:00",
       "period": "2026-10",
       "round_number": null,
       "actor": "convener",
@@ -177,9 +177,9 @@
       }
     },
     {
-      "id": "82d0f83dd048",
+      "id": "cc1524aa46d0",
       "seq": 4,
-      "at": "2026-09-10T21:43:09+00:00",
+      "at": "2026-09-11T13:17:55+00:00",
       "period": "2026-10",
       "round_number": null,
       "actor": "convener",
@@ -198,9 +198,9 @@
       }
     },
     {
-      "id": "b03013a6563c",
+      "id": "8473a9c07b82",
       "seq": 5,
-      "at": "2026-09-10T21:43:09+00:00",
+      "at": "2026-09-11T13:17:55+00:00",
       "period": "2026-10",
       "round_number": null,
       "actor": "convener",

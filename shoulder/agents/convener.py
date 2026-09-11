@@ -520,9 +520,14 @@ WHAT THE SIBLINGS SAID
 WHAT THE FAIRNESS ENGINE FOUND
 {_engine_findings(circle, allocation, report)}
 
-Write the escalation card for the family.
+Write the escalation card for the family. Write it for a family in a hard
+moment, not for an engineer. Use no numbers at all: no decimals, percentages,
+counts of points, and none of the words "adjusted share", "deviation",
+"tolerance", "mean" or "proportional". The system sets the headline and places
+the exact figures from the fairness engine beside your words, so yours only
+have to carry the reasoning.
 
-  headline: one sentence, factual, naming who is carrying more and by how much.
+  headline: leave it empty; the system writes it from the fairness report.
   what_i_tried: the concrete moves you attempted, in plain language.
   the_tension: why it cannot be closed, in terms of stated limits only. Never
     speculate about anyone's reasons.
@@ -566,7 +571,10 @@ of them may be carrying something you cannot see.
     # cite this card need to find it again.
     card.id = f"esc-{circle.id}-{circle.period}-{kind}"
 
-    card.headline = clean(card.headline) or report.headline()
+    # The headline carries the one number on the card a family reads first, so
+    # it comes from the fairness report, never from the model. The first live
+    # card read "70.48 adjusted share ... against a mean of 62.67".
+    card.headline = report.headline()
     card.the_tension = clean(card.the_tension)
     card.what_i_will_not_decide = clean(card.what_i_will_not_decide)
     card.what_i_tried = clean_all(card.what_i_tried)
