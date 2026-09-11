@@ -9,16 +9,37 @@ export default function AgentVault({ activeUser }) {
   const position = toPosition(principal || {});
   const privateConstraint = principal?.constraints?.find((c) => c.tier === "private");
 
+  // Persona-specific private reason fallback
+  const getConfidentialReason = () => {
+    if (privateConstraint?.reason) return privateConstraint.reason;
+    if (activeUser === "farah") {
+      return "Chemotherapy infusions on Friday, recovering all Saturday. She has not told her brother or sister and does not intend to.";
+    }
+    if (activeUser === "amina") {
+      return "Managing exam revision for two teenagers and heavy NHS hospital night shifts. Keeps it off family rota to avoid sibling comparison.";
+    }
+    if (activeUser === "rian") {
+      return "Based in Leeds (310 km away). Corporate contractual travel restrictions prevent physical presence on weekdays.";
+    }
+    return "Personal private commitments and health schedule.";
+  };
+
   return (
     <div className="transparency-screen">
-      <div className="screen-header-simple">
-        <h2 className="screen-simple-title">Your Private Agent Vault</h2>
-        <span className="screen-simple-tag">Active Principal: {userMeta.shortName}</span>
+      {/* Sibling Agent Header with Avatar */}
+      <div className="sibling-profile-card">
+        <img src={userMeta.avatar} alt={userMeta.name} className="sibling-profile-avatar" />
+        <div className="sibling-profile-meta">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-primary">{userMeta.name}'s Device Vault</h2>
+            <span className="persona-you-badge">Private Agent</span>
+          </div>
+          <p className="text-secondary text-sm mt-1">
+            Your personal AI agent runs locally on your device. It advocates for your fair share and strictly
+            guards what you tell it in confidence.
+          </p>
+        </div>
       </div>
-
-      <p className="screen-caption-quiet">
-        Each sibling has their own private agent running independently. Your agent keeps what you say in confidence and only shares non-sensitive positions with the circle.
-      </p>
 
       {/* Visual Privacy Split */}
       <div className="privacy-split-container">
@@ -32,9 +53,9 @@ export default function AgentVault({ activeUser }) {
           <h3 className="split-title">What You Told Your Agent</h3>
 
           <div className="vault-secret-display">
-            <div className="secret-label">Personal Confidential Constraint:</div>
+            <div className="secret-label">Personal Confidential Note:</div>
             <div className="secret-quote">
-              "{privateConstraint?.reason || "Unavailable on Fridays due to personal health appointments."}"
+              "{getConfidentialReason()}"
             </div>
             <div className="secret-guarantee">
               <Shield size={14} /> Never transmitted across the network or stored in family databases.
@@ -59,29 +80,36 @@ export default function AgentVault({ activeUser }) {
             <span>SHARED WITH CIRCLE · Family Position</span>
           </div>
 
-          <h3 className="split-title">What Your Siblings' Agents Receive</h3>
+          <h3 className="split-title">What Reaches the Family Circle</h3>
 
           <div className="shared-position-list">
             <div className="shared-item">
-              <span className="shared-key">Availability:</span>
+              <span className="shared-key">Declared Capacity</span>
+              <span className="shared-val">{Math.round((principal?.capacity || 0.7) * 100)}% of monthly careload</span>
+            </div>
+
+            <div className="shared-item">
+              <span className="shared-key">Unavailable Weekdays</span>
               <span className="shared-val">
-                {position.unavailable?.length ? `Unavailable on ${position.unavailable.map((d) => DAY_NAMES[d]).join(" and ")}` : "All days"}
+                {position.unavailable.length
+                  ? position.unavailable.map((d) => DAY_NAMES[d] || d).join(", ")
+                  : "None (Available all week)"}
               </span>
             </div>
+
             <div className="shared-item">
-              <span className="shared-key">Capacity:</span>
-              <span className="shared-val">{Math.round(position.capacity * 100)}% standard share</span>
-            </div>
-            <div className="shared-item">
-              <span className="shared-key">Excluded Duties:</span>
+              <span className="shared-key">Refused Task Categories</span>
               <span className="shared-val">
-                {position.refused?.length ? position.refused.map((t) => TYPE_META[t]?.label || t).join(", ") : "None"}
+                {position.refused.length
+                  ? position.refused.map((t) => TYPE_META[t]?.label || t).join(", ")
+                  : "None (Will help where needed)"}
               </span>
             </div>
+
             <div className="shared-item">
-              <span className="shared-key">Reason:</span>
-              <span className="shared-val" style={{ color: "var(--badge-success)", fontWeight: 600 }}>
-                [Completely Withheld & Scrubbed]
+              <span className="shared-key">Public Statement to Siblings</span>
+              <span className="shared-val" style={{ fontStyle: "italic" }}>
+                "{position.unavailable.length ? `Unavailable on ${position.unavailable.join(", ")}` : "Standard weekly availability."}"
               </span>
             </div>
           </div>

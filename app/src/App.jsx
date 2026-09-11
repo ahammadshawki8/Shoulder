@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { Store, PERSON_META, subscribeStore } from "./data/store.js";
+import {
+  Store,
+  PERSON_META,
+  CARE_RECIPIENT_META,
+  subscribeStore,
+} from "./data/store.js";
 import {
   Calendar,
   User,
@@ -11,6 +16,7 @@ import {
   Info,
   Sliders,
   ChevronRight,
+  Plus,
 } from "./components/Icons.jsx";
 import Schedule from "./screens/Schedule.jsx";
 import Limits from "./screens/Limits.jsx";
@@ -19,6 +25,7 @@ import Agreements from "./screens/Agreements.jsx";
 import AgentVault from "./screens/AgentVault.jsx";
 import Activity from "./screens/Activity.jsx";
 import HowItWorks from "./screens/HowItWorks.jsx";
+import AddTaskModal from "./components/AddTaskModal.jsx";
 
 const PRIMARY_NAV = [
   { id: "schedule", label: "Schedule", icon: Calendar },
@@ -53,6 +60,7 @@ export default function App() {
   const [activeUser, setActiveUser] = useState(Store.getActiveUser());
   const [openCardsCount, setOpenCardsCount] = useState(Store.getOpenEscalations().length);
   const [showSecondaryMenu, setShowSecondaryMenu] = useState(false);
+  const [showGlobalAddTask, setShowGlobalAddTask] = useState(false);
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem("shoulder_theme_v2") || "light";
   });
@@ -102,25 +110,50 @@ export default function App() {
           <a href="#/schedule" className="brand-link">
             <span className="brand-name">Shoulder</span>
             <span className="brand-divider">·</span>
-            <span className="brand-family-label">Caring for Mum</span>
+            <div className="brand-mum-pill">
+              <img
+                src={CARE_RECIPIENT_META.avatar}
+                alt="Mum"
+                className="brand-mum-avatar"
+              />
+              <span className="brand-family-label">Mum (Nasrin)</span>
+            </div>
           </a>
         </div>
 
         <div className="header-controls-wrap">
+          {/* Global Quick Add Button */}
+          <button
+            className="btn-header-add"
+            onClick={() => setShowGlobalAddTask(true)}
+            aria-label="Add care task"
+          >
+            <Plus size={15} />
+            <span className="hidden-xs">Add Task</span>
+          </button>
+
           {/* Sibling Persona Selector */}
           <div className="active-user-pill">
-            <span className="user-avatar-badge" style={{ background: userMeta.color }}>
-              {userMeta.shortName[0]}
-            </span>
+            <img
+              src={userMeta.avatar}
+              alt={userMeta.shortName}
+              className="user-avatar-badge-img"
+            />
             <select
               className="user-select-native"
               value={activeUser}
               onChange={handleUserChange}
               aria-label="Switch family member view"
             >
-              <option value="farah">Farah (You)</option>
-              <option value="amina">Amina</option>
-              <option value="rian">Rian</option>
+              <option value="farah">
+                {activeUser === "farah" ? "Farah (You)" : "Farah (Local · 12km)"}
+              </option>
+              <option value="amina">
+                {activeUser === "amina" ? "Amina (You)" : "Amina (Nearby · 4km)"}
+              </option>
+              <option value="rian">
+                {activeUser === "rian" ? "Rian (You)" : "Rian (Distant · 310km)"}
+              </option>
             </select>
           </div>
 
@@ -248,6 +281,17 @@ export default function App() {
           );
         })}
       </nav>
+
+      {/* Global Add Task Modal */}
+      <AddTaskModal
+        isOpen={showGlobalAddTask}
+        onClose={() => setShowGlobalAddTask(false)}
+        activeUser={activeUser}
+        defaultDate="2026-10-14"
+        onTaskAdded={() => {
+          navigate("schedule");
+        }}
+      />
     </div>
   );
 }

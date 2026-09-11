@@ -6,14 +6,14 @@ export default function Limits({ activeUser }) {
   const principal = Store.getPrincipal(activeUser);
   const userMeta = PERSON_META[activeUser] || PERSON_META.farah;
 
-  const [capacity, setCapacity] = useState(principal ? Math.round(principal.capacity * 100) : 70);
+  const [capacity, setCapacity] = useState(principal ? Math.round(principal.capacity * 100) : userMeta.defaultCapacity || 70);
   const [dayStates, setDayStates] = useState({
     Mon: "available",
     Tue: "available",
     Wed: "available",
     Thu: "available",
-    Fri: "unavailable",
-    Sat: "unavailable",
+    Fri: "available",
+    Sat: "available",
     Sun: "available",
   });
   const [refusedTypes, setRefusedTypes] = useState([]);
@@ -44,6 +44,17 @@ export default function Limits({ activeUser }) {
       if (c.tier === "private" && c.reason) privReason = c.reason;
     }
 
+    // Default fallback reasons per persona if not explicitly set
+    if (!privReason) {
+      if (activeUser === "farah") {
+        privReason = "Chemotherapy infusions on Friday, recovering all Saturday. Strictly private.";
+      } else if (activeUser === "amina") {
+        privReason = "Managing school runs for two teens and full-time nursing shifts.";
+      } else if (activeUser === "rian") {
+        privReason = "Full-time corporate schedule in Leeds; corporate travel blackout Mon–Thu.";
+      }
+    }
+
     setDayStates(days);
     setRefusedTypes([...refused]);
     setPrivateReason(privReason);
@@ -71,7 +82,7 @@ export default function Limits({ activeUser }) {
 
     const updatedConstraints = [
       {
-        id: "c-active",
+        id: `c-${activeUser}`,
         tier: privateReason ? "private" : "shareable",
         summary: blockedDays.length ? `Unavailable on ${blockedDays.join(", ")}` : "Available all days",
         blocks_weekdays: blockedDays,
@@ -96,10 +107,23 @@ export default function Limits({ activeUser }) {
 
   return (
     <div className="limits-screen">
-      {/* Top Header */}
-      <div className="screen-header-simple">
-        <h2 className="screen-simple-title">Availability & Capacity</h2>
-        <span className="screen-simple-tag">Editing as {userMeta.shortName}</span>
+      {/* Sibling Profile Header */}
+      <div className="sibling-profile-card">
+        <img src={userMeta.avatar} alt={userMeta.name} className="sibling-profile-avatar" />
+        <div className="sibling-profile-meta">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-primary">{userMeta.name}</h2>
+            <span className="persona-you-badge">Active View</span>
+          </div>
+          <p className="text-secondary text-sm mt-1">{userMeta.bio}</p>
+          <div className="flex items-center gap-3 mt-2 text-xs text-soft">
+            <span>📍 {userMeta.role}</span>
+            <span>·</span>
+            <span>📞 {userMeta.phone}</span>
+            <span>·</span>
+            <span>⚖️ Declared Capacity: <strong>{capacity}%</strong></span>
+          </div>
+        </div>
       </div>
 
       <div className="planner-grid-layout">
@@ -111,6 +135,9 @@ export default function Limits({ activeUser }) {
               <span className="planner-card-title">Careload Capacity</span>
               <span className="capacity-number-badge">{capacity}%</span>
             </div>
+            <p className="text-xs text-soft mb-3">
+              How much of Mum's overall monthly care share you can realistically shoulder right now.
+            </p>
 
             <div className="capacity-bar-visual-wrap">
               <div className="capacity-bar-track">
@@ -178,102 +205,113 @@ export default function Limits({ activeUser }) {
 
           {/* 3. TASK TYPE PREFERENCES */}
           <div className="planner-card">
-            <span className="planner-card-title" style={{ display: "block", marginBottom: 12 }}>
-              Excluded Care Duties
-            </span>
-            <div className="task-refusal-chips">
+            <div className="planner-card-header">
+              <span className="planner-card-title">Duties You Cannot Take</span>
+              <span style={{ fontSize: 13, color: "var(--text-soft)" }}>Off-limits chore types</span>
+            </div>
+
+            <div className="task-type-chips-grid">
               {Object.entries(TYPE_META).map(([key, meta]) => {
-                const isExcluded = refusedTypes.includes(key);
+                const isRefused = refusedTypes.includes(key);
+
                 return (
                   <button
-                    type="button"
                     key={key}
-                    className={`task-chip-toggle ${isExcluded ? "excluded" : ""}`}
+                    type="button"
+                    className={`type-chip-btn ${isRefused ? "refused" : "allowed"}`}
                     onClick={() => toggleTaskType(key)}
                   >
-                    {isExcluded ? "✕" : "✓"} {meta.label}
+                    <span className="type-chip-status-icon">
+                      {isRefused ? "✕" : "✓"}
+                    </span>
+                    <span>{meta.label}</span>
                   </button>
                 );
               })}
             </div>
           </div>
-
-          {/* 4. CONFIDENTIAL VAULT */}
-          <div className="planner-card vault-card">
-            <div className="vault-header">
-              <div className="vault-badge">
-                <Lock size={14} />
-                <span>Strictly Confidential · Never leaves this device</span>
-              </div>
-            </div>
-
-            <label className="vault-input-label">
-              Private reason for limits (e.g. medical treatment, work constraint):
-            </label>
-            <textarea
-              className="vault-textarea"
-              value={privateReason}
-              onChange={(e) => setPrivateReason(e.target.value)}
-              placeholder="Nobody else will ever read this. Your agent negotiates around your constraint without ever revealing why."
-            />
-          </div>
-
-          {/* Action Row */}
-          <div className="planner-actions-row">
-            <button className="btn-primary" onClick={handleSave}>
-              Save Availability
-            </button>
-            {savedSuccess && (
-              <span className="save-success-msg">
-                <Check size={16} /> Saved to private agent
-              </span>
-            )}
-          </div>
         </div>
 
-        {/* RIGHT COLUMN: WHAT FAMILY SEES PREVIEW */}
-        <div className="planner-preview-column">
-          <div className="preview-position-card">
-            <div className="preview-position-header">
-              <Users size={16} />
-              <span>What Family Sees</span>
+        {/* RIGHT COLUMN: CONFIDENTIAL VAULT & PUBLIC PREVIEW */}
+        <div className="planner-side-column">
+          {/* CONFIDENTIAL REASON VAULT */}
+          <div className="private-vault-card">
+            <div className="vault-header-row">
+              <div className="vault-icon-badge">
+                <Lock size={16} />
+              </div>
+              <div>
+                <h3 className="vault-title">Confidential to Your Agent</h3>
+                <p className="vault-subtext">Never shown to your siblings or stored in family logs</p>
+              </div>
             </div>
 
-            <div className="preview-position-body">
-              <div className="preview-metric-group">
-                <div className="preview-label">Declared Capacity</div>
-                <div className="preview-value">{capacity}% of full care share</div>
-              </div>
-
-              <div className="preview-metric-group">
-                <div className="preview-label">Unavailable Days</div>
-                <div className="preview-value">
-                  {blockedDaysList.length ? blockedDaysList.map((d) => DAY_NAMES[d]).join(", ") : "None (Available all week)"}
-                </div>
-              </div>
-
-              <div className="preview-metric-group">
-                <div className="preview-label">Excluded Tasks</div>
-                <div className="preview-value">
-                  {refusedTypes.length
-                    ? refusedTypes.map((t) => TYPE_META[t]?.label || t).join(", ")
-                    : "None (Open to all duties)"}
-                </div>
-              </div>
-
-              <div className="preview-privacy-lock-box">
-                <Shield size={16} style={{ color: "var(--badge-success)" }} />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 13, color: "var(--badge-success)" }}>
-                    Privacy Boundary Held
-                  </div>
-                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
-                    Your private reason is completely filtered out. Family agents only learn availability windows.
-                  </div>
-                </div>
+            <div className="vault-input-area">
+              <label className="vault-label">Your Private Reason (Kept on your phone):</label>
+              <textarea
+                className="vault-textarea"
+                rows="3"
+                value={privateReason}
+                onChange={(e) => setPrivateReason(e.target.value)}
+                placeholder="e.g. Health treatments, work deadlines, personal care needs..."
+              />
+              <div className="vault-guarantee-note">
+                <Shield size={14} />
+                <span>Enforced by cryptographic boundary filter. Siblings only see availability blocks.</span>
               </div>
             </div>
           </div>
+
+          {/* WHAT YOUR SIBLINGS SEE */}
+          <div className="public-position-preview-card">
+            <div className="public-header-row">
+              <Users size={16} />
+              <span className="public-title">What Your Siblings See</span>
+            </div>
+
+            <div className="public-position-summary">
+              <div className="public-stat-line">
+                <span className="stat-name">Declared Capacity:</span>
+                <strong className="stat-val">{capacity}%</strong>
+              </div>
+
+              <div className="public-stat-line">
+                <span className="stat-name">Unavailable Days:</span>
+                <strong className="stat-val">
+                  {blockedDaysList.length ? blockedDaysList.join(", ") : "None (Available all week)"}
+                </strong>
+              </div>
+
+              <div className="public-stat-line">
+                <span className="stat-name">Excluded Tasks:</span>
+                <strong className="stat-val">
+                  {refusedTypes.length
+                    ? refusedTypes.map((t) => TYPE_META[t]?.label || t).join(", ")
+                    : "None"}
+                </strong>
+              </div>
+
+              <div className="public-stat-line">
+                <span className="stat-name">Reason Shared:</span>
+                <span className="stat-val-italic">
+                  {privateReason ? "Private personal constraint (Detail withheld)" : "Standard weekly schedule"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* SAVE BUTTON */}
+          <button className="btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={handleSave}>
+            <Check size={16} />
+            <span>Save My Availability</span>
+          </button>
+
+          {savedSuccess && (
+            <div className="toast-decision-alert" style={{ marginTop: 12 }}>
+              <CheckCircle size={16} />
+              <span>Limits saved! Sibling schedule updated.</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

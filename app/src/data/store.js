@@ -12,29 +12,75 @@ export const PERSON_META = {
     id: "amina",
     name: "Amina Rahman",
     shortName: "Amina",
-    role: "Nearby · 12 km",
+    role: "Nearby · 4 km",
+    age: 47,
+    bio: "Elder sister · Primary local coordinator · Balancing full-time work and teen family",
+    avatar: "/assets/amina_portrait.jpg",
     color: "#3B6E94",
     bg: "rgba(59, 110, 148, 0.12)",
     border: "rgba(59, 110, 148, 0.3)",
+    defaultCapacity: 85,
+    greeting: "Welcome back, Amina. Your on-ground care duties are balanced with Rian and Elena.",
+    shortGreeting: "7 tasks this month · Primary on-ground support",
+    phone: "+44 7700 900456",
   },
   rian: {
     id: "rian",
     name: "Rian Rahman",
     shortName: "Rian",
-    role: "Distant · 140 km (financial)",
+    role: "Distant · 310 km (Leeds)",
+    age: 44,
+    bio: "Brother · Financial & legal steward · Managing pharmacy refills & remote bills",
+    avatar: "/assets/rian_portrait.jpg",
     color: "#BF5D30",
     bg: "rgba(191, 93, 48, 0.12)",
     border: "rgba(191, 93, 48, 0.3)",
+    defaultCapacity: 60,
+    greeting: "Welcome back, Rian. You are coordinating remotely from Leeds. Mum's bills & orders are up to date.",
+    shortGreeting: "5 tasks this month · Remote legal, bills & weekend visits",
+    phone: "+44 7700 900789",
   },
   farah: {
     id: "farah",
     name: "Farah Rahman",
     shortName: "Farah",
-    role: "Local · 8 km",
+    role: "Local · 12 km",
+    age: 38,
+    bio: "Younger sister · Daytime visits & nutrition · Friday & Saturday rest schedule",
+    avatar: "/assets/farah_portrait.jpg",
     color: "#1B6B73",
     bg: "rgba(27, 107, 115, 0.12)",
     border: "rgba(27, 107, 115, 0.3)",
+    defaultCapacity: 70,
+    greeting: "Welcome back, Farah. You have 1 visit scheduled today for Mum. Amina checked in this morning.",
+    shortGreeting: "4 tasks this month · Grocery, doctor visits & daytime companionship",
+    phone: "+44 7700 900234",
   },
+};
+
+export const CARE_RECIPIENT_META = {
+  name: "Nasrin Rahman",
+  relation: "Mum",
+  age: 74,
+  avatar: "/assets/nasrin_mum.jpg",
+  heroImage: "/assets/mum_care_hero.jpg",
+  status: "Peaceful & recovering at home",
+  condition: "Mild mobility impairment post-op, hypertension, cardiac checks",
+  address: "14 Elm Gardens, High Wycombe, HP11 1RB",
+  gpDoctor: "Dr. Harrison · St. Jude's Medical Centre",
+  emergencyPhone: "+44 7700 900123",
+  notes: "Prefers warm cardamom tea in the garden. Keeps her reading glasses on the bedside dresser.",
+};
+
+export const PAID_CAREGIVER_META = {
+  id: "paid",
+  name: "Elena Vance (Registered Aide)",
+  shortName: "Elena (Nurse Aide)",
+  role: "Care Agency Aide · Overnight & Clinical",
+  avatar: "/assets/elena_caregiver.jpg",
+  color: "#6366f1",
+  bg: "rgba(99, 102, 241, 0.12)",
+  border: "rgba(99, 102, 241, 0.3)",
 };
 
 export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -160,11 +206,14 @@ export const Store = {
   },
 
   getTasks() {
-    return circleData.tasks;
+    const customTasks = getStorage("custom_tasks", []);
+    return [...circleData.tasks, ...customTasks];
   },
 
   getAssignments() {
-    return outcomeData.final_allocation?.assignments || {};
+    const base = outcomeData.final_allocation?.assignments || {};
+    const custom = getStorage("custom_assignments", {});
+    return { ...base, ...custom };
   },
 
   getCoveredTasks() {
@@ -177,12 +226,187 @@ export const Store = {
     return getStorage("completed_task_ids", ["T01", "T02", "T03"]);
   },
 
-  toggleTaskComplete(taskId) {
+  getTaskNotes(taskId) {
+    const notesMap = getStorage("task_care_notes", {});
+    return notesMap[taskId] || null;
+  },
+
+  saveTaskNote(taskId, note) {
+    const notesMap = getStorage("task_care_notes", {});
+    notesMap[taskId] = {
+      text: note,
+      recordedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      byUser: this.getActiveUser(),
+    };
+    setStorage("task_care_notes", notesMap);
+    notify();
+  },
+
+  toggleTaskComplete(taskId, optionalNote = "") {
     const current = this.getCompletedTasks();
-    const updated = current.includes(taskId)
+    const isCurrentlyDone = current.includes(taskId);
+    const updated = isCurrentlyDone
       ? current.filter((id) => id !== taskId)
       : [...current, taskId];
     setStorage("completed_task_ids", updated);
+
+    const task = this.getTasks().find((t) => t.id === taskId);
+    const activeId = this.getActiveUser();
+    const user = PERSON_META[activeId] || { shortName: "Family" };
+
+    if (!isCurrentlyDone) {
+      if (optionalNote) {
+        this.saveTaskNote(taskId, optionalNote);
+      }
+      this.addLedgerEntry({
+        headline: `${user.shortName} marked "${task?.title || "Task"}" complete`,
+        justification: optionalNote ? `Care note: "${optionalNote}"` : "Completed on schedule for Mum.",
+        who: activeId,
+      });
+    }
+
+    notify();
+  },
+
+  addTask(taskData) {
+    const newId = `T-user-${Date.now()}`;
+    const dateObj = new Date(`${taskData.on_date}T12:00:00`);
+    const weekday = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+
+    const newTask = {
+      id: newId,
+      title: taskData.title,
+      task_type: taskData.task_type || "visit",
+      on_date: taskData.on_date,
+      time: taskData.time || "10:00 AM",
+      duration_hours: Number(taskData.duration_hours) || 1.5,
+      is_onsite: taskData.is_onsite !== false,
+      notes: taskData.notes || "",
+      is_custom: true,
+      created_by: this.getActiveUser(),
+      created_at: new Date().toISOString(),
+    };
+
+    // Determine Assignment
+    let assignedWho = taskData.assignee;
+    let rationale = "";
+
+    if (assignedWho === "auto" || !assignedWho) {
+      // Smart Fair Allocation Engine Simulation
+      // Calculate current task counts for eligible siblings
+      const assignments = this.getAssignments();
+      const covered = this.getCoveredTasks();
+      const tasks = this.getTasks();
+
+      const loads = { amina: 0, rian: 0, farah: 0 };
+      for (const t of tasks) {
+        if (!covered[t.id] && assignments[t.id]) {
+          loads[assignments[t.id]] = (loads[assignments[t.id]] || 0) + 1;
+        }
+      }
+
+      // Check constraints for weekday
+      const isFriSat = weekday === "Fri" || weekday === "Sat";
+      const isMonThu = ["Mon", "Tue", "Wed", "Thu"].includes(weekday);
+
+      const candidates = [];
+
+      // Farah: cannot do Fri/Sat or overnight
+      if (!isFriSat && taskData.task_type !== "night") {
+        candidates.push({ id: "farah", ratio: loads.farah / 0.7 });
+      }
+
+      // Amina: available almost all days (high capacity 0.85)
+      candidates.push({ id: "amina", ratio: loads.amina / 0.85 });
+
+      // Rian: distant, works Mon-Thu so cannot do onsite Mon-Thu
+      if (!isMonThu || !newTask.is_onsite) {
+        candidates.push({ id: "rian", ratio: loads.rian / 0.6 });
+      }
+
+      // Sort by smallest workload-to-capacity ratio
+      candidates.sort((a, b) => a.ratio - b.ratio);
+
+      if (candidates.length > 0) {
+        assignedWho = candidates[0].id;
+        const candidateMeta = PERSON_META[assignedWho];
+        rationale = `Fair division selected ${candidateMeta.shortName} (current load: ${loads[assignedWho]}, capacity: ${candidateMeta.defaultCapacity}%).`;
+      } else {
+        assignedWho = "paid";
+        rationale = "Stated sibling constraints prevent family coverage; allocated to paid care aide Elena.";
+      }
+    } else {
+      const assignedMeta = PERSON_META[assignedWho] || PAID_CAREGIVER_META;
+      rationale = `Directly assigned by family to ${assignedMeta.shortName}.`;
+    }
+
+    // Save task
+    const customTasks = getStorage("custom_tasks", []);
+    setStorage("custom_tasks", [...customTasks, newTask]);
+
+    if (assignedWho === "paid") {
+      const extraCovered = getStorage("extra_covered_tasks", {});
+      extraCovered[newId] = "Scheduled for Paid Care Aide Elena";
+      setStorage("extra_covered_tasks", extraCovered);
+    } else {
+      const customAssignments = getStorage("custom_assignments", {});
+      customAssignments[newId] = assignedWho;
+      setStorage("custom_assignments", customAssignments);
+    }
+
+    // Add entry to ledger
+    this.addLedgerEntry({
+      headline: `Scheduled: ${newTask.title}`,
+      justification: rationale,
+      who: assignedWho,
+    });
+
+    notify();
+    return { task: newTask, assignedTo: assignedWho, rationale };
+  },
+
+  reassignTask(taskId, newAssigneeId, reason = "") {
+    const task = this.getTasks().find((t) => t.id === taskId);
+    if (!task) return;
+
+    if (newAssigneeId === "paid") {
+      const extraCovered = getStorage("extra_covered_tasks", {});
+      extraCovered[taskId] = "Reallocated to Paid Care Aide Elena";
+      setStorage("extra_covered_tasks", extraCovered);
+    } else {
+      const customAssignments = getStorage("custom_assignments", {});
+      customAssignments[taskId] = newAssigneeId;
+      setStorage("custom_assignments", customAssignments);
+
+      // Remove from covered if it was covered
+      const extraCovered = getStorage("extra_covered_tasks", {});
+      if (extraCovered[taskId]) {
+        delete extraCovered[taskId];
+        setStorage("extra_covered_tasks", extraCovered);
+      }
+    }
+
+    const assignedMeta = PERSON_META[newAssigneeId] || PAID_CAREGIVER_META;
+    this.addLedgerEntry({
+      headline: `Reassigned "${task.title}" to ${assignedMeta.shortName}`,
+      justification: reason || `Adjusted rota by family agreement.`,
+      who: newAssigneeId,
+    });
+
+    notify();
+  },
+
+  deleteTask(taskId) {
+    const customTasks = getStorage("custom_tasks", []).filter((t) => t.id !== taskId);
+    setStorage("custom_tasks", customTasks);
+
+    const customAssignments = getStorage("custom_assignments", {});
+    delete customAssignments[taskId];
+    setStorage("custom_assignments", customAssignments);
+
+    const completed = this.getCompletedTasks().filter((id) => id !== taskId);
+    setStorage("completed_task_ids", completed);
+
     notify();
   },
 
@@ -198,12 +422,29 @@ export const Store = {
   },
 
   getLedger() {
-    return ledgerData;
+    const customEntries = getStorage("custom_ledger_entries", []);
+    return {
+      entries: [...customEntries, ...(ledgerData.entries || [])],
+    };
+  },
+
+  addLedgerEntry({ headline, justification, who = "farah" }) {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const newEntry = {
+      time: timeStr,
+      headline,
+      justification,
+      allowed_by: "Family decision & Shoulder fair division engine",
+      who,
+      id: `led-${Date.now()}`,
+    };
+    const custom = getStorage("custom_ledger_entries", []);
+    setStorage("custom_ledger_entries", [newEntry, ...custom]);
   },
 
   isPlanBalanced() {
     const open = this.getOpenEscalations();
-    // If open escalations resolved or none, plan is balanced!
     return open.length === 0;
   },
 
@@ -271,6 +512,12 @@ export const Store = {
     const userPrecedents = getStorage("user_precedents", []);
     setStorage("user_precedents", [newPrecedent, ...userPrecedents]);
 
+    this.addLedgerEntry({
+      headline: `Decision made: ${chosenOption.label}`,
+      justification: `Agreed by ${userMeta.shortName}. Precedent established for recurring monthly care schedule.`,
+      who: activeUserId,
+    });
+
     notify();
   },
 
@@ -281,6 +528,10 @@ export const Store = {
     localStorage.removeItem(STORAGE_PREFIX + "extra_covered_tasks");
     localStorage.removeItem(STORAGE_PREFIX + "user_precedents");
     localStorage.removeItem(STORAGE_PREFIX + "completed_task_ids");
+    localStorage.removeItem(STORAGE_PREFIX + "custom_tasks");
+    localStorage.removeItem(STORAGE_PREFIX + "custom_assignments");
+    localStorage.removeItem(STORAGE_PREFIX + "task_care_notes");
+    localStorage.removeItem(STORAGE_PREFIX + "custom_ledger_entries");
     notify();
   },
 };

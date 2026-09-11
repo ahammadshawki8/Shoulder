@@ -58,6 +58,16 @@ export default function Inbox({ activeUser, onNavigate }) {
 
   const isFairnessCard = currentCard.kind === "fairness_breach";
 
+  const getPersonaPerspectiveNote = () => {
+    if (activeUser === "amina") {
+      return "Amina, as the closest sibling (4 km), you currently carry 44% of Mum's care. Choosing Option 1 (Paid overnight help) relieves your night burden and brings your share to a sustainable 34%.";
+    }
+    if (activeUser === "rian") {
+      return "Rian, from Leeds (310 km), your financial and legal contributions are recognized. Choosing Option 1 uses your shared care fund to hire Elena, keeping physical duties balanced between your sisters.";
+    }
+    return "Farah, your Friday & Saturday recovery time is completely respected. This decision ensures Mum is covered on Wednesday overnight without asking you to break your confidential limits.";
+  };
+
   return (
     <div className="inbox-screen">
       {justResolvedToast && (
@@ -66,6 +76,20 @@ export default function Inbox({ activeUser, onNavigate }) {
           <span>{justResolvedToast}</span>
         </div>
       )}
+
+      {/* Sibling Perspective Card */}
+      <div className="sibling-profile-card mb-4">
+        <img src={userMeta.avatar} alt={userMeta.name} className="sibling-profile-avatar" />
+        <div className="sibling-profile-meta">
+          <div className="flex items-center gap-2">
+            <h3 className="text-base font-bold text-primary">Needs Your Family's Decision</h3>
+            <span className="persona-you-badge">Viewing as {userMeta.shortName}</span>
+          </div>
+          <p className="text-secondary text-xs mt-1 leading-relaxed">
+            {getPersonaPerspectiveNote()}
+          </p>
+        </div>
+      </div>
 
       <div className="decision-action-card">
         {/* Decision Badge */}
@@ -135,71 +159,58 @@ export default function Inbox({ activeUser, onNavigate }) {
               <div className="impact-segmented-bar">
                 {selectedOption === 0 ? (
                   <>
-                    <div style={{ width: "33%", background: PERSON_META.amina.color }} title="Amina 33%" />
-                    <div style={{ width: "30%", background: PERSON_META.rian.color }} title="Rian 30%" />
-                    <div style={{ width: "27%", background: PERSON_META.farah.color }} title="Farah 27%" />
-                    <div style={{ width: "10%", background: "var(--badge-paid)" }} title="Paid Help 10%" />
+                    <div style={{ width: "34%", background: PERSON_META.amina.color }} title="Amina 34%" />
+                    <div style={{ width: "33%", background: PERSON_META.rian.color }} title="Rian 33%" />
+                    <div style={{ width: "33%", background: PERSON_META.farah.color }} title="Farah 33%" />
                   </>
                 ) : (
                   <>
-                    <div style={{ width: "45%", background: PERSON_META.amina.color }} title="Amina 45%" />
-                    <div style={{ width: "30%", background: PERSON_META.rian.color }} title="Rian 30%" />
-                    <div style={{ width: "25%", background: PERSON_META.farah.color }} title="Farah 25%" />
+                    <div style={{ width: "42%", background: PERSON_META.amina.color }} title="Amina 42%" />
+                    <div style={{ width: "31%", background: PERSON_META.rian.color }} title="Rian 31%" />
+                    <div style={{ width: "27%", background: PERSON_META.farah.color }} title="Farah 27%" />
                   </>
                 )}
               </div>
-              <div className="impact-bar-caption" style={{ color: selectedOption === 0 ? "var(--badge-success)" : "var(--text-muted)" }}>
-                {selectedOption === 0 ? "✓ Load balanced evenly across all siblings" : "Spread remains unadjusted"}
+              <div className="impact-bar-caption">
+                {selectedOption === 0
+                  ? "Load spread drops to 4% (Fair & Sustainable)"
+                  : "Load remains unbalanced"}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Why Shoulder Paused (Behind "Why?" accordion) */}
-        <div className="why-paused-accordion">
+        {/* DECISION ACTION BUTTON */}
+        <div className="decision-submit-row">
+          <button className="btn-primary" onClick={handleDecide}>
+            <Check size={16} />
+            <span>Confirm Family Decision</span>
+          </button>
+
           <button
-            className="why-toggle-btn"
+            className="btn-quiet-text"
             onClick={() => setShowDetails(!showDetails)}
-            aria-expanded={showDetails}
           >
-            <Info size={14} />
-            <span>Why did Shoulder ask the family instead of deciding?</span>
-            <ChevronRight size={14} className={`accordion-arrow ${showDetails ? "open" : ""}`} />
+            {showDetails ? "Hide reasoning" : "Why was this escalated?"}
           </button>
+        </div>
 
-          {showDetails && (
-            <div className="why-content-panel">
-              <p className="why-refusal-text">
-                "{currentCard.what_i_will_not_decide || "Personal, financial, and family priorities belong to you. Shoulder will never impose decisions about money or personal availability."}"
-              </p>
-              {currentCard.what_i_tried?.length > 0 && (
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>What the agents checked first:</div>
-                  <ul style={{ paddingLeft: 18, fontSize: 13, color: "var(--text-muted)" }}>
-                    {currentCard.what_i_tried.map((item, idx) => (
-                      <li key={idx}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+        {/* COLLAPSIBLE EXPLAINER */}
+        {showDetails && (
+          <div className="decision-collapsible-reasoning">
+            <div className="reasoning-block">
+              <strong>What Shoulder tried:</strong>
+              <p>{currentCard.what_i_tried}</p>
             </div>
-          )}
-        </div>
-
-        {/* Confirmation Button */}
-        <div className="decision-action-footer">
-          <button
-            className="btn-primary"
-            onClick={handleDecide}
-            disabled={selectedOption === null}
-          >
-            Confirm Choice as {userMeta.shortName}
-          </button>
-
-          <span className="decision-note-safe">
-            Records as a standing family rule for next month.
-          </span>
-        </div>
+            <div className="reasoning-block">
+              <strong>What Shoulder refuses to decide alone:</strong>
+              <p>
+                {currentCard.what_i_will_not_decide ||
+                  "Shoulder refuses to compromise someone's private health limits or unilaterally book paid services without family consensus."}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
