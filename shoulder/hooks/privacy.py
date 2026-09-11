@@ -25,6 +25,21 @@ and on squashed text with everything but letters and digits removed. The second
 pass exists because a streamed reply can arrive split mid-word ("Chemo\\ntherapy")
 and a whole-word check alone would wave it through.
 
+And every check runs over several views of the text, because the Tier 7
+adversarial eval showed each of these walking straight past the plain one:
+
+  folded     compatibility forms, accents and invisible characters removed, and
+             common lookalike letters mapped to Latin ("\\u0441hemo" with a
+             Cyrillic c, full-width letters, "che\\u200bmo")
+  joined     line breaks removed, since a stream can split inside a short word
+  despaced   single letters run together ("c h e m o", "c.h.e.m.o")
+  leet       digits and symbols read as letters ("ch3m0")
+  reversed   and ROT13, the two rewrites that need no key
+  decoded    the strings inside any JSON object, with escapes resolved (over
+             A2A a reply is JSON, and a newline inside a JSON string reaches
+             the guard as a backslash and an "n"), and any base64 or hex run
+             that decodes to text
+
 When something matches, the whole piece of free text it appeared in is withheld
 and replaced with a note that a private detail was removed. Structured fields
 around it (a verdict, a reason class, task ids) still go through, so the
@@ -40,8 +55,12 @@ the same breath. The guard fails closed.
 
 from __future__ import annotations
 
+import base64
+import binascii
+import codecs
 import json
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
@@ -82,6 +101,101 @@ def normalise(text: str) -> str:
 def squash(text: str) -> str:
     """Lower case with everything but letters and digits removed."""
     return re.sub(r"[^a-z0-9]+", "", text.lower())
+
+
+# Letters that pass for Latin ones, after lower casing. Not every confusable in
+# Unicode, just enough that swapping one character does not hide a word.
+_CONFUSABLES = str.maketrans({
+    "а": "a", "в": "b", "е": "e", "ё": "e", "і": "i", "ј": "j", "к": "k",
+    "м": "m", "н": "h", "о": "o", "р": "p", "с": "c", "ѕ": "s", "т": "t",
+    "у": "y", "х": "x", "ԁ": "d", "ɡ": "g", "ո": "n",
+    "α": "a", "ε": "e", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p",
+    "τ": "t", "υ": "u", "χ": "x",
+})
+_LEET = str.maketrans({
+    "0": "o", "1": "i", "3": "e", "4": "a", "5": "s", "7": "t", "8": "b",
+    "@": "a", "$": "s", "!": "i", "|": "l",
+})
+_SPACED = re.compile(r"(?<![a-z0-9])(?:[a-z0-9] ){2,}[a-z0-9](?![a-z0-9])")
+_BASE64 = re.compile(r"[A-Za-z0-9+/]{12,}={0,2}")
+_HEX = re.compile(r"(?<![0-9A-Fa-f])(?:[0-9A-Fa-f]{2}){8,}(?![0-9A-Fa-f])")
+
+
+def fold(text: str) -> str:
+    """Lower case, with compatibility forms, accents, invisible characters and
+    lookalike letters resolved to plain Latin."""
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(
+        ch for ch in text
+        if not unicodedata.combining(ch) and unicodedata.category(ch) != "Cf"
+    )
+    return text.lower().translate(_CONFUSABLES)
+
+
+def _readable(raw: bytes) -> str | None:
+    text = raw.decode("utf-8", "ignore")
+    if len(text) < 4 or sum(ch.isprintable() for ch in text) < 0.9 * len(text):
+        return None
+    return text
+
+
+def _json_strings(text: str) -> list[str]:
+    """Every key and value inside the JSON object in `text`, escapes resolved."""
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end <= start:
+        return []
+    try:
+        data = json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return []
+    out: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, str):
+            out.append(node)
+        elif isinstance(node, dict):
+            for key, value in node.items():
+                out.append(str(key))
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(data)
+    return out
+
+
+def _decoded(text: str) -> list[str]:
+    out = _json_strings(text)
+    for token in _BASE64.findall(text):
+        try:
+            raw = base64.b64decode(token + "=" * (-len(token) % 4), validate=True)
+        except (binascii.Error, ValueError):
+            continue
+        if (found := _readable(raw)) is not None:
+            out.append(found)
+    for token in _HEX.findall(text):
+        if (found := _readable(bytes.fromhex(token))) is not None:
+            out.append(found)
+    return out
+
+
+def views(text: str) -> list[str]:
+    """Every reading of `text` the detector checks. See the module docstring."""
+    out: list[str] = []
+    for source in [text, *_decoded(text)]:
+        folded = fold(source)
+        despaced = _SPACED.sub(lambda m: m.group(0).replace(" ", ""), normalise(folded))
+        out.extend([
+            folded,
+            # A streamed reply splits anywhere, including inside a short word.
+            re.sub(r"[\r\n]+", "", folded),
+            despaced,
+            folded.translate(_LEET),
+            folded[::-1],
+            codecs.decode(folded, "rot13"),
+        ])
+    return list(dict.fromkeys(v for v in out if v))
 
 
 def _stem(word: str) -> str:
@@ -154,6 +268,12 @@ class PrivacyScreen:
     def findings(self, text: str) -> list[Finding]:
         if not text or not self._rules:
             return []
+        out: list[Finding] = []
+        for view in views(text):
+            out.extend(self._findings_in(view))
+        return list(dict.fromkeys(out))
+
+    def _findings_in(self, text: str) -> list[Finding]:
         norm = normalise(text)
         flat = squash(text)
         words = _content_words(text)
@@ -186,7 +306,9 @@ class PrivacyScreen:
         """Screen every string inside a JSON-like value, keeping its shape.
 
         A string carrying a private fact is withheld whole. Strings that carry
-        nothing, like a verdict, pass through untouched.
+        nothing, like a verdict, pass through untouched. A key carrying one is
+        dropped with its value: a key cannot be replaced by the withheld note
+        without colliding with the next, and nothing legitimate is named that.
         """
         if isinstance(value, str):
             found = self.findings(value)
@@ -194,6 +316,10 @@ class PrivacyScreen:
         if isinstance(value, dict):
             out, found = {}, []
             for key, item in value.items():
+                in_key = self.findings(str(key))
+                if in_key:
+                    found.extend(in_key)
+                    continue
                 out[key], f = self.redact_value(item)
                 found.extend(f)
             return out, found

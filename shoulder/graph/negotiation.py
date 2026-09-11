@@ -71,6 +71,22 @@ def _pct(value: float) -> str:
     return f"{round(value * 100)} percent"
 
 
+def _rank(report: FairnessReport) -> tuple[int, int, float]:
+    """How good a split is, lower first: limits broken, care left undone, spread.
+
+    A circle where some task cannot be covered by anyone still needs the fairest
+    split of everything else. Ranking only feasible splits meant such a circle
+    never kept any, and the family was handed whatever the last round tried: in
+    the Tier 7 fairness eval, a spread of 222 percent where the opening split
+    had 68.
+    """
+    return (len(report.hard_violations), len(report.unassigned_tasks), report.max_deviation)
+
+
+def _feasible(report: FairnessReport) -> bool:
+    return not report.hard_violations and not report.unassigned_tasks
+
+
 def _moves(circle: Circle, before: Allocation, after: Allocation) -> list[str]:
     """Each task that changed hands, in words: "Weekend visit (Sat) from Amina to Rian"."""
     names = {p.id: p.name for p in circle.principals}
@@ -185,14 +201,8 @@ class NegotiationState:
         )
 
     def consider(self, allocation: Allocation, report: FairnessReport) -> None:
-        """Keep this split if it is the best legal one we have found."""
-        feasible = not report.hard_violations and not report.unassigned_tasks
-        if not feasible:
-            return
-        if (
-            self.best_report is None
-            or report.max_deviation < self.best_report.max_deviation
-        ):
+        """Keep this split if it is the best one we have found (see `_rank`)."""
+        if self.best_report is None or _rank(report) < _rank(self.best_report):
             self.best_allocation = allocation
             self.best_report = report
 
@@ -376,25 +386,25 @@ class ProposeNode(_Node):
             # wander away from a good answer it already had.
             trial = build_fairness_report(s.circle, s.allocation)
             s.round_tried, s.round_moves = trial, moves
-            feasible = not trial.hard_violations and not trial.unassigned_tasks
-            if (
-                s.best_report is not None
-                and feasible
-                and trial.max_deviation > s.best_report.max_deviation
-            ):
+            best = s.best_report
+            if best is not None and _rank(trial) > _rank(best):
                 s.round_kept = False
                 print(f"  [reject]   round {s.round_number} moves made it worse "
-                      f"({trial.max_deviation} vs {s.best_report.max_deviation}), "
+                      f"({trial.max_deviation} vs {best.max_deviation}), "
                       f"keeping the better split")
                 s.attempts.append(
                     f"Round {s.round_number}: those moves made the split less "
                     f"even, so they were not kept."
                 )
+                worse = (
+                    "left more of the care uncovered"
+                    if len(trial.unassigned_tasks) > len(best.unassigned_tasks)
+                    else f"made the load less even ({_pct(trial.max_deviation)} "
+                    f"against {_pct(best.max_deviation)})"
+                )
                 s.ledger.record(
                     "kept_better_split",
-                    f"Tried those moves and they made the load less even "
-                    f"({_pct(trial.max_deviation)} against "
-                    f"{_pct(s.best_report.max_deviation)}), so kept the earlier split.",
+                    f"Tried those moves and they {worse}, so kept the earlier split.",
                     justification="The working rota only ever gets fairer.",
                     round_number=s.round_number,
                 )
@@ -481,9 +491,9 @@ class EvaluateNode(_Node):
 
         # Out of rounds, but the family has said before that a split this even
         # may stand. Only after every round was tried, only with every stated
-        # limit intact, and only if nobody objects now.
+        # limit intact and all the care covered, and only if nobody objects now.
         best = s.best_report
-        if s.exhausted and not vetoed and best is not None:
+        if s.exhausted and not vetoed and best is not None and _feasible(best):
             accepted = accepting(s.precedents, best.max_deviation)
             if accepted is not None:
                 s.settled, s.exhausted = True, False

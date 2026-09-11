@@ -593,10 +593,21 @@ of them may be carrying something you cannot see.
                 option.effect.kind = "none"
         option.fairness_delta = price_effect(option.effect, circle, allocation, report)
     if not any(o.effect and o.effect.kind == "accept_split" for o in card.options):
+        if report.unassigned_tasks:
+            # Never promise cover that is not there. Found by the Tier 7 eval.
+            undone = len(report.unassigned_tasks)
+            consequence = (
+                f"Every stated limit is respected, but {undone} "
+                f"task{'s' if undone != 1 else ''} nobody can take stay uncovered."
+            )
+        else:
+            consequence = (
+                "Every stated limit is respected and the care is covered, "
+                "with the load uneven as described."
+            )
         card.options.insert(0, EscalationOption(
             label="Keep the current split",
-            consequence="Every stated limit is respected and the care is covered, "
-            "with the load uneven as described.",
+            consequence=consequence,
             effect=OptionEffect(kind="accept_split"),
         ))
     return card
