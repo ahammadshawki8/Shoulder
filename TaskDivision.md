@@ -151,7 +151,7 @@ Build toward the storyboard in §8 - it defines what the screens must show.
 
 ### Block 4 - Ashfaq · Sat 13 Sep evening
 
-- [ ] Tier 7 evals: fairness invariant, **privacy adversarial eval**, escalation precision/recall, precedent regression
+- [x] Tier 7 evals: fairness invariant, **privacy adversarial eval**, escalation precision/recall, precedent regression (`python -m evals`)
 - [ ] Clean-clone QA - follow the README exactly as a stranger would and file what breaks
 - [ ] Gather video assets: screen recordings of each §8 beat, at high resolution, before the script exists
 
