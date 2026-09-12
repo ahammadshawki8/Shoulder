@@ -1,318 +1,159 @@
-import React, { useState, useEffect } from "react";
-import { Store, PERSON_META, WEEKDAYS, DAY_NAMES, TYPE_META, toPosition } from "../data/store.js";
-import { Lock, Shield, Check, User, Users, CheckCircle } from "../components/Icons.jsx";
+import React, { useEffect, useState } from "react";
+import {
+  PERSON_META,
+  Store,
+  TYPE_META,
+  WEEKDAYS,
+  subscribeStore,
+  toPosition,
+} from "../data/store.js";
+import { Lock, Users } from "../components/Icons.jsx";
 
+/**
+ * What you told your agent, and what your family sees.
+ *
+ * The two panels are the whole promise, side by side. The left is yours: it
+ * includes the reason, and the reason has never left this device. The right is
+ * everything the others get, rebuilt live from the left by the same projection
+ * the agents use. Change something on the left and watch what does, and does
+ * not, appear on the right.
+ */
 export default function Limits({ activeUser }) {
+  const [, force] = useState(0);
+  useEffect(() => subscribeStore(() => force((n) => n + 1)), []);
+
   const principal = Store.getPrincipal(activeUser);
-  const userMeta = PERSON_META[activeUser] || PERSON_META.farah;
+  const me = PERSON_META[activeUser];
+  if (!principal) return null;
 
-  const [capacity, setCapacity] = useState(principal ? Math.round(principal.capacity * 100) : userMeta.defaultCapacity || 70);
-  const [dayStates, setDayStates] = useState({
-    Mon: "available",
-    Tue: "available",
-    Wed: "available",
-    Thu: "available",
-    Fri: "available",
-    Sat: "available",
-    Sun: "available",
-  });
-  const [refusedTypes, setRefusedTypes] = useState([]);
-  const [privateReason, setPrivateReason] = useState("");
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
-  useEffect(() => {
-    if (!principal) return;
-    setCapacity(Math.round(principal.capacity * 100));
-
-    const days = {
-      Mon: "available",
-      Tue: "available",
-      Wed: "available",
-      Thu: "available",
-      Fri: "available",
-      Sat: "available",
-      Sun: "available",
-    };
-    const refused = new Set();
-    let privReason = "";
-
-    for (const c of principal.constraints || []) {
-      for (const d of c.blocks_weekdays || []) {
-        days[d] = "unavailable";
-      }
-      for (const t of c.blocks_task_types || []) refused.add(t);
-      if (c.tier === "private" && c.reason) privReason = c.reason;
-    }
-
-    // Default fallback reasons per persona if not explicitly set
-    if (!privReason) {
-      if (activeUser === "farah") {
-        privReason = "Chemotherapy infusions on Friday, recovering all Saturday. Strictly private.";
-      } else if (activeUser === "amina") {
-        privReason = "Managing school runs for two teens and full-time nursing shifts.";
-      } else if (activeUser === "rian") {
-        privReason = "Full-time corporate schedule in Leeds; corporate travel blackout Mon–Thu.";
-      }
-    }
-
-    setDayStates(days);
-    setRefusedTypes([...refused]);
-    setPrivateReason(privReason);
-  }, [principal, activeUser]);
-
-  const cycleDayState = (day) => {
-    setDayStates((prev) => {
-      const current = prev[day] || "available";
-      const next = current === "available" ? "limited" : current === "limited" ? "unavailable" : "available";
-      return { ...prev, [day]: next };
-    });
-  };
-
-  const toggleTaskType = (typeKey) => {
-    setRefusedTypes((prev) =>
-      prev.includes(typeKey) ? prev.filter((t) => t !== typeKey) : [...prev, typeKey]
-    );
-  };
-
-  const handleSave = (e) => {
-    e.preventDefault();
-    const blockedDays = Object.entries(dayStates)
-      .filter(([_, state]) => state === "unavailable")
-      .map(([day]) => day);
-
-    const updatedConstraints = [
-      {
-        id: `c-${activeUser}`,
-        tier: privateReason ? "private" : "shareable",
-        summary: blockedDays.length ? `Unavailable on ${blockedDays.join(", ")}` : "Available all days",
-        blocks_weekdays: blockedDays,
-        blocks_task_types: refusedTypes,
-        reason: privateReason,
-      },
-    ];
-
-    Store.savePrincipal(activeUser, {
-      capacity: capacity / 100,
-      constraints: updatedConstraints,
-    });
-
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
-  };
-
-  // Compute public position
-  const blockedDaysList = Object.entries(dayStates)
-    .filter(([_, state]) => state === "unavailable")
-    .map(([day]) => day);
+  const position = toPosition(principal);
+  const fixedDays = Store.fixedDaysFor(activeUser);
+  const privates = principal.constraints.filter((c) => c.tier === "private");
+  const capacityPct = Math.round(principal.capacity * 100);
 
   return (
-    <div className="limits-screen">
-      {/* Sibling Profile Header */}
-      <div className="sibling-profile-card">
-        <img src={userMeta.avatar} alt={userMeta.name} className="sibling-profile-avatar" />
-        <div className="sibling-profile-meta">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-primary">{userMeta.name}</h2>
-            <span className="persona-you-badge">Active View</span>
-          </div>
-          <p className="text-secondary text-sm mt-1">{userMeta.bio}</p>
-          <div className="flex items-center gap-3 mt-2 text-xs text-soft">
-            <span>📍 {userMeta.role}</span>
-            <span>·</span>
-            <span>📞 {userMeta.phone}</span>
-            <span>·</span>
-            <span>⚖️ Declared Capacity: <strong>{capacity}%</strong></span>
-          </div>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1>My limits</h1>
+          <p>What you can take on, and what stays with you</p>
         </div>
-      </div>
+      </header>
 
-      <div className="planner-grid-layout">
-        {/* LEFT COLUMN: VISUAL CAPACITY & AVAILABILITY PLANNER */}
-        <div className="planner-main-column">
-          {/* 1. VISUAL CAPACITY SLIDER */}
-          <div className="planner-card">
-            <div className="planner-card-header">
-              <span className="planner-card-title">Careload Capacity</span>
-              <span className="capacity-number-badge">{capacity}%</span>
-            </div>
-            <p className="text-xs text-soft mb-3">
-              How much of Mum's overall monthly care share you can realistically shoulder right now.
-            </p>
+      <div className="two-up">
+        {/* ---------------- yours ---------------- */}
+        <section className="panel panel-yours">
+          <span className="panel-tag">
+            <Lock size={13} /> Only your agent sees this
+          </span>
 
-            <div className="capacity-bar-visual-wrap">
-              <div className="capacity-bar-track">
-                <div
-                  className="capacity-bar-fill"
-                  style={{ width: `${capacity}%`, background: userMeta.color }}
-                />
-              </div>
-              <input
-                type="range"
-                min="20"
-                max="100"
-                step="5"
-                value={capacity}
-                onChange={(e) => setCapacity(Number(e.target.value))}
-                className="capacity-range-hidden"
-              />
-            </div>
+          <label className="field">
+            <span className="field-label">
+              How much you can take on
+              <b>{capacityPct}%</b>
+            </span>
+            <input
+              type="range"
+              min="20"
+              max="100"
+              step="5"
+              value={capacityPct}
+              onChange={(e) => Store.savePrincipal(activeUser, { capacity: Number(e.target.value) / 100 })}
+            />
+          </label>
 
-            <div className="capacity-sub-scale">
-              <span>20% (Light)</span>
-              <span>60% (Moderate)</span>
-              <span>100% (Full Share)</span>
-            </div>
-          </div>
-
-          {/* 2. WEEKDAY AVAILABILITY BLOCKS */}
-          <div className="planner-card">
-            <div className="planner-card-header">
-              <span className="planner-card-title">Weekly Availability</span>
-              <span style={{ fontSize: 13, color: "var(--text-soft)" }}>Click to cycle state</span>
-            </div>
-
-            <div className="weekday-blocks-list">
+          <div className="field">
+            <span className="field-label">Days you cannot do</span>
+            <div className="days">
               {WEEKDAYS.map((day) => {
-                const state = dayStates[day];
-                const isAvailable = state === "available";
-                const isLimited = state === "limited";
-                const isUnavailable = state === "unavailable";
-
-                return (
-                  <div
-                    key={day}
-                    className={`weekday-row-block ${state}`}
-                    onClick={() => cycleDayState(day)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <span className="weekday-name">{DAY_NAMES[day]}</span>
-
-                    <div className="weekday-bar-container">
-                      <div className={`weekday-state-bar ${state}`} />
-                    </div>
-
-                    <span className={`weekday-status-pill ${state}`}>
-                      {isAvailable && "Available"}
-                      {isLimited && "Limited"}
-                      {isUnavailable && "Blocked"}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. TASK TYPE PREFERENCES */}
-          <div className="planner-card">
-            <div className="planner-card-header">
-              <span className="planner-card-title">Duties You Cannot Take</span>
-              <span style={{ fontSize: 13, color: "var(--text-soft)" }}>Off-limits chore types</span>
-            </div>
-
-            <div className="task-type-chips-grid">
-              {Object.entries(TYPE_META).map(([key, meta]) => {
-                const isRefused = refusedTypes.includes(key);
-
+                const fixed = fixedDays.has(day);
+                const off = position.unavailable_weekdays.includes(day);
                 return (
                   <button
-                    key={key}
-                    type="button"
-                    className={`type-chip-btn ${isRefused ? "refused" : "allowed"}`}
-                    onClick={() => toggleTaskType(key)}
+                    key={day}
+                    className={`day-chip ${off ? "off" : ""} ${fixed ? "fixed" : ""}`}
+                    onClick={() => !fixed && Store.togglePersonalDay(activeUser, day)}
+                    title={fixed ? "This comes from something else you told your agent" : ""}
                   >
-                    <span className="type-chip-status-icon">
-                      {isRefused ? "✕" : "✓"}
-                    </span>
-                    <span>{meta.label}</span>
+                    {day}
+                    {fixed && <Lock size={10} />}
                   </button>
                 );
               })}
             </div>
           </div>
-        </div>
 
-        {/* RIGHT COLUMN: CONFIDENTIAL VAULT & PUBLIC PREVIEW */}
-        <div className="planner-side-column">
-          {/* CONFIDENTIAL REASON VAULT */}
-          <div className="private-vault-card">
-            <div className="vault-header-row">
-              <div className="vault-icon-badge">
-                <Lock size={16} />
-              </div>
-              <div>
-                <h3 className="vault-title">Confidential to Your Agent</h3>
-                <p className="vault-subtext">Never shown to your siblings or stored in family logs</p>
-              </div>
-            </div>
-
-            <div className="vault-input-area">
-              <label className="vault-label">Your Private Reason (Kept on your phone):</label>
-              <textarea
-                className="vault-textarea"
-                rows="3"
-                value={privateReason}
-                onChange={(e) => setPrivateReason(e.target.value)}
-                placeholder="e.g. Health treatments, work deadlines, personal care needs..."
-              />
-              <div className="vault-guarantee-note">
-                <Shield size={14} />
-                <span>Enforced by cryptographic boundary filter. Siblings only see availability blocks.</span>
-              </div>
-            </div>
-          </div>
-
-          {/* WHAT YOUR SIBLINGS SEE */}
-          <div className="public-position-preview-card">
-            <div className="public-header-row">
-              <Users size={16} />
-              <span className="public-title">What Your Siblings See</span>
-            </div>
-
-            <div className="public-position-summary">
-              <div className="public-stat-line">
-                <span className="stat-name">Declared Capacity:</span>
-                <strong className="stat-val">{capacity}%</strong>
-              </div>
-
-              <div className="public-stat-line">
-                <span className="stat-name">Unavailable Days:</span>
-                <strong className="stat-val">
-                  {blockedDaysList.length ? blockedDaysList.join(", ") : "None (Available all week)"}
-                </strong>
-              </div>
-
-              <div className="public-stat-line">
-                <span className="stat-name">Excluded Tasks:</span>
-                <strong className="stat-val">
-                  {refusedTypes.length
-                    ? refusedTypes.map((t) => TYPE_META[t]?.label || t).join(", ")
-                    : "None"}
-                </strong>
-              </div>
-
-              <div className="public-stat-line">
-                <span className="stat-name">Reason Shared:</span>
-                <span className="stat-val-italic">
-                  {privateReason ? "Private personal constraint (Detail withheld)" : "Standard weekly schedule"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* SAVE BUTTON */}
-          <button className="btn-primary" style={{ width: "100%", justifyContent: "center" }} onClick={handleSave}>
-            <Check size={16} />
-            <span>Save My Availability</span>
-          </button>
-
-          {savedSuccess && (
-            <div className="toast-decision-alert" style={{ marginTop: 12 }}>
-              <CheckCircle size={16} />
-              <span>Limits saved! Sibling schedule updated.</span>
+          {privates.length > 0 && (
+            <div className="field">
+              <span className="field-label">Why, in your words</span>
+              {privates.map((c) => (
+                <div key={c.id} className="private-box">
+                  <span className="private-head">
+                    <Lock size={12} /> {c.summary}
+                  </span>
+                  <textarea
+                    value={c.reason || ""}
+                    rows={3}
+                    onChange={(e) => Store.savePrivateReason(activeUser, c.id, e.target.value)}
+                  />
+                  <span className="private-foot">
+                    This never leaves your device. A check in code reads every message
+                    before it is sent.
+                  </span>
+                </div>
+              ))}
             </div>
           )}
-        </div>
+        </section>
+
+        {/* ---------------- theirs ---------------- */}
+        <section className="panel panel-theirs">
+          <span className="panel-tag">
+            <Users size={13} /> What your family sees
+          </span>
+
+          <ul className="seen">
+            <li>
+              <em>Can take on</em>
+              <span>{capacityPct}% of a full share</span>
+            </li>
+            <li>
+              <em>Not available</em>
+              <span>
+                {position.unavailable_weekdays.length
+                  ? position.unavailable_weekdays.join(", ")
+                  : "any day works"}
+              </span>
+            </li>
+            {position.unavailable_weekdays_onsite.length > 0 && (
+              <li>
+                <em>Cannot travel</em>
+                <span>{position.unavailable_weekdays_onsite.join(", ")}</span>
+              </li>
+            )}
+            {position.refused_task_types.length > 0 && (
+              <li>
+                <em>Does not take</em>
+                <span>
+                  {position.refused_task_types.map((t) => TYPE_META[t]?.label || t).join(", ")}
+                </span>
+              </li>
+            )}
+            {position.max_tasks_per_period != null && (
+              <li>
+                <em>At most</em>
+                <span>{position.max_tasks_per_period} tasks a month</span>
+              </li>
+            )}
+          </ul>
+
+          {privates.length > 0 && (
+            <p className="seen-note">
+              Your family sees the days and the kinds of work, never the reason. The
+              words above are not in this list, and nothing here is built from them.
+            </p>
+          )}
+        </section>
       </div>
     </div>
   );

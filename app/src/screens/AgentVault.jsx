@@ -1,120 +1,109 @@
-import React from "react";
-import { Store, PERSON_META, toPosition, DAY_NAMES, TYPE_META } from "../data/store.js";
-import { Lock, Shield, User, Users, CheckCircle } from "../components/Icons.jsx";
+import React, { useState } from "react";
+import privacyDemo from "@fixtures/privacy_demo.json";
+import { PERSON_META, Store, toPosition } from "../data/store.js";
+import { Lock, Shield, Users } from "../components/Icons.jsx";
 
+/**
+ * The agent that speaks for you, and the moment it kept its mouth shut.
+ *
+ * The caught message below is real: fixtures/privacy_demo.json is written by
+ * `python -m shoulder.demos.leak`, where a model is deliberately made to reveal
+ * Farah's reason and a hook in code stops the reply before it leaves her
+ * process. The draft is what it wrote. The sent line is what crossed the wire.
+ */
 export default function AgentVault({ activeUser }) {
+  const [showDraft, setShowDraft] = useState(false);
   const principal = Store.getPrincipal(activeUser);
-  const userMeta = PERSON_META[activeUser] || PERSON_META.farah;
+  const me = PERSON_META[activeUser];
+  if (!principal) return null;
 
-  const position = toPosition(principal || {});
-  const privateConstraint = principal?.constraints?.find((c) => c.tier === "private");
-
-  // Persona-specific private reason fallback
-  const getConfidentialReason = () => {
-    if (privateConstraint?.reason) return privateConstraint.reason;
-    if (activeUser === "farah") {
-      return "Chemotherapy infusions on Friday, recovering all Saturday. She has not told her brother or sister and does not intend to.";
-    }
-    if (activeUser === "amina") {
-      return "Managing exam revision for two teenagers and heavy NHS hospital night shifts. Keeps it off family rota to avoid sibling comparison.";
-    }
-    if (activeUser === "rian") {
-      return "Based in Leeds (310 km away). Corporate contractual travel restrictions prevent physical presence on weekdays.";
-    }
-    return "Personal private commitments and health schedule.";
-  };
+  const position = toPosition(principal);
+  const privates = principal.constraints.filter((c) => c.tier === "private");
+  const caught = privacyDemo.principal_id === activeUser && privacyDemo.blocked;
 
   return (
-    <div className="transparency-screen">
-      {/* Sibling Agent Header with Avatar */}
-      <div className="sibling-profile-card">
-        <img src={userMeta.avatar} alt={userMeta.name} className="sibling-profile-avatar" />
-        <div className="sibling-profile-meta">
-          <div className="flex items-center gap-2">
-            <h2 className="text-xl font-bold text-primary">{userMeta.name}'s Device Vault</h2>
-            <span className="persona-you-badge">Private Agent</span>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1>Your agent</h1>
+          <p>It argues your corner, and keeps what you told it</p>
+        </div>
+      </header>
+
+      <div className="two-up">
+        <section className="panel panel-yours">
+          <span className="panel-tag">
+            <Lock size={13} /> Held for you
+          </span>
+          {privates.length ? (
+            <ul className="held">
+              {privates.map((c) => (
+                <li key={c.id}>
+                  <strong>{c.summary}</strong>
+                  <span>{c.reason}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="tile-quiet">You have not told it anything private.</p>
+          )}
+        </section>
+
+        <section className="panel panel-theirs">
+          <span className="panel-tag">
+            <Users size={13} /> Said on your behalf
+          </span>
+          <ul className="held">
+            <li>
+              <strong>{Math.round(position.capacity * 100)}% of a full share</strong>
+              <span>what you said you can take on</span>
+            </li>
+            {position.unavailable_weekdays.length > 0 && (
+              <li>
+                <strong>Not {position.unavailable_weekdays.join(", ")}</strong>
+                <span>the days, never the reason</span>
+              </li>
+            )}
+            {position.refused_task_types.length > 0 && (
+              <li>
+                <strong>No {position.refused_task_types.join(", ")} work</strong>
+                <span>the kind of work, never the reason</span>
+              </li>
+            )}
+          </ul>
+        </section>
+      </div>
+
+      {caught && (
+        <section className="caught">
+          <span className="panel-tag caught-tag">
+            <Shield size={13} /> It stopped a message
+          </span>
+          <p className="caught-ask">{privacyDemo.attempt.split("\n\n")[1] || privacyDemo.attempt}</p>
+
+          <div className="caught-pair">
+            <div className="caught-side">
+              <em>What it was about to say</em>
+              {showDraft ? (
+                <p className="caught-draft">{privacyDemo.draft_message}</p>
+              ) : (
+                <button className="btn-quiet" onClick={() => setShowDraft(true)}>
+                  Show me what was blocked
+                </button>
+              )}
+            </div>
+            <div className="caught-side">
+              <em>What the family got</em>
+              <p className="caught-sent">{privacyDemo.sent_message}</p>
+            </div>
           </div>
-          <p className="text-secondary text-sm mt-1">
-            Your personal AI agent runs locally on your device. It advocates for your fair share and strictly
-            guards what you tell it in confidence.
+
+          <p className="caught-foot">
+            Stopped on the words {privacyDemo.matched.map((w) => `"${w}"`).join(", ")}. Your
+            family only learns that a check ran.
           </p>
-        </div>
-      </div>
-
-      {/* Visual Privacy Split */}
-      <div className="privacy-split-container">
-        {/* TOP/LEFT: PRIVATE TO YOUR AGENT */}
-        <div className="privacy-split-card private-side">
-          <div className="split-badge private">
-            <Lock size={14} />
-            <span>STRICTLY PRIVATE · Kept in your device vault</span>
-          </div>
-
-          <h3 className="split-title">What You Told Your Agent</h3>
-
-          <div className="vault-secret-display">
-            <div className="secret-label">Personal Confidential Note:</div>
-            <div className="secret-quote">
-              "{getConfidentialReason()}"
-            </div>
-            <div className="secret-guarantee">
-              <Shield size={14} /> Never transmitted across the network or stored in family databases.
-            </div>
-          </div>
-        </div>
-
-        {/* MIDDLE: THE PRIVACY BOUNDARY HOOK */}
-        <div className="privacy-filter-barrier">
-          <div className="barrier-line" />
-          <div className="barrier-pill">
-            <Shield size={16} />
-            <span>Privacy Guard Hook (Enforced in Code)</span>
-          </div>
-          <div className="barrier-line" />
-        </div>
-
-        {/* BOTTOM/RIGHT: SHARED WITH FAMILY */}
-        <div className="privacy-split-card shared-side">
-          <div className="split-badge shared">
-            <Users size={14} />
-            <span>SHARED WITH CIRCLE · Family Position</span>
-          </div>
-
-          <h3 className="split-title">What Reaches the Family Circle</h3>
-
-          <div className="shared-position-list">
-            <div className="shared-item">
-              <span className="shared-key">Declared Capacity</span>
-              <span className="shared-val">{Math.round((principal?.capacity || 0.7) * 100)}% of monthly careload</span>
-            </div>
-
-            <div className="shared-item">
-              <span className="shared-key">Unavailable Weekdays</span>
-              <span className="shared-val">
-                {position.unavailable.length
-                  ? position.unavailable.map((d) => DAY_NAMES[d] || d).join(", ")
-                  : "None (Available all week)"}
-              </span>
-            </div>
-
-            <div className="shared-item">
-              <span className="shared-key">Refused Task Categories</span>
-              <span className="shared-val">
-                {position.refused.length
-                  ? position.refused.map((t) => TYPE_META[t]?.label || t).join(", ")
-                  : "None (Will help where needed)"}
-              </span>
-            </div>
-
-            <div className="shared-item">
-              <span className="shared-key">Public Statement to Siblings</span>
-              <span className="shared-val" style={{ fontStyle: "italic" }}>
-                "{position.unavailable.length ? `Unavailable on ${position.unavailable.join(", ")}` : "Standard weekly availability."}"
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+        </section>
+      )}
     </div>
   );
 }

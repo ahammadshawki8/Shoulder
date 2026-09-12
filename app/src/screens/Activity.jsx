@@ -1,70 +1,55 @@
 import React, { useState } from "react";
-import { Store } from "../data/store.js";
-import { Clock, CheckCircle, Shield, Calendar, Pill, AlertCircle, ArrowRight } from "../components/Icons.jsx";
+import { PERSON_META, Store, personOf } from "../data/store.js";
+import { Shield, Check, Scale, Calendar, Lock } from "../components/Icons.jsx";
 
+const GLYPH = {
+  withheld_private_detail: Lock,
+  blocked_action: Shield,
+  raised_escalation: Shield,
+  measured_fairness: Scale,
+  applied_precedent: Check,
+  took_action: Check,
+};
+
+/**
+ * What it did while nobody was looking.
+ *
+ * One line each. The reason it was allowed to act alone is a click away, which
+ * is the honest order: a family wants to know what happened first.
+ */
 export default function Activity() {
-  const ledger = Store.getLedger();
-  const [filter, setFilter] = useState("all");
-
-  // Format real ledger entries into visual timeline events
-  const events = ledger
-    .filter((e) => !["measured_fairness", "kept_better_split"].includes(e.kind))
-    .slice(0, 15);
-
-  const getIcon = (kind) => {
-    switch (kind) {
-      case "applied_precedent":
-        return <CheckCircle size={15} style={{ color: "var(--badge-success)" }} />;
-      case "withheld_private_detail":
-      case "blocked_action":
-        return <Shield size={15} style={{ color: "var(--accent-primary)" }} />;
-      case "reversed_move":
-        return <Clock size={15} style={{ color: "var(--accent-secondary)" }} />;
-      default:
-        return <Calendar size={15} style={{ color: "var(--text-soft)" }} />;
-    }
-  };
+  const [openId, setOpenId] = useState(null);
+  const entries = Store.getLedger();
 
   return (
-    <div className="transparency-screen">
-      <div className="screen-header-simple">
-        <h2 className="screen-simple-title">Activity & Audit Timeline</h2>
-        <span className="screen-simple-tag">Automated Coordination</span>
-      </div>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1>What it did</h1>
+          <p>Everything it handled without asking, and why it was allowed to</p>
+        </div>
+      </header>
 
-      <p className="screen-caption-quiet">
-        A real-time audit record of every routine action taken by the agents in the background. Nothing happens without an explicit reason recorded here.
-      </p>
-
-      <div className="activity-timeline-wrap">
-        {events.map((item, index) => {
+      <section className="trail">
+        {entries.map((entry) => {
+          const Glyph = GLYPH[entry.kind] || Calendar;
+          const person = personOf(entry.who);
+          const open = openId === entry.id;
           return (
-            <div key={item.id || index} className="activity-timeline-row">
-              <div className="activity-time-col">
-                <span className="activity-time-stamp">
-                  Round {item.round_number == null ? "Auto" : item.round_number}
+            <div key={entry.id} className={`trail-item ${open ? "open" : ""}`}>
+              <button className="trail-line" onClick={() => setOpenId(open ? null : entry.id)}>
+                <span className="trail-glyph">
+                  <Glyph size={14} />
                 </span>
-              </div>
-
-              <div className="activity-icon-spine">
-                <div className="activity-icon-bubble">
-                  {getIcon(item.kind)}
-                </div>
-                {index < events.length - 1 && <div className="activity-spine-line" />}
-              </div>
-
-              <div className="activity-details-col">
-                <div className="activity-headline">{item.summary}</div>
-                {item.justification && (
-                  <div className="activity-justification">
-                    <strong>Rule:</strong> {item.justification}
-                  </div>
-                )}
-              </div>
+                <span className="trail-text">{entry.summary}</span>
+                {person && <img src={person.avatar} alt="" className="trail-face" />}
+                <span className="trail-time">{entry.when}</span>
+              </button>
+              {open && entry.justification && <p className="trail-why">{entry.justification}</p>}
             </div>
           );
         })}
-      </div>
+      </section>
     </div>
   );
 }

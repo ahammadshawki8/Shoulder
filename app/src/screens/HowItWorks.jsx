@@ -1,92 +1,68 @@
 import React, { useState } from "react";
-import { Shield, Lock, Scale, Users, CheckCircle, ChevronRight, ArrowRight } from "../components/Icons.jsx";
+import { CARE_RECIPIENT_META, Store } from "../data/store.js";
 
 const STEPS = [
   {
-    step: 1,
-    title: "Private Intake",
-    subtitle: "What you tell your agent stays with your agent",
-    icon: Lock,
-    detail: "Each sibling configures their own personal agent with availability, capacity, and confidential reasons. Reasons are held in device memory and never leave.",
+    id: "tell",
+    title: "Each of you tells your own agent what you can do",
+    more:
+      "Privately, including the parts you would not say at a family dinner. The reason stays on your device. Only the effect, like which days are out, ever reaches the others.",
   },
   {
-    step: 2,
-    title: "Position Boundary",
-    subtitle: "Positions out, reasons never",
-    icon: Shield,
-    detail: "Only public availability windows and capacities leave your device. A privacy guard hook in code screens every outbound message to prevent sensitive leaks.",
+    id: "split",
+    title: "It works out a split that respects every limit",
+    more:
+      "The maths is fixed, not guessed: each person's load is weighed against what they said they can carry. A night awake counts for more than an hour of paperwork, and distance counts too.",
   },
   {
-    step: 3,
-    title: "Autonomous Negotiation",
-    subtitle: "Agents propose and counter over A2A",
-    icon: Users,
-    detail: "The Convener agent proposes care schedules, while principal agents critique and route around personal boundaries quietly in the background.",
+    id: "ask",
+    title: "When it cannot make it fair, it asks you",
+    more:
+      "It never decides anything that belongs to the family: spending money, cutting care, or changing what somebody said they can manage. Those come to you as one card at a time.",
   },
   {
-    step: 4,
-    title: "Deterministic Fair Division",
-    subtitle: "Fairness is computed by math, never guessed",
-    icon: Scale,
-    detail: "Algorithms compute capacity-adjusted proportionality and envy-freeness. No language model determines the numbers.",
-  },
-  {
-    step: 5,
-    title: "Human Escalation",
-    subtitle: "The agent refuses to decide for you",
-    icon: CheckCircle,
-    detail: "When a fair plan cannot be settled or an out-of-envelope decision is reached, Shoulder asks the family once with priced options. The humans decide.",
+    id: "learn",
+    title: "What you decide, it remembers",
+    more:
+      "Your answer becomes a standing agreement and is applied the next month without asking again, always saying who decided it and when. Month one it interrupts; by month two it mostly does not.",
   },
 ];
 
-export default function HowItWorks() {
-  const [activeStep, setActiveStep] = useState(0);
+export default function HowItWorks({ onNavigate }) {
+  const [open, setOpen] = useState(null);
+  const fairness = Store.getFairness();
 
   return (
-    <div className="transparency-screen">
-      <div className="screen-header-simple">
-        <h2 className="screen-simple-title">How Shoulder Works</h2>
-        <span className="screen-simple-tag">Architecture & Principles</span>
-      </div>
-
-      <p className="screen-caption-quiet">
-        A quick visual walkthrough of how Shoulder redistributes eldercare fairly while strictly protecting family privacy.
-      </p>
-
-      {/* 5-Step Visual Flow Cards */}
-      <div className="flow-steps-grid">
-        {STEPS.map((s, index) => {
-          const Icon = s.icon;
-          const isCurrent = activeStep === index;
-          return (
-            <div
-              key={s.step}
-              className={`flow-step-card ${isCurrent ? "active" : ""}`}
-              onClick={() => setActiveStep(index)}
-              role="button"
-              tabIndex={0}
-            >
-              <div className="step-num-badge">{s.step}</div>
-              <div className="step-icon-circle">
-                <Icon size={18} />
-              </div>
-              <div className="step-card-title">{s.title}</div>
-              <div className="step-card-sub">{s.subtitle}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Detailed View of Active Step */}
-      <div className="step-detail-box">
-        <div className="step-detail-header">
-          <div className="step-detail-title">
-            Step {STEPS[activeStep].step}: {STEPS[activeStep].title}
-          </div>
-          <div className="step-detail-sub">{STEPS[activeStep].subtitle}</div>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1>How it works</h1>
+          <p>Four things, and one promise</p>
         </div>
-        <p className="step-detail-desc">{STEPS[activeStep].detail}</p>
-      </div>
+      </header>
+
+      <section className="steps">
+        {STEPS.map((step, index) => (
+          <article key={step.id} className={`step ${open === step.id ? "open" : ""}`}>
+            <button onClick={() => setOpen(open === step.id ? null : step.id)}>
+              <span className="step-num">{index + 1}</span>
+              <span className="step-title">{step.title}</span>
+            </button>
+            {open === step.id && <p className="step-more">{step.more}</p>}
+          </article>
+        ))}
+      </section>
+
+      <section className="promise">
+        <p>
+          It proposes, it does the safe work, and it hands the rest back. It never
+          decides who cares for {CARE_RECIPIENT_META.relation}.
+        </p>
+        <span>
+          Right now the load is {fairness.spreadPct}% apart, and the family agreed to keep
+          it under {fairness.tolerancePct}%.
+        </span>
+      </section>
     </div>
   );
 }

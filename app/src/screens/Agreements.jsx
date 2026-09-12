@@ -1,71 +1,53 @@
-import React, { useState } from "react";
-import { Store, PERSON_META } from "../data/store.js";
-import { Shield, CheckCircle, ChevronRight, Clock, Sparkles } from "../components/Icons.jsx";
+import React from "react";
+import { Store } from "../data/store.js";
+import { Shield } from "../components/Icons.jsx";
 
-export default function Agreements({ activeUser }) {
-  const precedents = Store.getPrecedents();
-  const [expandedId, setExpandedId] = useState(null);
-
-  const toggleExpand = (id) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-  };
+/**
+ * What the family has already settled.
+ *
+ * Each one came from a decision somebody made on a card. It is applied from
+ * then on without asking again, and it says who decided it and when, so a
+ * quiet month can always be traced back to a person.
+ */
+export default function Agreements({ onNavigate }) {
+  const precedents = Store.getPrecedents().filter((p) => p.active);
 
   return (
-    <div className="agreements-screen">
-      <div className="screen-header-simple">
-        <h2 className="screen-simple-title">Family Memory & Agreements</h2>
-        <span className="screen-simple-tag">{precedents.length} active standing rules</span>
-      </div>
+    <div className="page">
+      <header className="page-head">
+        <div>
+          <h1>Agreed</h1>
+          <p>
+            {precedents.length
+              ? "Decisions it now applies on its own"
+              : "Nothing agreed yet"}
+          </p>
+        </div>
+      </header>
 
-      <p className="screen-caption-quiet">
-        When your family resolves a scheduling question, Shoulder saves it as a permanent agreement. It applies to all future months automatically so nobody has to repeat the conversation.
-      </p>
-
-      <div className="timeline-visual-container">
-        {precedents.map((item, index) => {
-          const isExpanded = expandedId === item.id;
-          return (
-            <div key={item.id || index} className="timeline-event-card">
-              <div className="timeline-spine">
-                <div className="timeline-dot-active">
-                  <CheckCircle size={14} />
-                </div>
-                {index < precedents.length - 1 && <div className="timeline-line" />}
+      {precedents.length === 0 ? (
+        <div className="empty">
+          <Shield size={26} />
+          <p>When you answer a card, the answer lives here.</p>
+          <button className="btn-quiet" onClick={() => onNavigate("inbox")}>
+            See what needs you
+          </button>
+        </div>
+      ) : (
+        <section className="agreed">
+          {precedents.map((p) => (
+            <article key={p.id} className="agreed-item">
+              <span className="agreed-glyph">
+                <Shield size={15} />
+              </span>
+              <div>
+                <p className="agreed-rule">{p.text}</p>
+                <span className="agreed-from">{p.provenance}</span>
               </div>
-
-              <div className="timeline-content">
-                <div className="timeline-card-header" onClick={() => toggleExpand(item.id)}>
-                  <div className="timeline-rule-title">
-                    {item.rule}
-                  </div>
-                  <ChevronRight size={16} className={`accordion-arrow ${isExpanded ? "open" : ""}`} />
-                </div>
-
-                {/* Compact Flow Indicators */}
-                <div className="timeline-flow-pills">
-                  <span className="flow-step-pill">Decision Made</span>
-                  <span className="flow-arrow">→</span>
-                  <span className="flow-step-pill">Applied to Current Month</span>
-                  <span className="flow-arrow">→</span>
-                  <span className="flow-step-pill active">Standing Rule</span>
-                </div>
-
-                <div className="timeline-provenance-text">
-                  {item.provenance}
-                </div>
-
-                {isExpanded && (
-                  <div className="timeline-expanded-details">
-                    <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5 }}>
-                      <strong>Status:</strong> Active precedent. Automatically incorporated into every weekly agent negotiation. Covered tasks are reserved or assigned before open slots are shared.
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            </article>
+          ))}
+        </section>
+      )}
     </div>
   );
 }
