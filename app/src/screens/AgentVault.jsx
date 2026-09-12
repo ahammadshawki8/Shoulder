@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import privacyDemo from "@fixtures/privacy_demo.json";
-import { PERSON_META, Store, toPosition } from "../data/store.js";
+import { Store, toPosition } from "../data/store.js";
 import { Lock, Shield, Users } from "../components/Icons.jsx";
 
 /**
@@ -14,12 +14,12 @@ import { Lock, Shield, Users } from "../components/Icons.jsx";
 export default function AgentVault({ activeUser }) {
   const [showDraft, setShowDraft] = useState(false);
   const principal = Store.getPrincipal(activeUser);
-  const me = PERSON_META[activeUser];
   if (!principal) return null;
 
   const position = toPosition(principal);
   const privates = principal.constraints.filter((c) => c.tier === "private");
-  const caught = privacyDemo.principal_id === activeUser && privacyDemo.blocked;
+  const caught =
+    Store.getMode() === "demo" && privacyDemo.principal_id === activeUser && privacyDemo.blocked;
 
   return (
     <div className="page">

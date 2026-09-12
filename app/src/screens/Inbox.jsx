@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { PERSON_META, Store, subscribeStore } from "../data/store.js";
+import { Store, subscribeStore } from "../data/store.js";
 import { Check, CheckCircle, Scale } from "../components/Icons.jsx";
 
 /**
@@ -161,7 +161,7 @@ function ImpactBar({ title, burdens, spread, highlight }) {
             key={b.principal_id}
             style={{
               width: `${b.percent_of_total}%`,
-              background: PERSON_META[b.principal_id]?.color,
+              background: Store.person(b.principal_id)?.color,
             }}
             title={`${b.name} ${Math.round(b.percent_of_total)} percent`}
           />

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  PERSON_META,
   Store,
   TYPE_META,
   WEEKDAYS,
@@ -23,7 +22,6 @@ export default function Limits({ activeUser }) {
   useEffect(() => subscribeStore(() => force((n) => n + 1)), []);
 
   const principal = Store.getPrincipal(activeUser);
-  const me = PERSON_META[activeUser];
   if (!principal) return null;
 
   const position = toPosition(principal);
@@ -38,6 +36,11 @@ export default function Limits({ activeUser }) {
           <h1>My limits</h1>
           <p>What you can take on, and what stays with you</p>
         </div>
+        {Store.getMode() === "own" && (
+          <button className="btn-quiet" onClick={() => Store.reopenSetup()}>
+            Add or remove someone
+          </button>
+        )}
       </header>
 
       <div className="two-up">

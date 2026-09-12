@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  CARE_RECIPIENT_META,
-  PERSON_META,
-  Store,
-  subscribeStore,
-} from "./data/store.js";
+import { Store, subscribeStore } from "./data/store.js";
 import {
   Bell,
   Calendar,
@@ -18,6 +13,9 @@ import {
   Sun,
 } from "./components/Icons.jsx";
 import BalanceRail from "./components/BalanceRail.jsx";
+import Face from "./components/Face.jsx";
+import Welcome from "./screens/Welcome.jsx";
+import Setup from "./screens/Setup.jsx";
 import Schedule from "./screens/Schedule.jsx";
 import Limits from "./screens/Limits.jsx";
 import Inbox from "./screens/Inbox.jsx";
@@ -49,8 +47,7 @@ function currentRoute() {
 
 export default function App() {
   const [route, setRoute] = useState(currentRoute);
-  const [activeUser, setActiveUser] = useState(Store.getActiveUser());
-  const [openCards, setOpenCards] = useState(Store.getOpenEscalations().length);
+  const [tick, setTick] = useState(0);
   const [addingTask, setAddingTask] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem("shoulder_theme_v2") || "light");
 
@@ -65,20 +62,21 @@ export default function App() {
     localStorage.setItem("shoulder_theme_v2", theme);
   }, [theme]);
 
-  useEffect(
-    () =>
-      subscribeStore(() => {
-        setActiveUser(Store.getActiveUser());
-        setOpenCards(Store.getOpenEscalations().length);
-      }),
-    []
-  );
+  useEffect(() => subscribeStore(() => setTick((n) => n + 1)), []);
+
+  const mode = Store.getMode();
+  if (!mode) return <Welcome />;
+  if (!Store.isReady()) return <Setup />;
 
   const navigate = (id) => {
     window.location.hash = `#/${id}`;
   };
 
-  const me = PERSON_META[activeUser] || PERSON_META.farah;
+  const activeUser = Store.getActiveUser();
+  const me = Store.person(activeUser);
+  const recipient = Store.getRecipient();
+  const openCards = Store.getOpenEscalations().length;
+  const people = Store.people().filter(Boolean);
 
   return (
     <div className="shell">
@@ -87,18 +85,31 @@ export default function App() {
           and how the load sits. Everything here is a glance, not a read.
           --------------------------------------------------------------- */}
       <aside className="rail">
-        <a href="#/schedule" className="rail-brand">
-          <span className="rail-mark">S</span>
-          <span>Shoulder</span>
-        </a>
+        <div className="rail-head">
+          <a href="#/schedule" className="rail-brand">
+            <span className="rail-mark">S</span>
+            <span>Shoulder</span>
+          </a>
+          <button
+            className={`mode-chip ${mode}`}
+            onClick={() => Store.leaveMode()}
+            title="Switch between the demo and your own circle"
+          >
+            {mode === "demo" ? "Demo" : "Yours"}
+          </button>
+        </div>
 
         <button className="rail-mum" onClick={() => navigate("how-it-works")}>
-          <img src={CARE_RECIPIENT_META.avatar} alt="" className="rail-mum-photo" />
+          {recipient.avatar ? (
+            <img src={recipient.avatar} alt="" className="rail-mum-photo" />
+          ) : (
+            <span className="rail-mum-photo rail-mum-blank">{recipient.relation[0]}</span>
+          )}
           <span className="rail-mum-text">
-            <span className="rail-mum-name">Mum</span>
+            <span className="rail-mum-name">{recipient.relation}</span>
             <span className="rail-mum-status">
               <i className="dot-live" />
-              {CARE_RECIPIENT_META.status}
+              {recipient.name}
             </span>
           </span>
         </button>
@@ -117,11 +128,7 @@ export default function App() {
 
         <nav className="rail-nav">
           {NAV.map(({ id, label, icon: Icon }) => (
-            <a
-              key={id}
-              href={`#/${id}`}
-              className={`rail-link ${route === id ? "active" : ""}`}
-            >
+            <a key={id} href={`#/${id}`} className={`rail-link ${route === id ? "active" : ""}`}>
               <Icon size={16} />
               <span>{label}</span>
             </a>
@@ -141,7 +148,6 @@ export default function App() {
               key={id}
               href={`#/${id}`}
               className={`rail-quiet-link ${route === id ? "active" : ""}`}
-              title={label}
             >
               <Icon size={14} />
               <span>{label}</span>
@@ -150,17 +156,23 @@ export default function App() {
         </div>
 
         <div className="rail-me">
-          <img src={me.avatar} alt="" className="rail-me-photo" />
-          <select
-            className="rail-me-select"
-            value={activeUser}
-            onChange={(e) => Store.setActiveUser(e.target.value)}
-            aria-label="Who is using this"
-          >
-            <option value="farah">Farah</option>
-            <option value="amina">Amina</option>
-            <option value="rian">Rian</option>
-          </select>
+          <Face person={me} size={30} />
+          {people.length > 1 ? (
+            <select
+              className="rail-me-select"
+              value={activeUser || ""}
+              onChange={(e) => Store.setActiveUser(e.target.value)}
+              aria-label="Who is using this"
+            >
+              {people.map((person) => (
+                <option key={person.id} value={person.id}>
+                  {person.shortName}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="rail-me-only">{me?.shortName}</span>
+          )}
           <button
             className="rail-theme"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -173,7 +185,9 @@ export default function App() {
 
       {/* The work. This is the only thing that scrolls. */}
       <main className="work">
-        {route === "schedule" && <Schedule activeUser={activeUser} onNavigate={navigate} onAdd={() => setAddingTask(true)} />}
+        {route === "schedule" && (
+          <Schedule activeUser={activeUser} onNavigate={navigate} onAdd={() => setAddingTask(true)} />
+        )}
         {route === "inbox" && <Inbox activeUser={activeUser} onNavigate={navigate} />}
         {route === "limits" && <Limits activeUser={activeUser} onNavigate={navigate} />}
         {route === "agreements" && <Agreements activeUser={activeUser} onNavigate={navigate} />}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { PAID_CAREGIVER_META, PERSON_META, Store, TODAY, TYPE_META } from "../data/store.js";
+import { PAID_CAREGIVER_META, Store, TYPE_META, today } from "../data/store.js";
+import Face from "./Face.jsx";
 import { TaskIcon } from "../screens/Schedule.jsx";
 import { Check, Sparkles, X } from "./Icons.jsx";
 
@@ -16,7 +17,7 @@ const LENGTHS = [30, 60, 90, 120, 180, 540];
 export default function AddTaskModal({ isOpen, onClose, activeUser, onTaskAdded }) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("visit");
-  const [onDate, setOnDate] = useState(TODAY);
+  const [onDate, setOnDate] = useState(today());
   const [durationMin, setDurationMin] = useState(90);
   const [assignee, setAssignee] = useState("auto");
   const [result, setResult] = useState(null);
@@ -25,7 +26,7 @@ export default function AddTaskModal({ isOpen, onClose, activeUser, onTaskAdded 
     if (isOpen) {
       setTitle("");
       setType("visit");
-      setOnDate(TODAY);
+      setOnDate(today());
       setDurationMin(90);
       setAssignee("auto");
       setResult(null);
@@ -53,7 +54,7 @@ export default function AddTaskModal({ isOpen, onClose, activeUser, onTaskAdded 
     onClose();
   };
 
-  const who = result ? PERSON_META[result.assignedTo] || PAID_CAREGIVER_META : null;
+  const who = result ? Store.person(result.assignedTo) || PAID_CAREGIVER_META : null;
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -68,7 +69,7 @@ export default function AddTaskModal({ isOpen, onClose, activeUser, onTaskAdded 
         {result ? (
           <div className="added">
             <div className="added-who">
-              <img src={who?.avatar} alt="" />
+              <Face person={who} size={42} />
               <div>
                 <strong>{who?.shortName} will take it</strong>
                 <p>{result.why}</p>
@@ -94,7 +95,12 @@ export default function AddTaskModal({ isOpen, onClose, activeUser, onTaskAdded 
                   type="button"
                   key={option}
                   className={`chip ${type === option ? "on" : ""}`}
-                  onClick={() => setType(option)}
+                  onClick={() => {
+                    setType(option);
+                    // A night is a night. Anything else keeps what was chosen.
+                    if (option === "night") setDurationMin(540);
+                    else if (durationMin === 540) setDurationMin(90);
+                  }}
                 >
                   <TaskIcon type={option} size={13} />
                   {TYPE_META[option].label}
@@ -127,14 +133,14 @@ export default function AddTaskModal({ isOpen, onClose, activeUser, onTaskAdded 
               >
                 <Sparkles size={13} /> Whoever has room
               </button>
-              {Object.values(PERSON_META).map((person) => (
+              {Store.people().filter(Boolean).map((person) => (
                 <button
                   type="button"
                   key={person.id}
                   className={`chip ${assignee === person.id ? "on" : ""}`}
                   onClick={() => setAssignee(person.id)}
                 >
-                  <img src={person.avatar} alt="" className="chip-face" />
+                  <Face person={person} size={18} className="chip-face" />
                   {person.id === activeUser ? "Me" : person.shortName}
                 </button>
               ))}

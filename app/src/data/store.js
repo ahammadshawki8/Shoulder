@@ -1,12 +1,15 @@
 /**
- * Everything the app knows, and the only place it changes.
+ * Everything the app knows, in one of two worlds.
  *
- * The rota, the people and the decisions come from `fixtures/`, which Python
- * wrote from a real negotiation. What a family does here (marking a task done,
- * adding one, handing one over, answering a card) is layered on top in
- * localStorage, and every number shown on top of that is recomputed by
- * `engine.js`, the mirror of the fairness engine. Nothing here invents a
- * figure.
+ *   demo   the Rahman family, from `fixtures/`, which Python wrote from a real
+ *          negotiation: a month of care, a split that will not come out even,
+ *          and the two decisions it could not make on its own.
+ *   own    an empty circle somebody sets up themselves. No fixtures at all.
+ *          The split, and the decision when it cannot be made fair, are worked
+ *          out here by `engine.js`, the verified mirror of the Python engine.
+ *
+ * Screens do not know which world they are in. They ask this module, and the
+ * numbers come from the same engine either way.
  */
 
 import circleData from "@fixtures/circle.json";
@@ -17,19 +20,22 @@ import ledgerData from "@fixtures/ledger.json";
 
 import {
   FAIRNESS_TOLERANCE,
+  bestPaidHelp,
   deviationWithout,
   fairnessOf,
+  headline,
   ineligibleBecause,
   normalizeTask,
+  seedAllocation,
   suggestAssignee,
   toPosition,
 } from "./engine.js";
 
 export { toPosition, FAIRNESS_TOLERANCE };
 
-export const PERSON_ORDER = ["amina", "rian", "farah"];
+// -- who is who -------------------------------------------------------------
 
-export const PERSON_META = {
+const DEMO_PEOPLE = {
   amina: {
     id: "amina",
     name: "Amina Rahman",
@@ -37,8 +43,6 @@ export const PERSON_META = {
     role: "Nearby, 4 km",
     avatar: "/assets/amina_portrait.jpg",
     color: "#3B6E94",
-    bg: "rgba(59, 110, 148, 0.12)",
-    border: "rgba(59, 110, 148, 0.3)",
   },
   rian: {
     id: "rian",
@@ -47,8 +51,6 @@ export const PERSON_META = {
     role: "Leeds, 310 km",
     avatar: "/assets/rian_portrait.jpg",
     color: "#BF5D30",
-    bg: "rgba(191, 93, 48, 0.12)",
-    border: "rgba(191, 93, 48, 0.3)",
   },
   farah: {
     id: "farah",
@@ -57,21 +59,11 @@ export const PERSON_META = {
     role: "Across town, 12 km",
     avatar: "/assets/farah_portrait.jpg",
     color: "#1B6B73",
-    bg: "rgba(27, 107, 115, 0.12)",
-    border: "rgba(27, 107, 115, 0.3)",
   },
 };
 
-export const CARE_RECIPIENT_META = {
-  name: "Nasrin Rahman",
-  relation: "Mum",
-  age: 74,
-  avatar: "/assets/nasrin_mum.jpg",
-  heroImage: "/assets/mum_care_hero.jpg",
-  status: "At home, doing alright",
-  condition: "Reduced mobility and diabetes",
-  notes: "Likes her tea in the garden. Reading glasses live on the bedside dresser.",
-};
+// Kept for anything still importing it directly.
+export const PERSON_META = DEMO_PEOPLE;
 
 export const PAID_CAREGIVER_META = {
   id: "paid",
@@ -80,9 +72,20 @@ export const PAID_CAREGIVER_META = {
   role: "Paid carer",
   avatar: "/assets/elena_caregiver.jpg",
   color: "#6366f1",
-  bg: "rgba(99, 102, 241, 0.12)",
-  border: "rgba(99, 102, 241, 0.3)",
 };
+
+/** Colours for a circle somebody builds themselves. Distinct in both themes. */
+const PALETTE = ["#3B6E94", "#BF5D30", "#1B6B73", "#7C5AA6", "#A6635A", "#41725A"];
+
+const DEMO_RECIPIENT = {
+  name: "Nasrin Rahman",
+  relation: "Mum",
+  avatar: "/assets/nasrin_mum.jpg",
+  status: "At home, doing alright",
+  condition: "Reduced mobility and diabetes",
+};
+
+export const CARE_RECIPIENT_META = DEMO_RECIPIENT;
 
 export const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export const DAY_NAMES = {
@@ -95,7 +98,6 @@ export const DAY_NAMES = {
   Sun: "Sunday",
 };
 
-// Short labels. The icon carries the rest.
 export const TYPE_META = {
   appointment: { label: "Appointment", icon: "Stethoscope", color: "#2563eb" },
   medication: { label: "Medication", icon: "Pill", color: "#059669" },
@@ -107,32 +109,11 @@ export const TYPE_META = {
   household: { label: "At home", icon: "HomeIcon", color: "#0891b2" },
 };
 
-export function personOf(id) {
-  return PERSON_META[id] || (id === "paid" ? PAID_CAREGIVER_META : null);
-}
-
 // -- storage ----------------------------------------------------------------
 
-const STORAGE_PREFIX = "shoulder_v2_";
-
-function getStorage(key, fallback) {
-  try {
-    const value = localStorage.getItem(STORAGE_PREFIX + key);
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function setStorage(key, value) {
-  try {
-    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
-  } catch {
-    /* a private window is not a reason to lose the screen */
-  }
-}
-
+const MODE_KEY = "shoulder_mode";
 const subscribers = new Set();
+
 function notify() {
   subscribers.forEach((cb) => cb());
 }
@@ -142,18 +123,78 @@ export function subscribeStore(callback) {
   return () => subscribers.delete(callback);
 }
 
+function currentMode() {
+  try {
+    return localStorage.getItem(MODE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Each world keeps its own drawer, so trying the demo never touches a real circle. */
+function key(name) {
+  return `shoulder_v2_${currentMode() || "demo"}_${name}`;
+}
+
+function getStorage(name, fallback) {
+  try {
+    const value = localStorage.getItem(key(name));
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function setStorage(name, value) {
+  try {
+    localStorage.setItem(key(name), JSON.stringify(value));
+  } catch {
+    /* a private window is not a reason to lose the screen */
+  }
+}
+
+const EMPTY_WORLD = {
+  recipient: { name: "", relation: "Mum", note: "" },
+  people: [],
+  tasks: [],
+  assignments: {},
+  covered: {},
+  completed: [],
+  precedents: [],
+  ledger: [],
+  reasons: {},
+};
+
+function world() {
+  return getStorage("world", EMPTY_WORLD);
+}
+
+function saveWorld(next) {
+  setStorage("world", next);
+  notify();
+}
+
+function isOwn() {
+  return currentMode() === "own";
+}
+
 // -- dates ------------------------------------------------------------------
 
-/** The month the fixtures cover. "Today" is a day inside it, so the app has a now. */
+/** The demo month has its own today. A real circle uses the real one. */
+export function today() {
+  if (isOwn()) return new Date().toISOString().slice(0, 10);
+  return "2026-10-14";
+}
+
 export const TODAY = "2026-10-14";
 
 export function dateOf(iso) {
   return new Date(`${iso}T12:00:00`);
 }
 
-/** "Today", "Tomorrow", "Sat 17" : how a person says a date out loud. */
-export function friendlyDate(iso, today = TODAY) {
-  const days = Math.round((dateOf(iso) - dateOf(today)) / 86400000);
+export function friendlyDate(iso, from = null) {
+  const base = from || today();
+  const days = Math.round((dateOf(iso) - dateOf(base)) / 86400000);
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
   if (days === -1) return "Yesterday";
@@ -171,23 +212,105 @@ export function durationLabel(minutes) {
   return rest ? `${hours} hr ${rest} min` : `${hours} hr`;
 }
 
+function initialsOf(name) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0].toUpperCase())
+    .join("");
+}
+
 // -- the store --------------------------------------------------------------
 
 export const Store = {
-  getActiveUser() {
-    return getStorage("active_user", "farah");
+  // -- which world ----------------------------------------------------------
+
+  getMode: currentMode,
+
+  /** Has somebody actually been named, or is that still to come? */
+  hasRecipient() {
+    return !isOwn() || Boolean(world().recipient.name);
   },
 
-  setActiveUser(id) {
-    setStorage("active_user", id);
+  /**
+   * Is setup behind us?
+   *
+   * Explicitly, not inferred from having one person: adding the first person
+   * used to end setup on the spot, so nobody could add a second.
+   */
+  isReady() {
+    if (!isOwn()) return true;
+    const w = world();
+    return Boolean(w.ready) && w.people.length >= 1 && Boolean(w.recipient.name);
+  },
+
+  finishSetup() {
+    const w = world();
+    saveWorld({ ...w, ready: true });
+    if (w.people[0]) this.setActiveUser(w.people[0].id);
+  },
+
+  /** Back to the setup screen to add or remove somebody. */
+  reopenSetup() {
+    saveWorld({ ...world(), ready: false });
+  },
+
+  /** Is there a circle waiting from last time? Readable from either world. */
+  hasOwnCircle() {
+    try {
+      const raw = localStorage.getItem("shoulder_v2_own_world");
+      if (!raw) return false;
+      const w = JSON.parse(raw);
+      return Boolean(w.recipient?.name) || (w.people || []).length > 0;
+    } catch {
+      return false;
+    }
+  },
+
+  useDemo() {
+    localStorage.setItem(MODE_KEY, "demo");
     notify();
   },
 
-  getCircle() {
-    return circleData;
+  startOwn() {
+    localStorage.setItem(MODE_KEY, "own");
+    if (!getStorage("world", null)) saveWorld({ ...EMPTY_WORLD });
+    notify();
   },
 
+  leaveMode() {
+    localStorage.removeItem(MODE_KEY);
+    notify();
+  },
+
+  /** Throw away a circle somebody built and start again. */
+  clearOwn() {
+    localStorage.setItem(MODE_KEY, "own");
+    saveWorld({ ...EMPTY_WORLD, people: [], tasks: [] });
+  },
+
+  // -- people ---------------------------------------------------------------
+
+  getRecipient() {
+    if (!isOwn()) return DEMO_RECIPIENT;
+    const w = world();
+    return {
+      name: w.recipient.name || "Your parent",
+      relation: w.recipient.relation || "Mum",
+      avatar: null,
+      status: w.recipient.note || "At home",
+      condition: w.recipient.note || "",
+    };
+  },
+
+  setRecipient(recipient) {
+    saveWorld({ ...world(), recipient: { ...world().recipient, ...recipient } });
+  },
+
+  /** The full record, private reasons and all. Only ever read on this device. */
   getPrincipals() {
+    if (isOwn()) return world().people;
     const overrides = getStorage("principals_overrides", {});
     return circleData.principals.map((p) =>
       overrides[p.id] ? { ...p, ...overrides[p.id] } : p
@@ -195,28 +318,114 @@ export const Store = {
   },
 
   getPrincipal(id) {
-    return this.getPrincipals().find((p) => p.id === id);
+    return this.getPrincipals().find((p) => p.id === id) || null;
+  },
+
+  /** How a person is shown: name, colour, and a face if there is one. */
+  person(id) {
+    if (id === "paid") return PAID_CAREGIVER_META;
+    if (!isOwn()) return DEMO_PEOPLE[id] || null;
+    const people = world().people;
+    const index = people.findIndex((p) => p.id === id);
+    if (index === -1) return null;
+    const p = people[index];
+    return {
+      id: p.id,
+      name: p.name,
+      shortName: p.name.split(/\s+/)[0],
+      role: p.distance_km ? `${p.distance_km} km away` : "Nearby",
+      avatar: null,
+      initials: initialsOf(p.name),
+      color: PALETTE[index % PALETTE.length],
+    };
+  },
+
+  people() {
+    return this.getPrincipals().map((p) => this.person(p.id));
+  },
+
+  addPerson({ name, capacity, distanceKm, daysOff = [], refuses = [], privateReason = "" }) {
+    const w = world();
+    const id = `p${Date.now().toString(36)}`;
+    const constraints = [];
+    if (daysOff.length || refuses.length) {
+      constraints.push({
+        id: `${id}-limits`,
+        summary: [
+          daysOff.length ? `Cannot do ${daysOff.join(", ")}` : "",
+          refuses.length ? `does not take ${refuses.join(", ")} work` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")
+          .concat("."),
+        tier: privateReason ? "private" : "shareable",
+        hardness: "hard",
+        reason: privateReason || null,
+        blocks_weekdays: daysOff,
+        blocks_task_types: refuses,
+        applies_to_remote: true,
+        sensitive_terms: [],
+      });
+    } else if (privateReason) {
+      constraints.push({
+        id: `${id}-limits`,
+        summary: "Something they would rather not explain.",
+        tier: "private",
+        hardness: "soft",
+        reason: privateReason,
+        blocks_weekdays: [],
+        blocks_task_types: [],
+        applies_to_remote: true,
+        sensitive_terms: [],
+      });
+    }
+
+    const person = {
+      id,
+      name: name.trim(),
+      capacity: Math.max(0.05, Math.min(1, capacity)),
+      distance_km: Number(distanceKm) || 0,
+      constraints,
+      aversions: {},
+    };
+    saveWorld({ ...w, people: [...w.people, person] });
+    this.rebalance(`${person.name} joined the circle`);
+    return person;
+  },
+
+  removePerson(id) {
+    const w = world();
+    saveWorld({
+      ...w,
+      people: w.people.filter((p) => p.id !== id),
+      assignments: Object.fromEntries(
+        Object.entries(w.assignments).filter(([, who]) => who !== id)
+      ),
+    });
+    this.rebalance("Someone left the circle");
   },
 
   savePrincipal(id, updates) {
+    if (isOwn()) {
+      const w = world();
+      saveWorld({
+        ...w,
+        people: w.people.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+      });
+      this.rebalance(`${this.person(id)?.shortName || "Someone"} changed what they can carry`);
+      return;
+    }
     const current = getStorage("principals_overrides", {});
     current[id] = { ...(current[id] || {}), ...updates };
     setStorage("principals_overrides", current);
     this.addLedgerEntry({
-      headline: `${PERSON_META[id]?.shortName || "Someone"} updated what they can carry`,
+      headline: `${DEMO_PEOPLE[id]?.shortName || "Someone"} updated what they can carry`,
       justification: "A person's own limits are theirs to set. The split was worked out again.",
       who: id,
     });
     notify();
   },
 
-  /**
-   * A day this person cannot do, in their own words.
-   *
-   * Kept in a constraint of their own, so it can be taken back. A day blocked
-   * by something else they told their agent stays blocked: this is for adding
-   * your own, not for overruling what you already said.
-   */
   togglePersonalDay(principalId, day) {
     const principal = this.getPrincipal(principalId);
     if (!principal) return;
@@ -242,18 +451,9 @@ export const Store = {
     mine.summary = mine.blocks_weekdays.length
       ? `Cannot do ${mine.blocks_weekdays.join(", ")}.`
       : "No days blocked.";
-
-    setStorage("principals_overrides", {
-      ...getStorage("principals_overrides", {}),
-      [principalId]: {
-        ...(getStorage("principals_overrides", {})[principalId] || {}),
-        constraints,
-      },
-    });
-    notify();
+    this.savePrincipal(principalId, { constraints });
   },
 
-  /** Days blocked by something other than their own day list. */
   fixedDaysFor(principalId) {
     const principal = this.getPrincipal(principalId);
     const own = `${principalId}-personal`;
@@ -265,28 +465,35 @@ export const Store = {
     return days;
   },
 
-  /** The private reason behind a limit. Saved on this device, never sent. */
   savePrivateReason(principalId, constraintId, reason) {
     const principal = this.getPrincipal(principalId);
     if (!principal) return;
     const constraints = principal.constraints.map((c) =>
       c.id === constraintId ? { ...c, reason } : { ...c }
     );
-    setStorage("principals_overrides", {
-      ...getStorage("principals_overrides", {}),
-      [principalId]: {
-        ...(getStorage("principals_overrides", {})[principalId] || {}),
-        constraints,
-      },
-    });
+    this.savePrincipal(principalId, { constraints });
+  },
+
+  getActiveUser() {
+    const saved = getStorage("active_user", null);
+    const people = this.getPrincipals();
+    if (saved && people.some((p) => p.id === saved)) return saved;
+    // The demo opens as Farah: she is the one holding something back, so the
+    // privacy boundary is visible from the first screen.
+    if (!isOwn()) return "farah";
+    return people[0]?.id || null;
+  },
+
+  setActiveUser(id) {
+    setStorage("active_user", id);
     notify();
   },
 
   // -- tasks ----------------------------------------------------------------
 
   getTasks() {
-    const custom = getStorage("custom_tasks", []);
-    return [...circleData.tasks, ...custom]
+    const raw = isOwn() ? world().tasks : [...circleData.tasks, ...getStorage("custom_tasks", [])];
+    return raw
       .map(normalizeTask)
       .sort((a, b) => a.onDate.localeCompare(b.onDate) || a.id.localeCompare(b.id));
   },
@@ -296,53 +503,60 @@ export const Store = {
   },
 
   getAssignments() {
-    return { ...(outcomeData.final_allocation?.assignments || {}), ...getStorage("custom_assignments", {}) };
+    if (isOwn()) return world().assignments;
+    return {
+      ...(outcomeData.final_allocation?.assignments || {}),
+      ...getStorage("custom_assignments", {}),
+    };
   },
 
-  /** Tasks nobody in the family carries, because paid help covers them. */
   getCoveredTasks() {
+    if (isOwn()) return world().covered;
     return { ...(outcomeData.covered || {}), ...getStorage("extra_covered_tasks", {}) };
   },
 
-  /** Anything before today is behind us; the rest is still to come. */
   getCompletedTasks() {
+    if (isOwn()) return world().completed;
     const saved = getStorage("completed_task_ids", null);
     if (saved) return saved;
     return circleData.tasks.filter((t) => t.on_date < TODAY).map((t) => t.id);
   },
 
-  /** Who holds a task: a sibling, or Elena when paid help covers it. */
   holderOf(taskId) {
     if (this.getCoveredTasks()[taskId]) return PAID_CAREGIVER_META;
-    return personOf(this.getAssignments()[taskId]);
+    return this.person(this.getAssignments()[taskId]);
   },
 
   getTaskNotes(taskId) {
-    return getStorage("task_care_notes", {})[taskId] || null;
+    const notes = isOwn() ? world().notes || {} : getStorage("task_care_notes", {});
+    return notes[taskId] || null;
   },
 
   saveTaskNote(taskId, note) {
-    const notes = getStorage("task_care_notes", {});
-    notes[taskId] = {
+    const entry = {
       text: note,
       recordedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       byUser: this.getActiveUser(),
     };
-    setStorage("task_care_notes", notes);
+    if (isOwn()) {
+      const w = world();
+      saveWorld({ ...w, notes: { ...(w.notes || {}), [taskId]: entry } });
+      return;
+    }
+    setStorage("task_care_notes", { ...getStorage("task_care_notes", {}), [taskId]: entry });
     notify();
   },
 
   toggleTaskComplete(taskId, note = "") {
     const done = this.getCompletedTasks();
     const wasDone = done.includes(taskId);
-    setStorage(
-      "completed_task_ids",
-      wasDone ? done.filter((id) => id !== taskId) : [...done, taskId]
-    );
+    const next = wasDone ? done.filter((id) => id !== taskId) : [...done, taskId];
+    if (isOwn()) saveWorld({ ...world(), completed: next });
+    else setStorage("completed_task_ids", next);
 
     if (!wasDone) {
       const task = this.getTask(taskId);
-      const who = PERSON_META[this.getActiveUser()]?.shortName || "Someone";
+      const who = this.person(this.getActiveUser())?.shortName || "Someone";
       if (note) this.saveTaskNote(taskId, note);
       this.addLedgerEntry({
         headline: `${who} finished ${task?.title || "a task"}`,
@@ -353,13 +567,9 @@ export const Store = {
     notify();
   },
 
-  /**
-   * Add a task. With no name attached, the same rule that built the opening
-   * split picks who: the eligible person whose adjusted load stays lowest.
-   */
   addTask(input) {
-    const id = `T-added-${Date.now()}`;
-    const task = normalizeTask({
+    const id = `T-added-${Date.now().toString(36)}`;
+    const record = {
       id,
       title: input.title,
       type: input.type || "visit",
@@ -370,7 +580,8 @@ export const Store = {
       notes: input.notes || "",
       is_custom: true,
       created_by: this.getActiveUser(),
-    });
+    };
+    const task = normalizeTask(record);
 
     let holder = input.assignee;
     let why = "";
@@ -384,29 +595,44 @@ export const Store = {
       holder = suggestion.principalId || "paid";
       why = suggestion.principalId
         ? `${suggestion.name} has the most room once everyone's limits are respected.`
-        : "Nobody in the family can take this one inside their stated limits.";
+        : "Nobody in the circle can take this one inside their stated limits.";
       if (suggestion.blocked.length) {
         why += ` ${suggestion.blocked.map((b) => b.why).join(". ")}.`;
       }
     } else {
-      why = `Chosen by ${PERSON_META[this.getActiveUser()]?.shortName || "the family"}.`;
+      why = `Chosen by ${this.person(this.getActiveUser())?.shortName || "the family"}.`;
     }
 
-    setStorage("custom_tasks", [...getStorage("custom_tasks", []), { ...input, id, is_custom: true, created_by: this.getActiveUser() }]);
-
-    if (holder === "paid") {
-      const covered = getStorage("extra_covered_tasks", {});
-      covered[id] = "Paid help";
-      setStorage("extra_covered_tasks", covered);
+    if (isOwn()) {
+      const w = world();
+      saveWorld({
+        ...w,
+        tasks: [...w.tasks, record],
+        assignments: holder === "paid" ? w.assignments : { ...w.assignments, [id]: holder },
+        covered: holder === "paid" ? { ...w.covered, [id]: "Paid help" } : w.covered,
+        reasons: { ...w.reasons, [id]: why },
+      });
     } else {
-      const assignments = getStorage("custom_assignments", {});
-      assignments[id] = holder;
-      setStorage("custom_assignments", assignments);
+      setStorage("custom_tasks", [...getStorage("custom_tasks", []), record]);
+      if (holder === "paid") {
+        setStorage("extra_covered_tasks", {
+          ...getStorage("extra_covered_tasks", {}),
+          [id]: "Paid help",
+        });
+      } else {
+        setStorage("custom_assignments", {
+          ...getStorage("custom_assignments", {}),
+          [id]: holder,
+        });
+      }
+      setStorage("assignment_reasons", {
+        ...getStorage("assignment_reasons", {}),
+        [id]: why,
+      });
     }
-    setStorage("assignment_reasons", { ...getStorage("assignment_reasons", {}), [id]: why });
 
     this.addLedgerEntry({
-      headline: `Added ${task.title}, and asked ${personOf(holder)?.shortName || "Elena"} to take it`,
+      headline: `Added ${task.title}, and asked ${this.person(holder)?.shortName || "Elena"} to take it`,
       justification: why,
       who: holder,
     });
@@ -417,22 +643,43 @@ export const Store = {
   reassignTask(taskId, to, reason = "") {
     const task = this.getTask(taskId);
     if (!task) return;
+    const why = reason || "Agreed between the family.";
 
-    if (to === "paid") {
-      setStorage("extra_covered_tasks", { ...getStorage("extra_covered_tasks", {}), [taskId]: "Paid help" });
+    if (isOwn()) {
+      const w = world();
+      const covered = { ...w.covered };
+      const assignments = { ...w.assignments };
+      if (to === "paid") {
+        covered[taskId] = "Paid help";
+        delete assignments[taskId];
+      } else {
+        delete covered[taskId];
+        assignments[taskId] = to;
+      }
+      saveWorld({ ...w, covered, assignments, reasons: { ...w.reasons, [taskId]: why } });
+    } else if (to === "paid") {
+      setStorage("extra_covered_tasks", {
+        ...getStorage("extra_covered_tasks", {}),
+        [taskId]: "Paid help",
+      });
     } else {
-      setStorage("custom_assignments", { ...getStorage("custom_assignments", {}), [taskId]: to });
+      setStorage("custom_assignments", {
+        ...getStorage("custom_assignments", {}),
+        [taskId]: to,
+      });
       const covered = getStorage("extra_covered_tasks", {});
       if (covered[taskId]) {
         delete covered[taskId];
         setStorage("extra_covered_tasks", covered);
       }
+      setStorage("assignment_reasons", {
+        ...getStorage("assignment_reasons", {}),
+        [taskId]: why,
+      });
     }
 
-    const why = reason || "Agreed between the family.";
-    setStorage("assignment_reasons", { ...getStorage("assignment_reasons", {}), [taskId]: why });
     this.addLedgerEntry({
-      headline: `${task.title} moved to ${personOf(to)?.shortName || "Elena"}`,
+      headline: `${task.title} moved to ${this.person(to)?.shortName || "Elena"}`,
       justification: why,
       who: to,
     });
@@ -440,21 +687,36 @@ export const Store = {
   },
 
   deleteTask(taskId) {
-    setStorage("custom_tasks", getStorage("custom_tasks", []).filter((t) => t.id !== taskId));
-    const assignments = getStorage("custom_assignments", {});
-    delete assignments[taskId];
-    setStorage("custom_assignments", assignments);
-    setStorage("completed_task_ids", this.getCompletedTasks().filter((id) => id !== taskId));
+    if (isOwn()) {
+      const w = world();
+      const assignments = { ...w.assignments };
+      const covered = { ...w.covered };
+      delete assignments[taskId];
+      delete covered[taskId];
+      saveWorld({
+        ...w,
+        tasks: w.tasks.filter((t) => t.id !== taskId),
+        assignments,
+        covered,
+        completed: w.completed.filter((id) => id !== taskId),
+      });
+    } else {
+      setStorage("custom_tasks", getStorage("custom_tasks", []).filter((t) => t.id !== taskId));
+      const assignments = getStorage("custom_assignments", {});
+      delete assignments[taskId];
+      setStorage("custom_assignments", assignments);
+      setStorage(
+        "completed_task_ids",
+        this.getCompletedTasks().filter((id) => id !== taskId)
+      );
+    }
     notify();
   },
 
-  /** Why this person holds this task. */
   whyAssigned(taskId) {
-    const saved = getStorage("assignment_reasons", {})[taskId];
+    const saved = isOwn() ? world().reasons[taskId] : getStorage("assignment_reasons", {})[taskId];
     if (saved) return saved;
-    if (this.getCoveredTasks()[taskId]) {
-      return "The family decided paid help covers this one.";
-    }
+    if (this.getCoveredTasks()[taskId]) return "The family decided paid help covers this one.";
     const holder = this.holderOf(taskId);
     const task = this.getTask(taskId);
     if (!holder || !task) return "";
@@ -467,9 +729,22 @@ export const Store = {
     return blocked.length ? `${base} ${blocked.join(". ")}.` : base;
   },
 
+  /** Deal the whole month out again from scratch, the way the first split was built. */
+  rebalance(because = "The circle changed") {
+    if (!isOwn()) return;
+    const w = world();
+    const tasks = w.tasks.map(normalizeTask).filter((t) => !w.covered[t.id]);
+    const assignments = seedAllocation(w.people, tasks);
+    saveWorld({ ...w, assignments });
+    this.addLedgerEntry({
+      headline: "Worked out the split again",
+      justification: `${because}, so every task was dealt out again inside everyone's limits.`,
+      who: null,
+    });
+  },
+
   // -- the split ------------------------------------------------------------
 
-  /** Assignments that count towards someone's load: paid help is nobody's. */
   assignmentsInPlay() {
     const covered = this.getCoveredTasks();
     return Object.fromEntries(
@@ -477,7 +752,6 @@ export const Store = {
     );
   },
 
-  /** The whole verdict, recomputed from what the family has actually done. */
   getFairness() {
     const tasks = this.getTasks();
     const covered = this.getCoveredTasks();
@@ -495,7 +769,13 @@ export const Store = {
     };
   },
 
-  /** What an escalation option would do to the spread, priced by the engine. */
+  /** Tasks nobody can legally take, which is a question for the family. */
+  unassignedTasks() {
+    const assignments = this.getAssignments();
+    const covered = this.getCoveredTasks();
+    return this.getTasks().filter((t) => !assignments[t.id] && !covered[t.id]);
+  },
+
   priceOption(option) {
     const before = this.getFairness().maxDeviation;
     const effect = option?.effect;
@@ -513,7 +793,6 @@ export const Store = {
     return { before, after, delta: Math.round((after - before) * 1000) / 1000 };
   },
 
-  /** The split as it would look if this option were taken. */
   burdensIfTaken(option) {
     const effect = option?.effect;
     const covered = { ...this.getCoveredTasks() };
@@ -529,60 +808,177 @@ export const Store = {
 
   // -- decisions ------------------------------------------------------------
 
+  /**
+   * The question, if there is one.
+   *
+   * In your own circle the card is worked out from how things stand right now,
+   * never stored. A stored card goes stale the moment somebody adds a task:
+   * it kept saying "Sam is carrying the entire load" after the load had moved.
+   * So it is derived, and what the family decided is what silences it.
+   */
   getOpenEscalations() {
-    const resolved = getStorage("resolved_escalation_ids", []);
-    return escalationsData.filter((card) => !resolved.includes(card.id));
+    if (!isOwn()) {
+      const resolved = getStorage("resolved_escalation_ids", []);
+      return escalationsData.filter((card) => !resolved.includes(card.id));
+    }
+
+    const w = world();
+    if (!w.people.length || !w.tasks.length) return [];
+    const fairness = this.getFairness();
+    const uncovered = this.unassignedTasks();
+    if (fairness.proportional && !uncovered.length) return [];
+
+    // "Keep it as it is" holds until the split gets worse than what was accepted.
+    if (
+      !uncovered.length &&
+      w.acceptedSpread != null &&
+      fairness.maxDeviation <= w.acceptedSpread + 1e-9
+    ) {
+      return [];
+    }
+    // "Talk it through" holds until the plan itself changes.
+    if (w.mutedFor && w.mutedFor === this.planSignature()) return [];
+
+    return [this.buildCard(fairness, uncovered)];
   },
 
-  getResolvedEscalations() {
-    const resolved = getStorage("resolved_escalation_ids", []);
-    return escalationsData.filter((card) => resolved.includes(card.id));
+  /** What the plan looks like right now, so a deferral can expire when it moves. */
+  planSignature() {
+    return JSON.stringify({
+      a: Object.entries(this.getAssignments()).sort(),
+      c: Object.keys(this.getCoveredTasks()).sort(),
+      t: this.getTasks().map((t) => t.id),
+    });
+  },
+
+  buildCard(fairness, uncovered) {
+    const w = world();
+    const covered = this.getCoveredTasks();
+    const tasks = this.getTasks().filter((t) => !covered[t.id]);
+    const help = bestPaidHelp(w.people, tasks, this.assignmentsInPlay());
+
+    const options = [
+      {
+        label: "Keep the split as it is",
+        consequence: uncovered.length
+          ? `Every stated limit is respected, and ${uncovered.length} task${uncovered.length === 1 ? "" : "s"} nobody can take stay uncovered.`
+          : "Every stated limit is respected and the care is covered, with the load uneven.",
+        effect: { kind: "accept_split", task_ids: [] },
+      },
+    ];
+    if (help) {
+      const named = help.ids
+        .map((id) => this.getTask(id)?.title)
+        .filter(Boolean)
+        .join(" and ");
+      options.push({
+        label: `Bring in paid help for ${named}`,
+        consequence: "Those come off the family's plate, and the rest evens out.",
+        effect: { kind: "paid_help", task_ids: help.ids },
+      });
+    }
+    if (uncovered.length) {
+      options.push({
+        label: `Take ${uncovered.length === 1 ? "it" : "them"} off the plan`,
+        consequence: `${uncovered.map((t) => t.title).join(", ")} would not happen at all.`,
+        effect: { kind: "remove_tasks", task_ids: uncovered.map((t) => t.id) },
+      });
+    }
+    options.push({
+      label: "Talk it through together first",
+      consequence: "Nothing changes until you have spoken.",
+      effect: { kind: "none", task_ids: [] },
+    });
+
+    return {
+      id: uncovered.length ? "own-shortfall" : "own-fairness",
+      kind: uncovered.length ? "capacity_shortfall" : "fairness_breach",
+      headline: uncovered.length
+        ? `${uncovered.length} task${uncovered.length === 1 ? "" : "s"} nobody in the circle can take.`
+        : fairness.headline,
+      the_tension: uncovered.length
+        ? "Everyone's stated limits rule these out. Something has to give, and it is not mine to choose."
+        : "I dealt every task out to whoever had the most room, and this is as even as it goes inside everyone's limits.",
+      what_i_tried: [
+        "Dealt every task out to whoever had the most room.",
+        "Kept every limit anyone told their own agent.",
+      ],
+      what_i_will_not_decide:
+        "Whether to spend money, drop care, or ask somebody to stretch past what they said they can do. Those are yours.",
+      options,
+    };
   },
 
   resolveEscalation(cardId, optionIndex, decidedBy) {
-    const card = escalationsData.find((c) => c.id === cardId);
+    const card = this.getOpenEscalations().find((c) => c.id === cardId)
+      || escalationsData.find((c) => c.id === cardId);
     if (!card) return null;
     const option = card.options[optionIndex];
     if (!option) return null;
-
-    const resolved = [...getStorage("resolved_escalation_ids", []), cardId];
     const effect = option.effect || { kind: "none" };
+    const who = this.person(decidedBy)?.shortName || "The family";
+    const when = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
-    if (effect.kind === "paid_help" || effect.kind === "remove_tasks") {
-      const covered = getStorage("extra_covered_tasks", {});
-      for (const id of effect.task_ids || []) {
-        covered[id] = effect.kind === "paid_help" ? "Paid help" : "Taken off the plan";
+    if (isOwn()) {
+      const w = world();
+      const covered = { ...w.covered };
+      const assignments = { ...w.assignments };
+      const next = { ...w };
+
+      if (effect.kind === "paid_help" || effect.kind === "remove_tasks") {
+        for (const id of effect.task_ids || []) {
+          covered[id] = effect.kind === "paid_help" ? "Paid help" : "Taken off the plan";
+          delete assignments[id];
+        }
       }
-      setStorage("extra_covered_tasks", covered);
-
-      // One decision answers the same question everywhere: any other open card
-      // offering the same thing is answered too, so nobody is asked twice.
-      for (const other of escalationsData) {
-        if (other.id === cardId || resolved.includes(other.id)) continue;
-        const match = other.options.some(
-          (o) =>
-            o.effect?.kind === effect.kind &&
-            JSON.stringify([...(o.effect.task_ids || [])].sort()) ===
-              JSON.stringify([...(effect.task_ids || [])].sort())
-        );
-        if (match) resolved.push(other.id);
+      if (effect.kind === "accept_split") {
+        // The spread they looked at and said yes to. Asked again only if it widens.
+        next.acceptedSpread = Math.ceil(this.getFairness().maxDeviation * 100) / 100;
       }
-    }
+      if (effect.kind === "none") {
+        next.mutedFor = this.planSignature();
+      }
 
-    setStorage("resolved_escalation_ids", resolved);
-
-    if (effect.kind !== "none") {
-      const who = PERSON_META[decidedBy]?.shortName || "The family";
-      const when = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-      setStorage("user_precedents", [
-        {
-          id: `prec-${Date.now()}`,
-          rule: option.label,
-          provenance: `${who} decided this on ${when}`,
-          active: true,
-        },
-        ...getStorage("user_precedents", []),
-      ]);
+      next.covered = covered;
+      next.assignments = assignments;
+      if (effect.kind !== "none") {
+        next.precedents = [
+          {
+            id: `prec-${Date.now().toString(36)}`,
+            text: option.label,
+            provenance: `${who} decided this on ${when}`,
+            active: true,
+          },
+          ...w.precedents,
+        ];
+      }
+      saveWorld(next);
+    } else {
+      const resolved = [...getStorage("resolved_escalation_ids", []), cardId];
+      if (effect.kind === "paid_help" || effect.kind === "remove_tasks") {
+        const covered = getStorage("extra_covered_tasks", {});
+        for (const id of effect.task_ids || []) {
+          covered[id] = effect.kind === "paid_help" ? "Paid help" : "Taken off the plan";
+        }
+        setStorage("extra_covered_tasks", covered);
+        for (const other of escalationsData) {
+          if (other.id === cardId || resolved.includes(other.id)) continue;
+          const same = other.options.some(
+            (o) =>
+              o.effect?.kind === effect.kind &&
+              JSON.stringify([...(o.effect.task_ids || [])].sort()) ===
+                JSON.stringify([...(effect.task_ids || [])].sort())
+          );
+          if (same) resolved.push(other.id);
+        }
+      }
+      setStorage("resolved_escalation_ids", resolved);
+      if (effect.kind !== "none") {
+        setStorage("user_precedents", [
+          { id: `prec-${Date.now().toString(36)}`, text: option.label, provenance: `${who} decided this on ${when}`, active: true },
+          ...getStorage("user_precedents", []),
+        ]);
+      }
     }
 
     this.addLedgerEntry({
@@ -594,41 +990,35 @@ export const Store = {
     return option;
   },
 
-  /** Standing decisions, from the family's history and from this session. */
   getPrecedents() {
+    if (isOwn()) return world().precedents;
     const fromFixtures = (familyData.precedents || []).map((p) => ({
       id: p.id,
       text: p.text,
       provenance: p.provenance || `${p.decided_by} decided this`,
       active: p.active !== false,
-      period: p.period_decided,
     }));
     const fromHere = getStorage("user_precedents", []).map((p) => ({
       id: p.id,
       text: p.text || p.rule,
       provenance: p.provenance,
       active: p.active !== false,
-      period: null,
     }));
     return [...fromHere, ...fromFixtures];
   },
 
   // -- the trail ------------------------------------------------------------
 
-  /**
-   * Everything done without asking, oldest question first: what it did, and
-   * why it was allowed to do it alone. Python's ledger and this session's
-   * entries are different shapes, so both are flattened here.
-   */
   getLedger() {
-    const fromHere = getStorage("custom_ledger_entries", []).map((e) => ({
+    const mine = (isOwn() ? world().ledger : getStorage("custom_ledger_entries", [])).map((e) => ({
       id: e.id,
       when: e.time,
       summary: e.headline,
       justification: e.justification,
       who: e.who,
-      kind: "took_action",
+      kind: e.kind || "took_action",
     }));
+    if (isOwn()) return mine;
     const fromFixtures = (ledgerData || []).map((e) => ({
       id: e.id,
       when: new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
@@ -636,32 +1026,45 @@ export const Store = {
       justification: e.justification,
       who: (e.actor || "").replace("agent:", ""),
       kind: e.kind,
-      round: e.round_number,
     }));
-    return [...fromHere, ...fromFixtures];
+    return [...mine, ...fromFixtures];
   },
 
-  addLedgerEntry({ headline, justification, who = "farah" }) {
+  addLedgerEntry({ headline: line, justification, who = null, kind = "took_action" }) {
     const entry = {
-      id: `led-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`,
+      id: `led-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 6)}`,
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      headline,
+      headline: line,
       justification,
       who,
-      allowed_by: "Inside what the family lets me do alone.",
+      kind,
     };
+    if (isOwn()) {
+      const w = world();
+      saveWorld({ ...w, ledger: [entry, ...w.ledger] });
+      return;
+    }
     setStorage("custom_ledger_entries", [entry, ...getStorage("custom_ledger_entries", [])]);
   },
 
   resetAll() {
-    for (const key of [
+    if (isOwn()) {
+      this.clearOwn();
+      return;
+    }
+    for (const name of [
       "active_user", "principals_overrides", "resolved_escalation_ids",
       "extra_covered_tasks", "user_precedents", "completed_task_ids",
       "custom_tasks", "custom_assignments", "task_care_notes",
       "custom_ledger_entries", "assignment_reasons",
     ]) {
-      localStorage.removeItem(STORAGE_PREFIX + key);
+      localStorage.removeItem(key(name));
     }
     notify();
   },
 };
+
+/** Kept as a function so screens can stay unaware of which world they are in. */
+export function personOf(id) {
+  return Store.person(id);
+}

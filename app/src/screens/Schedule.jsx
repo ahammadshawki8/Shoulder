@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   PAID_CAREGIVER_META,
-  PERSON_META,
   Store,
-  TODAY,
+  today,
   TYPE_META,
   durationLabel,
   friendlyDate,
@@ -24,6 +23,7 @@ import {
   Stethoscope,
 } from "../components/Icons.jsx";
 import TaskDetailDrawer from "../components/TaskDetailDrawer.jsx";
+import Face from "../components/Face.jsx";
 
 const ICONS = { Stethoscope, Pill, Moon, Car, FileText, Heart, HomeIcon };
 
@@ -50,7 +50,7 @@ export default function Schedule({ activeUser, onAdd, onNavigate }) {
   const assignments = Store.getAssignments();
   const done = Store.getCompletedTasks();
   const cards = Store.getOpenEscalations();
-  const me = PERSON_META[activeUser] || PERSON_META.farah;
+  const me = Store.person(activeUser);
 
   const mine = useMemo(
     () => tasks.filter((t) => assignments[t.id] === activeUser && !covered[t.id]),
@@ -62,7 +62,7 @@ export default function Schedule({ activeUser, onAdd, onNavigate }) {
   const upNext = useMemo(
     () =>
       mine
-        .filter((t) => !done.includes(t.id) && t.onDate >= TODAY)
+        .filter((t) => !done.includes(t.id) && t.onDate >= today())
         .sort((a, b) => a.onDate.localeCompare(b.onDate))[0] || null,
     [mine, done]
   );
@@ -79,8 +79,8 @@ export default function Schedule({ activeUser, onAdd, onNavigate }) {
       return [...groups.entries()];
     };
     return [
-      group(sorted.filter((t) => t.onDate < TODAY)),
-      group(sorted.filter((t) => t.onDate >= TODAY)),
+      group(sorted.filter((t) => t.onDate < today())),
+      group(sorted.filter((t) => t.onDate >= today())),
     ];
   }, [shown]);
   const [showPast, setShowPast] = useState(false);
@@ -137,6 +137,14 @@ export default function Schedule({ activeUser, onAdd, onNavigate }) {
                 </em>
               </span>
               <ChevronRight size={18} />
+            </button>
+          ) : tasks.length === 0 ? (
+            <button className="next-task" onClick={onAdd}>
+              <span className="next-body">
+                <strong>Nothing in the plan yet</strong>
+                <em>Add what needs doing and it works out who does it.</em>
+              </span>
+              <Plus size={18} />
             </button>
           ) : (
             <p className="tile-quiet">Nothing waiting on you. Enjoy the quiet.</p>
@@ -245,7 +253,7 @@ export default function Schedule({ activeUser, onAdd, onNavigate }) {
                     {/* In "Mine" every row says You, which is noise. */}
                     {holder && scope === "all" && (
                       <span className="row-who" title={holder.name}>
-                        <img src={holder.avatar} alt="" />
+                        <Face person={holder} size={24} />
                         <em style={{ color: holder.color }}>{isMine ? "You" : holder.shortName}</em>
                       </span>
                     )}

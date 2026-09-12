@@ -284,6 +284,79 @@ export function deviationWithout(principals, tasks, assignments, taskIds) {
 }
 
 /**
+ * The opening split, built the way Python builds it (`seed_allocation`).
+ *
+ * Scarcest tasks first, so the ones almost nobody can take pick their person
+ * before the easy ones soak up the room. Anything nobody can legally take is
+ * left unassigned rather than forced on someone, so the shortfall is visible.
+ */
+export function seedAllocation(principals, tasks) {
+  const positions = principals.map(toPosition);
+  const load = {};
+  const held = {};
+  for (const pos of positions) {
+    load[pos.principal_id] = 0;
+    held[pos.principal_id] = 0;
+  }
+
+  const scarcity = (task) =>
+    positions.filter((pos) => isEligible(pos, task, held[pos.principal_id])).length;
+  const order = [...tasks].sort(
+    (a, b) => scarcity(a) - scarcity(b) || taskLoad(b, 0) - taskLoad(a, 0)
+  );
+
+  const assignments = {};
+  for (const task of order) {
+    let best = null;
+    let bestScore = null;
+    for (const pos of positions) {
+      if (!isEligible(pos, task, held[pos.principal_id])) continue;
+      const projected =
+        pos.capacity > 0
+          ? (load[pos.principal_id] + personalDisutility(task, pos)) / pos.capacity
+          : Infinity;
+      if (bestScore === null || projected < bestScore) {
+        best = pos;
+        bestScore = projected;
+      }
+    }
+    if (best) {
+      assignments[task.id] = best.principal_id;
+      load[best.principal_id] += personalDisutility(task, best);
+      held[best.principal_id] += 1;
+    }
+  }
+  return assignments;
+}
+
+/**
+ * The smallest set of tasks whose cover would even the load most.
+ *
+ * Port of `best_paid_help`. Returns nothing unless it genuinely helps:
+ * suggesting paid help that makes the split worse is worse than saying nothing.
+ */
+export function bestPaidHelp(principals, tasks, assignments, maxTasks = 2) {
+  const ids = Object.keys(assignments).sort();
+  const now = checkProportionality(computeBurdens(principals, tasks, assignments)).maxDeviation;
+  let best = null;
+
+  const consider = (combo) => {
+    const after = deviationWithout(principals, tasks, assignments, combo);
+    if (best === null || after < best.after || (after === best.after && combo.length < best.ids.length)) {
+      best = { ids: combo, after };
+    }
+  };
+
+  for (const id of ids) consider([id]);
+  if (maxTasks >= 2) {
+    for (let i = 0; i < ids.length; i += 1) {
+      for (let j = i + 1; j < ids.length; j += 1) consider([ids[i], ids[j]]);
+    }
+  }
+  return best && best.after < now ? { ...best, before: now } : null;
+}
+
+/**
  * Who should take a new task, by the same rule the opening split uses: the
  * eligible person whose capacity-adjusted load would stay lowest.
  *

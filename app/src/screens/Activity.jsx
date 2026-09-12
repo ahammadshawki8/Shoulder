@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { PERSON_META, Store, personOf } from "../data/store.js";
+import { Store, personOf } from "../data/store.js";
+import Face from "../components/Face.jsx";
 import { Shield, Check, Scale, Calendar, Lock } from "../components/Icons.jsx";
 
 const GLYPH = {
@@ -42,7 +43,7 @@ export default function Activity() {
                   <Glyph size={14} />
                 </span>
                 <span className="trail-text">{entry.summary}</span>
-                {person && <img src={person.avatar} alt="" className="trail-face" />}
+                {person && <Face person={person} size={20} className="trail-face" />}
                 <span className="trail-time">{entry.when}</span>
               </button>
               {open && entry.justification && <p className="trail-why">{entry.justification}</p>}

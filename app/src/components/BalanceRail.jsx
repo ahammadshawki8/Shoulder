@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { PAID_CAREGIVER_META, PERSON_META, Store, subscribeStore } from "../data/store.js";
+import { PAID_CAREGIVER_META, Store, subscribeStore } from "../data/store.js";
+import Face from "./Face.jsx";
 import { X } from "./Icons.jsx";
 
 /**
@@ -22,6 +23,16 @@ export default function BalanceRail({ activeUser }) {
 
   const fairness = Store.getFairness();
   const paid = fairness.paidCount;
+  const carrying = fairness.burdens.filter((b) => b.weighted_burden > 0);
+
+  if (!carrying.length) {
+    return (
+      <div className="balance balance-empty">
+        <span className="balance-state">Nothing to split yet</span>
+        <span className="balance-hint">Add what needs doing and it works out who does it.</span>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -39,7 +50,7 @@ export default function BalanceRail({ activeUser }) {
               key={b.principal_id}
               style={{
                 width: `${b.percent_of_total}%`,
-                background: PERSON_META[b.principal_id]?.color,
+                background: Store.person(b.principal_id)?.color,
               }}
               title={`${b.name} ${b.percent_of_total} percent`}
             />
@@ -49,22 +60,24 @@ export default function BalanceRail({ activeUser }) {
         <span className="balance-faces">
           {fairness.burdens.map((b) => (
             <span key={b.principal_id} className="balance-face">
-              <img src={PERSON_META[b.principal_id]?.avatar} alt="" />
-              <em style={{ color: PERSON_META[b.principal_id]?.color }}>
+              <Face person={Store.person(b.principal_id)} size={19} />
+              <em style={{ color: Store.person(b.principal_id)?.color }}>
                 {Math.round(b.percent_of_total)}%
               </em>
             </span>
           ))}
           {paid > 0 && (
             <span className="balance-face">
-              <img src={PAID_CAREGIVER_META.avatar} alt="" />
+              <Face person={PAID_CAREGIVER_META} size={19} />
               <em style={{ color: PAID_CAREGIVER_META.color }}>{paid}</em>
             </span>
           )}
         </span>
       </button>
 
-      {open && <BalanceSheet fairness={fairness} activeUser={activeUser} onClose={() => setOpen(false)} />}
+      {open && (
+        <BalanceSheet fairness={fairness} activeUser={activeUser} onClose={() => setOpen(false)} />
+      )}
     </>
   );
 }
@@ -74,7 +87,12 @@ function BalanceSheet({ fairness, activeUser, onClose }) {
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="How the load is split">
+      <div
+        className="sheet"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="How the load is split"
+      >
         <div className="sheet-head">
           <h3>{fairness.headline}</h3>
           <button className="sheet-close" onClick={onClose} aria-label="Close">
@@ -84,15 +102,14 @@ function BalanceSheet({ fairness, activeUser, onClose }) {
 
         <div className="split-rows">
           {fairness.burdens.map((b) => {
-            const person = PERSON_META[b.principal_id];
-            const isMe = b.principal_id === activeUser;
+            const person = Store.person(b.principal_id);
             return (
               <div key={b.principal_id} className="split-row">
-                <img src={person?.avatar} alt="" className="split-face" />
+                <Face person={person} size={38} />
                 <div className="split-body">
                   <div className="split-name">
                     {person?.shortName}
-                    {isMe && <span className="tag-you">you</span>}
+                    {b.principal_id === activeUser && <span className="tag-you">you</span>}
                     <span className="split-share">{Math.round(b.percent_of_total)}% of the load</span>
                   </div>
                   <div className="split-track">
@@ -115,8 +132,8 @@ function BalanceSheet({ fairness, activeUser, onClose }) {
         <p className="sheet-note">
           Bars show the load against what each person said they can carry, so they are
           comparable. Right now the gap between the heaviest and the lightest is{" "}
-          <strong>{fairness.spreadPct}%</strong>, and the family agreed to keep it under{" "}
-          {fairness.tolerancePct}%.
+          <strong>{fairness.spreadPct}%</strong>, and anything under {fairness.tolerancePct}% counts
+          as even.
         </p>
       </div>
     </div>

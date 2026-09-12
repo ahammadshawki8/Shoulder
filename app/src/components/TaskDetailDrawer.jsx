@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   DAY_NAMES,
   PAID_CAREGIVER_META,
-  PERSON_META,
   Store,
   TYPE_META,
   dateOf,
@@ -12,6 +11,7 @@ import {
 } from "../data/store.js";
 import { TaskIcon } from "../screens/Schedule.jsx";
 import { Check, CheckCircle, Trash2, X } from "./Icons.jsx";
+import Face from "./Face.jsx";
 
 /**
  * One task, opened.
@@ -79,7 +79,7 @@ export default function TaskDetailDrawer({ taskId, activeUser, onClose }) {
 
         {holder && (
           <div className="drawer-who">
-            <img src={holder.avatar} alt="" />
+            <Face person={holder} size={34} />
             <div>
               <strong>
                 {isMine ? "You have this one" : `${holder.shortName} has this one`}
@@ -98,7 +98,7 @@ export default function TaskDetailDrawer({ taskId, activeUser, onClose }) {
           <div className="drawer-logged">
             <span>{logged.text}</span>
             <em>
-              {PERSON_META[logged.byUser]?.shortName || "Someone"}, {logged.recordedAt}
+              {Store.person(logged.byUser)?.shortName || "Someone"}, {logged.recordedAt}
             </em>
           </div>
         )}
@@ -142,14 +142,14 @@ export default function TaskDetailDrawer({ taskId, activeUser, onClose }) {
 
           {handingOver && (
             <div className="handover">
-              {[...Object.values(PERSON_META), PAID_CAREGIVER_META].map((person) => (
+              {[...Store.people().filter(Boolean), PAID_CAREGIVER_META].map((person) => (
                 <button
                   key={person.id}
                   className="handover-pick"
                   disabled={person.id === holder?.id}
                   onClick={() => handOver(person.id)}
                 >
-                  <img src={person.avatar} alt="" />
+                  <Face person={person} size={21} />
                   <span>{person.shortName}</span>
                 </button>
               ))}

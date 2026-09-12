@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CARE_RECIPIENT_META, Store } from "../data/store.js";
+import { Store } from "../data/store.js";
 
 const STEPS = [
   {
@@ -56,7 +56,7 @@ export default function HowItWorks({ onNavigate }) {
       <section className="promise">
         <p>
           It proposes, it does the safe work, and it hands the rest back. It never
-          decides who cares for {CARE_RECIPIENT_META.relation}.
+          decides who cares for {Store.getRecipient().relation}.
         </p>
         <span>
           Right now the load is {fairness.spreadPct}% apart, and the family agreed to keep
