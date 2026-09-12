@@ -1,0 +1,170 @@
+{
+  "history": [
+    {
+      "period": "2026-10",
+      "settled": false,
+      "settled_by_precedent": null,
+      "max_deviation": 0.229,
+      "escalations": 2,
+      "resolved": 2,
+      "applied_precedents": [],
+      "covered_tasks": 0
+    },
+    {
+      "period": "2026-11",
+      "settled": true,
+      "settled_by_precedent": null,
+      "max_deviation": 0.036,
+      "escalations": 0,
+      "resolved": 0,
+      "applied_precedents": [
+        "P-eefa6e8e"
+      ],
+      "covered_tasks": 2
+    }
+  ],
+  "escalations": [
+    {
+      "period": "2026-10",
+      "status": "resolved",
+      "card": {
+        "id": "esc-rahman-family-2026-10-fairness_breach",
+        "period": "2026-10",
+        "kind": "fairness_breach",
+        "headline": "Amina is carrying 46 percent more than Farah.",
+        "what_i_tried": [
+          "Built an opening split from everyone's stated availability and capacity.",
+          "Tried moving four tasks from Amina to Rian on the weekend, but the split became less even.",
+          "Tried moving those same tasks again with adjusted reasoning about distance, but the result was still further from fair.",
+          "Tried moving three of Amina's heaviest tasks to Rian, stopping at the task cap, but again the split moved in the wrong direction."
+        ],
+        "the_tension": "Every attempt to lighten Amina's load had to send tasks to Rian because Farah is unavailable on Friday and Saturday and has declined night tasks. The tasks Amina holds that can move are all on those weekend days or overnight. Rian is already close to the cap on number of tasks. The distance from Rian's home to your mother changes how much these tasks weigh, but not in a way that narrows the gap. The moves available within everyone's stated limits do not bring this closer to fair.",
+        "options": [
+          {
+            "label": "Bring in paid help for the Wednesday overnight stay and the Friday nephrology appointment",
+            "consequence": "The load becomes more evenly distributed across the three of you. Those two tasks come off your plates entirely.",
+            "fairness_delta": -0.1,
+            "effect": {
+              "kind": "paid_help",
+              "task_ids": [
+                "T13",
+                "T22"
+              ],
+              "action": "",
+              "principal_id": ""
+            }
+          },
+          {
+            "label": "Leave the plan as it stands",
+            "consequence": "Amina continues to carry a heavier load than the others relative to what each of you said you can manage. Everyone has already said they accept it.",
+            "fairness_delta": 0.0,
+            "effect": {
+              "kind": "accept_split",
+              "task_ids": [],
+              "action": "",
+              "principal_id": ""
+            }
+          },
+          {
+            "label": "Talk together about whether any limits can shift, or whether other tasks might come off the plan",
+            "consequence": "You would need to decide together which tasks matter most and whether anyone has room to stretch in ways they have not yet named.",
+            "fairness_delta": 0.0,
+            "effect": {
+              "kind": "none",
+              "task_ids": [],
+              "action": "",
+              "principal_id": ""
+            }
+          }
+        ],
+        "what_i_will_not_decide": "I can tell you the split is uneven, but I cannot tell you whether that unevenness is worth accepting, whether paid help is the right call, or which tasks matter most. Those decisions belong to the people who know your mother and know what you each are carrying outside this plan.",
+        "created_at": "2026-09-11T13:20:45+00:00"
+      }
+    },
+    {
+      "period": "2026-10",
+      "status": "resolved",
+      "card": {
+        "id": "esc-rahman-family-2026-10-arrange_paid_help-1",
+        "period": "2026-10",
+        "kind": "authority_exceeded",
+        "headline": "Paid help could cover 2 of this month's tasks. Whether to bring someone in is your decision, not mine.",
+        "what_i_tried": [
+          "Looked for moves between you that stay inside everyone's stated limits.",
+          "Found that paid help for Wednesday overnight stay (Wed 14 Oct); Follow-up nephrology appointment (Fri 23 Oct) would take 11.5 hours of care off Amina and Rian.",
+          "Stopped before booking anything."
+        ],
+        "the_tension": "The spread of the load would go from 23 percent to 13 percent, against a limit of 15 percent. It also means spending money, and someone new in Nasrin's home.",
+        "options": [
+          {
+            "label": "Bring in paid help for these tasks",
+            "consequence": "The spread goes from 23 percent to 13 percent. You agree between you who pays, and Nasrin has a say in it. I will arrange the same each month until you say otherwise.",
+            "fairness_delta": -0.1,
+            "effect": {
+              "kind": "paid_help",
+              "task_ids": [
+                "T13",
+                "T22"
+              ],
+              "action": "",
+              "principal_id": ""
+            }
+          },
+          {
+            "label": "Keep this care within the family",
+            "consequence": "Nothing changes. The current split stands, and I will not suggest paid help again.",
+            "fairness_delta": 0.0,
+            "effect": {
+              "kind": "decline_action",
+              "task_ids": [],
+              "action": "arrange_paid_help",
+              "principal_id": ""
+            }
+          }
+        ],
+        "what_i_will_not_decide": "Whether to pay for care, who pays, and whether someone new comes into Nasrin's home. Those choices belong to your family, and to Nasrin.",
+        "created_at": "2026-09-11T13:20:27+00:00"
+      }
+    }
+  ],
+  "resolutions": [
+    {
+      "escalation_id": "esc-rahman-family-2026-10-fairness_breach",
+      "period": "2026-10",
+      "option_index": 0,
+      "option_label": "Bring in paid help for the Wednesday overnight stay and the Friday nephrology appointment",
+      "decided_by": "The family",
+      "decided_at": "2026-09-11T13:20:45+00:00",
+      "note": ""
+    },
+    {
+      "escalation_id": "esc-rahman-family-2026-10-arrange_paid_help-1",
+      "period": "2026-10",
+      "option_index": 0,
+      "option_label": "Bring in paid help for these tasks",
+      "decided_by": "The family",
+      "decided_at": "2026-09-11T13:20:45+00:00",
+      "note": "Answered by the same decision on esc-rahman-family-2026-10-fairness_breach."
+    }
+  ],
+  "precedents": [
+    {
+      "id": "P-eefa6e8e",
+      "kind": "paid_help",
+      "text": "Paid help covers the Wednesday overnight stay and the follow-up nephrology appointment each month.",
+      "task_titles": [
+        "Wednesday overnight stay",
+        "Follow-up nephrology appointment"
+      ],
+      "action": "",
+      "principal_id": "",
+      "max_deviation": null,
+      "source_escalation_id": "esc-rahman-family-2026-10-fairness_breach",
+      "period_decided": "2026-10",
+      "decided_by": "The family",
+      "decided_at": "2026-09-11T13:20:45+00:00",
+      "active": true,
+      "provenance": "The family decided this on 11 Sep"
+    }
+  ]
+}

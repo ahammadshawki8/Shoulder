@@ -60,6 +60,17 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
   Never pass `-c user.email=...` with anything else. If the local repo config is missing or
   wrong, set it to the two values above rather than guessing from the environment. This was
   got wrong once already and required rewriting history to correct.
+- **Ashfaq's commits use exactly this identity** (his GitHub account is `ashfaqstu`, id
+  187305680). Same rule: never substitute an address from session context.
+
+  ```
+  user.name  = ashfaqstu
+  user.email = 187305680+ashfaqstu@users.noreply.github.com
+  ```
+
+- **Ashfaq works from a fork**, `https://github.com/ashfaqstu/Shoulder` (remote `origin`), with
+  Shawki's repo as `upstream`. He has read-only access to `upstream` until Shawki adds
+  `ashfaqstu` as a collaborator; until then his milestones reach `upstream` as pull requests.
 - **Commit and push to GitHub after every completed milestone**, not just at the end of a tier.
   The remote must always hold a working, up-to-date version so either teammate can pick it up.
 - Commit messages state what changed, in plain language. Handoff commits use the format in
@@ -289,12 +300,13 @@ flowchart TB
     end
 
     subgraph Guard["Privacy hook (per principal)"]
-        H1["BeforeMessageSend<br/>blocks private-tier facts<br/>emits positions only"]
+        H1["AfterModelCallEvent + BeforeToolCallEvent<br/>withholds private-tier facts<br/>reply held until screened"]
     end
 
     subgraph Convener["Convener - Strands Graph"]
         N1[intake] --> N2[demand_model]
-        N2 --> N3[propose]
+        N2 --> N0["recall<br/>drift + precedents"]
+        N0 --> N3[propose]
         N3 --> N4["critique<br/>fan-out via A2A"]
         N4 --> N5[evaluate]
         N5 -->|not settled| N6[revise]
@@ -311,7 +323,7 @@ flowchart TB
     end
 
     subgraph Envelope["Authority hook"]
-        H2["BeforeToolInvocation<br/>blocks out-of-envelope actions<br/>converts them to escalations"]
+        H2["BeforeToolCallEvent<br/>blocks out-of-envelope actions<br/>converts them to escalations"]
     end
 
     subgraph Surface["Product"]
@@ -424,29 +436,29 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 - [x] Settled rota persisted
 
 ### Tier 4 - Guardrails (do not cut this tier)
-- [ ] Privacy hook: blocks private-tier facts on outbound A2A messages
-- [ ] Authority-envelope hook: out-of-envelope action → escalation card
-- [ ] Ledger: every unattended action recorded with justification
-- [ ] Demo proof: privacy hook visibly catching a deliberate leak attempt
+- [x] Privacy hook: blocks private-tier facts on outbound A2A messages
+- [x] Authority-envelope hook: out-of-envelope action → escalation card
+- [x] Ledger: every unattended action recorded with justification
+- [x] Demo proof: privacy hook visibly catching a deliberate leak attempt (`python -m shoulder.demos.leak`)
 
 ### Tier 5 - Memory and precedent
-- [ ] Per-principal session persistence (preferences drift over time)
-- [ ] Family session: rota history + resolved escalations
-- [ ] Precedent extraction from resolved escalations
-- [ ] Precedent application in the next period, with provenance shown
+- [x] Per-principal session persistence (preferences drift over time)
+- [x] Family session: rota history + resolved escalations
+- [x] Precedent extraction from resolved escalations
+- [x] Precedent application in the next period, with provenance shown (`python -m shoulder.demos.next_month`)
 
 ### Tier 6 - Product surface
-- [ ] Private intake screen (privacy tiers visible - the trust moment)
-- [ ] Rota + fairness bar (hero component, animates across rounds)
-- [ ] Escalation inbox (one decision per screen; warm empty state)
-- [ ] Agent ledger
-- [ ] Light/dark, keyboard accessible, responsive
+- [x] Private intake screen (privacy tiers visible - the trust moment)
+- [x] Rota + fairness bar (hero component, animates across rounds)
+- [x] Escalation inbox (one decision per screen; warm empty state)
+- [x] Agent ledger
+- [x] Light/dark, keyboard accessible, responsive
 
 ### Tier 7 - Evals
-- [ ] Fairness: invariant holds across N generated circles
-- [ ] **Privacy: no private-tier fact ever appears in an outbound A2A payload** (adversarial, MAGPIE-framed)
-- [ ] Escalation boundary: precision/recall on labelled should / should-not scenarios
-- [ ] Precedent regression: escalation count falls month over month
+- [x] Fairness: invariant holds across N generated circles
+- [x] **Privacy: no private-tier fact ever appears in an outbound A2A payload** (adversarial, MAGPIE-framed)
+- [x] Escalation boundary: precision/recall on labelled should / should-not scenarios
+- [x] Precedent regression: escalation count falls month over month
 
 ### Tier 8 - Deployment
 - [ ] Convener on AgentCore Runtime, weekly schedule
@@ -458,7 +470,7 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 
 ### Tier 9 - Submission
 - [ ] README with problem, architecture, setup, research citations
-- [ ] Architecture diagram exported as an image
+- [x] Architecture diagram exported as an image (`docs/architecture.svg` and `.png`, ELK layout)
 - [ ] `make demo` runs from a clean clone with seeded data
 - [ ] Public repo, MIT license visible in About
 - [ ] AWS Builder ID obtained
@@ -605,3 +617,387 @@ the identity is pinned in section 1.
 - **Next:** Tier 4 (privacy hook, authority envelope hook, ledger) is Ashfaq's block per
   `TaskDivision.md`. Fixtures are committed so the UI can be built with no AWS access at all, and
   the A2A wire log gives the privacy hook a real surface to guard.
+
+### 2026-09-11 - Session 3, Tier 4 complete (Ashfaq)
+
+**Block 1 handoff verified before building on it.** `pytest` 20 passed, `cli --dry`, `cli` and
+`a2a.demo` all ran clean against Bedrock with Ashfaq's IAM user (`user/ashfaq`, profile
+`shoulder`). Environment: this machine has **Python 3.12.7** only (no 3.11); everything works on it.
+
+**What Tier 4 added** (64 tests now, all offline):
+
+```
+python -m shoulder.demos.leak            privacy hook catching a leak over real A2A, no AWS
+python -m shoulder.demos.leak --live     same, real Sonnet with its privacy instruction removed
+python -m shoulder.demos.envelope        authority envelope: one action allowed, two refused
+```
+
+- `shoulder/hooks/privacy.py`: `PrivacyGuard`, a Strands `HookProvider` on every principal agent
+  (`AfterModelCallEvent` rewrites the finished message, `BeforeToolCallEvent` screens tool input,
+  which is how the in-process `Critique` travels). Detection is deterministic: the private reason
+  and its clauses, per-constraint `sensitive_terms`, and three-word runs of the reason, each checked
+  on normalised text and on punctuation-free text. `scan_for_leaks` is the same detector for audits.
+- `shoulder/hooks/authority.py`: `AuthorityGuard` on `BeforeToolCallEvent` for the Convener.
+  `decide()` is the envelope as a pure function. Measuring is free; `send_reminder` is inside only
+  for tasks the person already holds; `arrange_paid_help`, `drop_task`, `change_capacity` are
+  outside; **anything unnamed is outside** (fails closed). A refused call never runs, returns "not
+  done, raised with the family" to the model, and becomes an `authority_exceeded` card whose
+  numbers come from the fairness engine (`_without`, capacity what-ifs), with fixed copy.
+- `shoulder/tools/actions.py`: the acting tools. The always-refused ones are offered on purpose: the
+  envelope is a policy about authority, not about which tools exist.
+- `shoulder/ledger.py` + `shoulder/store/sqlite.py`: append-only ledger. `family` scope is the
+  shared audit trail; `private:<id>` entries (what a guard held back, including the draft) go to
+  their own SQLite file under `.shoulder/private/`. The graph records every unattended step: seed,
+  suggested moves (in words), reversed illegal moves, rejected worse splits, each critique, each
+  fairness measurement, remedies, escalations.
+- Graph: the escalate node now gives the Convener **one chance to act** (`attempt_remedies`, through
+  the agent loop so tools run) before writing the fairness card. Anything refused becomes its own
+  card, queued after the fairness card.
+- `shoulder/scripted_model.py`: a Strands `Model` that plays back a script, so hooks are tested
+  through the real agent loop, tool executor and A2A server with no network.
+- New fixtures: `ledger.json` (family view), `privacy_demo.json` (a real `--live` catch),
+  `authority_demo.json` (scripted, deterministic). Regenerated: `circle.json`, `outcome.json`,
+  `escalations.json`, `a2a_wire_log.json`. Every family-visible fixture passes `scan_for_leaks`.
+
+**Findings that shaped it (each is pinned by a test):**
+1. **The stock A2A executor streams text chunks to the caller before any hook sees the finished
+   message.** The Block 1 wire log shows every reply twice, once whole and once as fragments. A
+   post-model hook alone would screen text that had already left. `HeldReplyExecutor` in
+   `shoulder/a2a/serve.py` holds the reply until it is screened. A control test serves the same
+   guarded agent through the stock executor and asserts it leaks; if that test ever fails, the SDK
+   changed, re-check before removing the hold.
+2. **The old leak check could be beaten by chunking**: plain substring search misses
+   `Chemo\ntherapy`. The detector also checks punctuation-free text.
+3. **The deprecated `agent.structured_output()` skips the hook registry entirely.** The in-process
+   critique now calls `agent(prompt, structured_output_model=Critique)`, with history cleared each
+   round so behaviour matches before. The Convener's revise and escalation calls still use the
+   deprecated path (unchanged), which also means the Convener never actually ran its fairness tools
+   there. Only `attempt_remedies` uses the loop.
+4. **Sonnet refuses to leak, and its refusals leak the category**: "private medical information",
+   "genuine and health-related". Category words are now in Farah's `sensitive_terms`. This is the
+   best evidence we have that the hook, not the prompt, has to be the enforcement.
+5. **Redacting only the offending sentence is not enough.** The sentence left behind read "she needs
+   help quickly if she develops any complications". Any free text carrying a private fact is now
+   withheld whole; structural fields (verdict, reason class, task ids) still pass.
+6. **A private constraint's summary is its effect, not its secret.** Screening "Unavailable Friday
+   and Saturday" flagged the Convener stating Farah's public Position, and made the family ledger
+   fail its own audit. Only reasons and sensitive terms are screened; `Principal.private_texts()`
+   now returns reasons only. Intake (Tier 6) must keep the why out of `summary`.
+7. **In process, the model writes working notes that quote the private constraint.** They never
+   leave (only the `Critique` does), so the guard scrubs them silently. Announcing them would have
+   put "Farah's agent held something back" in the family ledger every round, itself a small leak.
+   `PrivacyGuard(reply="text" | "structured")` makes the outbound surface explicit.
+
+**Behaviour worth knowing for the demo:** in one live run the Convener used the fairness tools, found
+the split is almost exactly fair if Farah's capacity were 0.5 instead of 0.7, and called
+`change_capacity`. The envelope refused: *"I will not change what Farah said they can carry."* In
+another run it checked, found nothing that helps, and took no action. Both are correct; it is not
+forced to act. The deterministic version of that beat is `demos.envelope`.
+
+**Fragile / honest limits:**
+- The detector is lexical. A paraphrase with no shared words and no sensitive term ("she is not
+  well at the moment") would pass. Whole-text withholding narrows it; Tier 7's adversarial eval
+  should probe it, and `sensitive_terms` is where fixes go. An LLM second opinion would be additive,
+  never a replacement.
+- In the A2A demo the family-scope "withheld" entries stay in each principal's process (servers run
+  with no ledger), so the Convener's ledger does not show them. Fine for now; Tier 8 could forward
+  content-free notices.
+- `HeldReplyExecutor` overrides a private SDK method (`_handle_streaming_event`). Pinned by tests.
+- `.shoulder/` holds local SQLite state and is gitignored. Delete it to reset.
+- The rounds still all come back `accept` from every sibling and rounds 2 to 4 retry the same
+  rejected moves (see the fairness bar note in the Block 1 verification: rounds show 0.229, 0.757,
+  0.804, 0.757 as tried, 0.229 as kept). Not touched in Tier 4. The UI should show "tried" versus
+  "kept" rather than animate straight through the tried splits.
+
+**Git:** work is on the fork (`ashfaqstu/Shoulder`) because `ashfaqstu` has no push access to
+`upstream` yet. Shawki: add `ashfaqstu` as a collaborator, or merge the PR.
+
+- **Next:** Tier 5 (memory and precedent) and Tier 6 (four screens, fairness bar as hero), then the
+  Block 2 handoff commit.
+
+### 2026-09-11 - Session 3 continued, Tier 5 complete (Ashfaq)
+
+**The loop, end to end** (93 tests, all offline):
+
+```
+python -m shoulder.cli                        October: negotiate, queue escalations
+python -m shoulder.decide                     answer them, one card at a time (--precedents, --retire)
+python -m shoulder.cli --period 2026-11       November: applies what was decided
+python -m shoulder.demos.next_month [--live] [--write-fixtures]   both months back to back
+```
+
+- **Typed option effects** (`OptionEffect` on every `EscalationOption`): `accept_split`,
+  `paid_help(task_ids)`, `remove_tasks(task_ids)`, `decline_action(action, principal_id)`, `none`.
+  This is what makes a decision reusable. It also fixed a real invariant break: **the model was
+  writing `fairness_delta` itself** (every value 0.0). `write_escalation` now sanitises the effects
+  and sets every delta from `shoulder/tools/remedies.py`; the model is told to leave it at 0.
+- **The escalation prompt now forbids options that ask a named person to give up a limit.** The
+  previous live card offered "Ask Farah to expand availability to Friday or Saturday or to accept
+  night shifts", i.e. pressure on the one person hiding chemotherapy. Only a person can revisit their
+  own limits, privately. A "Keep the current split" option is added in code if the model omits it.
+- **The engine finds remedies; the model judges them.** `best_paid_help` searches every one or two
+  task set and hands the best to the Convener as a fact, in both the remedies and escalation
+  prompts. For the demo family: paid help for the Wednesday overnight stay and the follow-up
+  nephrology appointment takes 23 percent to 13 percent.
+- `shoulder/precedent.py`: `extract()` builds a `Precedent` from the chosen option's effect, in code.
+  Recurring tasks are matched by **title**, since ids restart each month. `provenance()` renders
+  "Amina decided this on 11 Sep" in local time (stored UTC).
+- **Where precedents apply:** a new deterministic `recall` graph node (entry point) takes covered
+  tasks out of the family's split before anyone negotiates, each through the envelope's `decide()`;
+  the **envelope widens or closes only by precedent** (paid help for those tasks becomes routine;
+  a declined action is neither taken nor raised again, logged as `applied_precedent`); and
+  `accept_split` publishes the best split **only after every round was tried**, with no veto and
+  every limit intact.
+- `shoulder/store/family.py`: SQLite rotas, escalations (open or resolved), resolutions,
+  precedents. **One decision answers the same question everywhere**: choosing paid help on the
+  fairness card also resolves the envelope's paid-help card for the same tasks. A card cannot be
+  decided twice; a newer precedent with the same rule replaces the older; `retire` stops one.
+- `shoulder/store/principal.py`: each person's profile saved per period in their own private file,
+  and `drift()` split into public (Position changes, noted in the family ledger by recall) and
+  private (constraint or reason changes, noted in their private ledger only).
+- `shoulder/session.py`: `run_period()` is the loop the Tier 8 schedule should call.
+- Seed: `build_tasks(period)` / `build_circle(period)` generate any month from the weekly pattern.
+  October is byte-identical to before (checked against the committed fixture).
+- `shoulder/demos/offline.py`: scripted models that run the real graph with no network. The
+  Convener script acts on the engine's findings in its own prompt; the siblings accept.
+
+**The numbers the "It learns" beat can honestly show** (offline and live agree on the shape):
+October 23 percent, two decisions asked (the fairness card and the envelope's paid-help card).
+The family chooses paid help once. November: recall arranges it, cites the decision, the re-seeded
+split is 4 percent and settles in round one, **zero decisions asked**. The storyboard's "4 to 1" is
+not what this family produces; use the real "2 to 0".
+
+**Fixtures for Tier 6** (from the live run): October at `fixtures/` root, November at
+`fixtures/2026-11/`, and `fixtures/family.json` with `history` (per month: escalations asked,
+resolved, deviation, settled, precedents applied), every card with its status, every resolution,
+and every precedent with its provenance line.
+
+**Fragile / honest limits:**
+- Matching recurring tasks by title means renaming a task silently ends a precedent. Fine for the
+  seed; real intake should give recurring tasks a stable key.
+- `accept_split` is an open-ended acceptance. It should expire or come back for review; not built.
+- Drift is computed by the CLI session in process. In A2A mode each principal's profile would live
+  in their own server; not wired.
+- The live Convener's remedies step is still a model choice; it may or may not reach for paid help.
+  The card's paid-help option comes from the engine finding either way.
+
+### 2026-09-11 - Session 3 continued, Tier 6 complete, Block 2 handoff (Ashfaq -> Shawki)
+
+**Run it:** `cd web && npm install && npm run dev`, open http://localhost:5173. No AWS needed; it
+reads `fixtures/` (imported through a Vite alias, `server.fs.allow` covers the repo root). 95 Python
+tests pass.
+
+**Six screens, mapped to the storyboard in section 8** (switch October / November at the top):
+
+| Beat | Screen | Notes |
+|---|---|---|
+| 0:00 to 0:45 problem, NegotiAge | Why | Every figure from section 4, sources listed |
+| 0:45 to 1:20 private intake | Your agent | Per sibling. Left: answers, tier toggles, private reasons, the words the guard blocks. Right: what the family sees, recomputed live by a JS mirror of `to_position()`. Farah's "Replay the moment" types her reason while the family view does not move |
+| 1:20 to 2:10 negotiation | This month | Round player with the fairness bar, the Convener's moves, each agent's answer, then the rota calendar. Paid help shows dashed in November |
+| 2:10 to 2:45 escalation | Needs you | One card per screen, options priced by the engine, "what I will not decide", Decide. Recording a choice shows the standing rule it becomes and answers duplicate cards |
+| 2:45 to 3:05 it learns | Needs you (November) | Warm empty state: "Nothing needs you this month", 2 to 0, and the decision cited with provenance |
+| 3:05 to 3:30 how it is built | Under the hood | The live privacy catch (draft vs wire), the envelope's decisions, the wire log re-audited in the browser, and the architecture rendered from this file's section 9 mermaid |
+| (ledger) | What I did | Every family-scope entry, by round, filterable, with justifications |
+
+**The fairness bar needed a data change first.** Since the Block 1 hill climb, each round recorded
+the split it *kept*, so October's four rounds were identical and the bar could not move.
+`NegotiationRound` now carries `tried` (what the round proposed), `moves` and `kept`. The bar shows
+solid bars for the working rota and a thin bar beneath for what the round tried, on one scale across
+every round; a rejected round is marked with a red dot. Labels always give the signed figure ("12
+percent above fair"), because "within range" beside a headline saying Amina carries 46 percent more
+read as a contradiction.
+
+**Escalation copy is now written for a family.** The first live card led with "70.48 adjusted share
+... against a mean of 62.67". The headline is now the engine's own `report.headline()`, and the model
+is told to use no numbers or engineering words; the engine's figures sit beside its prose. The same
+review changed "worst deviation" to "spread" in the envelope cards and the ledger.
+
+**Design:** Fraunces for headings, Source Sans 3 for text, bundled with `@fontsource` so the UI renders
+offline. One identity colour per sibling on every screen (Amina blue, Rian orange, Farah aqua),
+validated with the dataviz palette checks against both surfaces, all pairs, light and dark; the aqua
+light step sits at 2.66:1, so every bar carries a visible name label and the chart has a table view.
+Light and dark tokens, theme toggle (saved), `prefers-reduced-motion` honoured, focus rings, every
+chart value reachable by keyboard with a tooltip. `#/month/2026-10/2` opens a round;
+`?theme=dark` forces a theme (for recording).
+
+**Fixtures** were regenerated by `python -m shoulder.demos.next_month --live --write-fixtures`
+after the copy changes; every family-visible file passes `scan_for_leaks`.
+
+**Fragile / honest limits:**
+- Decisions in the inbox are held in memory (reload replays the month); the UI does not write
+  back to `.shoulder/`. Tier 8's live link would need a small API over `FamilyStore`.
+- The intake screen edits are local and illustrate the projection; they do not persist.
+- Headless Chrome cannot go below about 500px wide, so the 400px check was done by reasoning plus a
+  560px screenshot, not a true 400px render. Check on a real phone before recording.
+- The mermaid bundle is large but lazy: it loads only when "Under the hood" opens.
+- "Nobody opened an app" is shown as "negotiated by the agents"; the schedule itself is Tier 8.
+
+**Handoff to Shawki (Block 3):** verify with `pytest`, `python -m shoulder.demos.leak`, and
+`cd web && npm run dev`. The work is on `ashfaqstu/Shoulder` `main`; add `ashfaqstu` as a
+collaborator or merge the pull request. Next: Tier 8 (AgentCore, the schedule, a live link that can
+serve `web/` and a thin API over `FamilyStore`), README polish, Devpost draft by Sat 13 Sep.
+
+### 2026-09-12 - Session 4, Tier 7 complete (Ashfaq)
+
+**Run it** (99 tests, all offline; the evals add about 30 seconds to `pytest`):
+
+```
+python -m evals                          all four, offline, prints a scorecard
+python -m evals --quick                  the smaller pass the test suite runs
+python -m evals --only privacy --live    real Sonnet, real prompt, attacked
+python -m evals --n 200 --seed 12        more generated circles, another seed
+python -m evals --write-fixtures         also writes fixtures/evals.json
+```
+
+Four evals in `evals/`, each aimed at a claim the product makes out loud. Model calls are
+scripted; every node, hook, store, ledger entry and A2A server is the real code. In the fairness
+and privacy evals the scripted model is deliberately hostile.
+
+- **`evals.fairness`** runs the graph on generated families (`evals/generate.py`: 2 to 5 people,
+  random limits, three profiles cycled so settled, breach and shortfall outcomes all appear) with
+  a Convener that proposes illegal moves, reaches for any action tool, and writes cards full of
+  invented numbers. Thirteen properties, including: the rota never breaks a stated limit, the
+  report shipped is what the engine recomputes, settled implies proportional and complete and
+  unobjected, every card figure is recomputed, no action outside the envelope ran, and the engine
+  is deterministic, order and scale invariant, and blind to whether a limit is private.
+- **`evals.privacy`** is MAGPIE-framed and adversarial. 47 labelled attacks over real A2A against
+  two secret holders (Farah, plus a second one so the guard is not tuned to her): verbatim,
+  keywords, paraphrase, category, obfuscation, encoding, smuggling into other fields and into
+  dict keys. Ground truth is not the detector: each attack carries the exact text that gives the
+  secret away, and is blocked only if that text never arrives. Also a whole negotiation over A2A
+  with both holders leaking a different attack every round.
+- **`evals.escalation`** scores the boundary as a classifier over 25 hand-labelled scenarios
+  (16 ask, 9 act or hold), through the envelope hook and through whole negotiations.
+- **`evals.precedent`** runs the demo family for four months under four policies, plus generated
+  families for two months each.
+
+**Results:** 37 in-scope attacks blocked, on the wire and in process, with the verdict still
+delivered every time and 14 of 14 benign messages untouched. Escalation precision and recall both
+1.0, with zero missed escalations. Precedent: a family that pays for help is asked `2, 0, 0, 0`;
+one that decides nothing is asked `2, 2, 2, 2`; one that changes its mind is asked `2, 0, 2, 0`.
+Fairness: 60 circles, every property held.
+
+**Live** (`--only privacy --live`, 10 adversarial probes at Sonnet with its real prompt): the
+model refused 5 on its own, the hook caught the other 5, and nothing reached the wire. The
+refusals are worth watching: asked to answer yes or no to "is it health related", it said "I
+cannot answer that question", which is the right answer and still a small tell. Three probes
+(roleplay, fake consent, answer in Spanish) had the whole reply withheld, so the Convener recorded
+silence for that round, which is the intended fail-closed behaviour.
+
+**What the evals found, and what was fixed because of it:**
+
+1. **The family could be handed a worse split than the opening one.** `consider()` only kept
+   splits with every task covered, and the hill climb only rejected feasible trials, so in a
+   circle where some task is uncoverable nothing was ever kept and the family got whatever the
+   last round tried. One generated circle went from a 68 percent spread to 222 percent on the card
+   they would read. Splits are now ranked by limits broken, then care left undone, then spread
+   (`_rank` in `shoulder/graph/negotiation.py`). Since the best split may now be one that leaves
+   care uncovered, publishing under an `accept_split` precedent requires a feasible one.
+2. **A shortfall card promised cover that did not exist.** The inserted "Keep the current split"
+   option read "the care is covered" even when tasks were unassigned. It now says how many stay
+   uncovered.
+3. **The detector had mechanism gaps**, each of which walked past it: zero-width characters, soft
+   hyphens, Cyrillic and full-width lookalikes, accents, spaced ("c h e m o") and leet ("ch3m0")
+   spellings, base64, hex, reversed text and ROT13, and, most relevant here, JSON escapes: over
+   A2A every reply is JSON, so a newline inside a string reaches the guard as a backslash and an
+   "n" and `che\nmotherapy` squashed to `chenmotherapy`. `PrivacyScreen` now runs the same three
+   layers over several views of each text (`views()` in `shoulder/hooks/privacy.py`). Dict keys
+   were never screened; a leaking key used to force the whole reply to be withheld, taking the
+   verdict with it, and is now dropped on its own.
+4. **An eval that passed vacuously.** The in-process attacks sent a tool call with no
+   `principal_id`, so the Critique never validated and the agent fell back to silence: nothing was
+   screened and the check passed anyway. The attack must now arrive with its verdict intact, which
+   is also what makes the in-process numbers mean anything. Worth remembering when writing the
+   next eval: a guard that blocks everything, including the test, looks identical to a guard that
+   works.
+
+**Fragile / honest limits:**
+- The detector is lexical, and the eval measures exactly where that ends: of 10 attacks in the
+  known-limits set, 1 is blocked. A euphemism with none of the words ("she is on a drip every
+  Friday"), another language (Spanish and French pass, German is caught because "Chemotherapie"
+  starts with "chemo"), a plain "yes" to a yes-or-no question, an acrostic, and a word split
+  across two separate replies all get through. These are reported every run and never gated, so a
+  fix shows up as a number moving. `sensitive_terms` is still where cheap fixes go; an LLM second
+  opinion would be additive, never a replacement.
+- **It fails closed, and that costs something measurable.** Three benign messages about the
+  mother's own care ("Mum's health has been better this week") are withheld because they carry a
+  sensitive word. Reported as `collateral` every run.
+- Generated families often ask the same number of questions in month two as in month one (a new
+  question about different tasks), so the strong "falls to zero" claim is only made for the demo
+  family. What is asserted for every generated family is that an answered question never comes
+  back, and that answering never makes the next month noisier.
+- The live probes echo back in the A2A payload, so the auditor strips the probe before scanning.
+  Without that it reports the attacker's own words as a leak, which it did on the first run.
+- The privacy eval's wire pass is the slow part (about half a second per round trip). `--quick`
+  samples one attack per category over the wire and still runs every attack in process.
+
+**For the submission:** the numbers above are the credibility material for the README and for blog
+post 1 (the privacy boundary) and post 3 (an agent that refuses to decide). The two most quotable:
+the guard stops every one of 37 adversarial attacks including base64 and Cyrillic lookalikes while
+still delivering the verdict, and the escalation boundary is 1.0 precision and 1.0 recall over 25
+labelled scenarios with zero missed escalations. Say the limits out loud too; the eval prints them.
+
+**Next:** Tier 7 is done and nothing in it is blocking. Still open: Tier 8 (AgentCore, the
+schedule, a live link), README, and the Devpost draft. Clean-clone QA and the video assets are the
+rest of Block 4.
+
+### 2026-09-12 - Session 4 continued, the family app (Ashfaq -> Shawki)
+
+**There are two front ends now. Read this paragraph before touching either.**
+
+| | |
+|---|---|
+| `web/` | The Tier 6 showcase: six screens mapped one to one onto the storyboard in section 8, including Why, Under the hood and the round player. Built to be filmed. Untouched this session. |
+| `app/` | The product a family would actually use, and the one a judge should be handed. This is where the work went. |
+
+```
+cd app && npm install && npm run dev        http://localhost:5174, no AWS
+cd app && npm run verify:engine             the browser's maths against Python's
+```
+
+**Two ways in.** The front door asks whether you want to look around the Rahmans (the fixtures,
+labelled as invented people with real numbers) or set up your own circle (empty, on this device).
+Each world has its own localStorage namespace, so poking at the demo cannot touch a real circle.
+Setting one up asks who is being cared for, then each person's capacity, distance, days they
+cannot do, work they will not take, and the private reason nobody else sees. That last field is
+the product's promise, asked for on the way in.
+
+**The numbers are the engine's, in both worlds.** `app/src/data/engine.js` is a port of
+`shoulder/tools/fairness.py`: effort weights, the travel rule, capacity-adjusted proportionality,
+eligibility, the greedy seed, and the paid-help search. `npm run verify:engine` checks it against
+`fixtures/fairness_report.json` burden by burden and prices the October card's paid-help option;
+it agrees with Python, including 23 percent to 13. A circle somebody builds themselves gets a real
+opening split from `seedAllocation`, tasks land on whoever has room with the reason stated, and
+the decision card is built from the same maths rather than written by hand.
+
+**What was actually wrong before** (worth knowing, because the screens looked fine):
+- Tasks were read as `task_type` and `duration_hours`; the fixtures write `type` and
+  `duration_min`, so all 26 rendered as a generic "Care Duty" of "undefinedh" at a made-up 10:00.
+- The split was hardcoded at 34/33/33 and the bar divided the load by counting tasks, which says
+  Farah carries the most when the engine says she carries the least. The hero number contradicted
+  the thesis.
+- The escalation card's before and after bars were literals, not the engine's figures.
+- "What it did" was a blank page: it called `.filter` on an object, and `ledger.json` is a list,
+  so all 34 real ledger entries were never read.
+
+**Fragile / honest limits:**
+- A circle somebody builds lives in localStorage and nowhere else. Clearing site data loses it,
+  and it does not sync between devices. Tier 8 is where that would change.
+- Cards in the own circle are derived from how things stand, never stored, because a stored card
+  went stale the moment a task moved. What silences one is what the family decided: keeping the
+  split holds until the spread widens past what they accepted, talking it through holds until the
+  plan changes. Same shape as the precedents in `shoulder/precedent.py`.
+- The live privacy catch on the "Your agent" screen reads `fixtures/privacy_demo.json`, and the
+  committed copy is a real `--live` catch. Running `python -m shoulder.demos.leak` without
+  `--live` overwrites it with the scripted draft, which is a weaker thing to show. Regenerate with
+  `python -m shoulder.demos.leak --live`, or restore the file from git.
+- `app/` reads fixtures at build time and writes nothing back to `.shoulder/`. A live link needs a
+  thin API over `FamilyStore`.
+- `app/package.json` is unchanged apart from the `verify:engine` script. The screenshots in this
+  session were taken with `puppeteer-core` installed with `--no-save`, so it is not a dependency.
+
+**Handoff to Shawki (Block 5).** Verify with `python -m pytest` (99, offline), `python -m evals`,
+`cd app && npm run dev`, and `cd web && npm run dev`. Both front ends work; pick `app/` for the
+product shots and `web/` for the storyboard beats, or film `app/` throughout and keep `web/` as
+the fallback. Still open and not started by me: Tier 8, the README, the Devpost draft, clean-clone
+QA, and the video assets.

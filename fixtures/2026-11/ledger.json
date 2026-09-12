@@ -1,0 +1,131 @@
+[
+  {
+    "id": "1ef45acf5c5a",
+    "seq": 1,
+    "at": "2026-09-11T13:20:46+00:00",
+    "period": "2026-11",
+    "round_number": null,
+    "actor": "agent:amina",
+    "kind": "noted_change",
+    "summary": "Noted a change since last month: Amina added: Prefers morning appointments where possible.",
+    "justification": "People's limits change. Nobody should have to start again each month to say so.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "6f329db3d72b",
+    "seq": 3,
+    "at": "2026-09-11T13:20:46+00:00",
+    "period": "2026-11",
+    "round_number": null,
+    "actor": "convener",
+    "kind": "applied_precedent",
+    "summary": "Arranged paid help for Wednesday overnight stay (Wed 11 Nov); Follow-up nephrology appointment (Fri 27 Nov), without asking.",
+    "justification": "The family decided this on 11 Sep: Paid help covers the Wednesday overnight stay and the follow-up nephrology appointment each month.",
+    "scope": "family",
+    "details": {
+      "precedent_id": "P-eefa6e8e",
+      "task_ids": [
+        "T13",
+        "T22"
+      ]
+    }
+  },
+  {
+    "id": "ad39a6290f82",
+    "seq": 4,
+    "at": "2026-09-11T13:20:46+00:00",
+    "period": "2026-11",
+    "round_number": 1,
+    "actor": "convener",
+    "kind": "seeded_rota",
+    "summary": "Drew up an opening split of 24 of 24 tasks from everyone's stated availability.",
+    "justification": "A first draft is routine. It respects every stated limit, and nothing stands until each person's agent has seen their share.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "4da6adadd42a",
+    "seq": 5,
+    "at": "2026-09-11T13:20:54+00:00",
+    "period": "2026-11",
+    "round_number": 1,
+    "actor": "agent:amina",
+    "kind": "asked_for_view",
+    "summary": "Asked Amina's agent whether this share works: it works. \"This share works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "amina",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "b8f1d808dc79",
+    "seq": 6,
+    "at": "2026-09-11T13:21:03+00:00",
+    "period": "2026-11",
+    "round_number": 1,
+    "actor": "agent:rian",
+    "kind": "asked_for_view",
+    "summary": "Asked Rian's agent whether this share works: it works. \"This share works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "rian",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "763b141d7e04",
+    "seq": 7,
+    "at": "2026-09-11T13:21:14+00:00",
+    "period": "2026-11",
+    "round_number": 1,
+    "actor": "agent:farah",
+    "kind": "asked_for_view",
+    "summary": "Asked Farah's agent whether this share works: it works. \"I can manage this schedule.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "farah",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "a6999aaaf96f",
+    "seq": 8,
+    "at": "2026-09-11T13:21:14+00:00",
+    "period": "2026-11",
+    "round_number": 1,
+    "actor": "convener",
+    "kind": "measured_fairness",
+    "summary": "Measured round 1: Amina is carrying 7 percent more than Farah. The spread is 4 percent against a limit of 15 percent.",
+    "justification": "Fairness is computed by a fixed rule, never estimated by a model. Same inputs, same answer, every time.",
+    "scope": "family",
+    "details": {
+      "max_deviation": 0.036,
+      "proportional": true,
+      "envy_free": false
+    }
+  },
+  {
+    "id": "61f870b6c603",
+    "seq": 9,
+    "at": "2026-09-11T13:21:14+00:00",
+    "period": "2026-11",
+    "round_number": 1,
+    "actor": "convener",
+    "kind": "published_rota",
+    "summary": "Published the rota for 2026-11. Every share is within the fairness limit.",
+    "justification": "A fair rota inside everyone's limits is routine to publish.",
+    "scope": "family",
+    "details": {}
+  }
+]

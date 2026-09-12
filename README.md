@@ -74,9 +74,19 @@ dropped:
 The negotiation routes around her constraint. Nobody learns why. That separation is structural, not
 a prompt instruction: `Position` has no field that could carry a reason.
 
+It is also enforced in code. Every principal agent carries a **privacy hook**, a Strands
+`HookProvider` that reads every message the model produces before it can leave, and withholds any
+that carries a private fact: the reason itself, a reworded fragment of it, or a word that gives the
+category away. It does not depend on the model behaving. In our live runs, Sonnet refused to share
+Farah's reasons and still called them "private medical information" and "genuine and
+health-related". The hook exists for exactly that.
+
+`python -m shoulder.demos.leak` shows it catching a deliberate leak attempt over the real A2A
+protocol: what the model wrote, what the hook caught, and what actually crossed the wire.
+
 And it is checked rather than asserted. `python -m shoulder.a2a.demo` captures every message that
-crossed the wire to `fixtures/a2a_wire_log.json`, then searches those payloads for any private
-constraint. A privacy claim nobody tests is just a sentence in a README.
+crossed the wire to `fixtures/a2a_wire_log.json`, then audits those payloads for any private fact
+with the same detector. A privacy claim nobody tests is just a sentence in a README.
 
 ### Fairness is computed, never judged
 
@@ -111,6 +121,36 @@ From an actual run:
 > plan, what your mother needs most, or what any sibling can truly afford to change. Those decisions
 > belong to the three of you together."*
 
+What it may do alone is also enforced in code, by an **authority envelope hook** on every tool call
+the Convener makes. Routine work (a reminder about a task someone already holds) runs unattended.
+Anything consequential (booking paid help, dropping a task, changing what someone said they can
+carry) never runs: the attempt becomes an escalation card, with the fairness consequence of each
+option computed by the engine. Anything the policy does not name is refused. In one live run the
+Convener worked out, with the fairness tools, that the split would be almost exactly fair if Farah's
+capacity were 0.5 instead of the 0.7 she declared, and reached for it. The hook stopped it: *"I will
+not change what Farah said they can carry."*
+
+Everything it does without asking is written to an **agent ledger**, in plain words, with the reason
+it was allowed to act alone. `python -m shoulder.demos.envelope` shows the envelope at work.
+
+### It learns, but only what you decided
+
+Care recurs, so Shoulder remembers. Each person's agent keeps what they said, month to month, and
+notices what changed. A change to someone's position is noted for the family; a change to a private
+reason stays with that person's agent.
+
+Every option on an escalation card carries a typed effect: accept the split, paid help for these
+tasks, take these tasks off the plan, or don't do that again. The fairness consequence of each is
+computed by the engine, never written by the model. When the family chooses one, code turns it into
+a **precedent**, and next month it is applied without asking, cited back to whoever decided it:
+
+> *Arranged paid help for Wednesday overnight stay (Wed 11 Nov); Follow-up nephrology appointment
+> (Fri 27 Nov), without asking.* The family decided this on 11 Sep.
+
+In the demo family that one decision takes October's 23 percent spread to November's 4 percent, and
+the number of decisions the family is asked to make from two to zero. Nothing is learned that a
+person did not decide. `python -m shoulder.demos.next_month` runs both months back to back.
+
 ## Running it
 
 Requires Python 3.11 or 3.12 and AWS credentials with Amazon Bedrock access in `us-east-1`.
@@ -122,17 +162,54 @@ python -m venv .venv
 
 pip install -e ".[dev]"
 
-python -m shoulder.cli --dry    # deterministic fairness engine, no model calls, no network
-python -m shoulder.cli          # full multi-agent negotiation, in process
-python -m shoulder.a2a.demo     # the same negotiation across three live A2A servers
-pytest                          # 20 tests, no AWS needed
+python -m shoulder.cli --dry             # deterministic fairness engine, no model calls, no network
+python -m shoulder.cli                   # full multi-agent negotiation, in process
+python -m shoulder.decide                # answer what it escalated, one card at a time
+python -m shoulder.cli --period 2026-11  # the next month, applying what you decided
+python -m shoulder.a2a.demo              # the same negotiation across three live A2A servers
+python -m shoulder.demos.leak            # the privacy hook catching a leak, no AWS needed
+python -m shoulder.demos.leak --live     # the same, with a real model on Bedrock
+python -m shoulder.demos.envelope        # the authority envelope at work, no AWS needed
+python -m shoulder.demos.next_month      # two months back to back: it learns, no AWS needed
+pytest                                   # 93 tests, no AWS needed
 ```
 
+Runs remember their history in `.shoulder/` (SQLite, never committed). Delete it to start the family
+over.
+
+### The product surface
+
+The screens are a Vite and React app in `web/`, built against the JSON in `fixtures/` from real
+runs. It needs Node 18 or later, and no AWS credentials at all.
+
+```bash
+cd web
+npm install
+npm run dev                             # then open http://localhost:5173
+```
+
+| Screen | What it shows |
+|---|---|
+| Why | The problem and why it persists, with sources |
+| Your agent | Private intake: what each person tells their own agent, beside what their family actually sees |
+| This month | The negotiation, round by round, with the fairness bar; then the month's rota |
+| Needs you | The escalation inbox, one decision at a time; empty when nothing needs you |
+| What I did | The agent ledger: every unattended action and why it was allowed |
+| Under the hood | The privacy hook's live catch, the authority envelope, the wire, the architecture |
+
+Switch between October and November at the top to see what it learned. `#/month/2026-10/2` opens a
+given round directly, and `?theme=dark` forces a theme, which helps when recording.
+
+![Architecture](docs/architecture.svg)
+
 `--dry` runs the entire fair division engine with no network access, so the maths can be inspected
-without credentials.
+without credentials. The two demos default to a scripted model that stands in for a misbehaving one,
+so the hooks can be shown on any machine.
 
 A full run writes JSON to `fixtures/`: the circle, every negotiation round, the final rota, the
-fairness report and the escalation cards.
+fairness report, the escalation cards and the family's ledger. Later months go to
+`fixtures/<period>/`, and `fixtures/family.json` holds the history, every decision and every
+precedent.
 
 ## Repository layout
 
@@ -144,8 +221,18 @@ fairness report and the escalation cards.
 | `shoulder/agents/convener.py` | Proposes, revises, repairs, and writes escalation cards. |
 | `shoulder/graph/negotiation.py` | The negotiation as a cyclic Strands Graph. |
 | `shoulder/a2a/` | Serving each sibling over the A2A protocol, and the wire log the privacy claim is tested against. |
+| `shoulder/hooks/privacy.py` | The privacy hook, and the detector the audits share with it. |
+| `shoulder/hooks/authority.py` | The authority envelope: what the agent may do alone, and the cards for what it may not. |
+| `shoulder/tools/actions.py` | Tools that act in the world, reachable only through the envelope. |
+| `shoulder/ledger.py` | The agent ledger. Family entries and each person's private entries, kept apart. |
+| `shoulder/precedent.py` | Turning a family's decision into a rule, and applying it next time. |
+| `shoulder/session.py` | One period end to end, with memory: the loop the weekly schedule runs. |
+| `shoulder/store/` | SQLite: the family's session (rotas, cards, decisions, precedents) and each person's own. |
+| `web/` | The product surface: six screens in Vite and React, reading `fixtures/`. |
+| `docs/` | The architecture diagram, exported from the mermaid source in CLAUDE.md. |
+| `shoulder/demos/` | Runnable demonstrations of both hooks. |
 | `shoulder/seed/demo_circle.py` | The demo family. Entirely fictional. |
-| `tests/` | Tests for the engine, the privacy boundary and the demo scenario. |
+| `tests/` | Tests for the engine, both hooks, the ledger, the privacy boundary over A2A, and the demo scenario. |
 
 ## Data
 

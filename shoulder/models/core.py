@@ -9,9 +9,9 @@ rather than a promise.
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -65,6 +65,10 @@ class Constraint(BaseModel):
 
     `effect` is the machine-readable part that the negotiation acts on.
     `reason` is why, in their own words. A private reason never leaves.
+
+    For a private constraint, `summary` must describe only the effect ("Cannot do
+    overnight care"), never the why. The effect reaches the circle anyway through
+    the Position; the reason is the secret, and it belongs in `reason`.
     """
 
     id: str
@@ -84,6 +88,12 @@ class Constraint(BaseModel):
     # distant person carry real load instead of being written off.
     applies_to_remote: bool = True
 
+    # Words that would give a private reason away even inside a sentence nobody
+    # has written before ("chemo", "oncology"). The privacy guard treats any of
+    # them in an outbound message as a leak. Like the reason itself, this list
+    # never leaves the principal's own agent.
+    sensitive_terms: list[str] = Field(default_factory=list)
+
     def is_private(self) -> bool:
         return self.tier == Tier.PRIVATE
 
@@ -100,17 +110,14 @@ class Principal(BaseModel):
     endpoint: str | None = None
 
     def private_texts(self) -> list[str]:
-        """Every string that must never appear in an outbound payload.
+        """Every private reason: the text that must never appear outbound.
 
-        Used by the privacy hook and by the adversarial privacy eval.
+        Summaries are not included. A private constraint's summary describes its
+        effect, which the Position shares with the circle by design. The full
+        detector, with sensitive terms and paraphrase matching, is
+        `shoulder.hooks.privacy.PrivacyScreen`; use that for any audit.
         """
-        out: list[str] = []
-        for c in self.constraints:
-            if c.is_private():
-                out.append(c.summary)
-                if c.reason:
-                    out.append(c.reason)
-        return [t for t in out if t]
+        return [c.reason for c in self.constraints if c.is_private() and c.reason]
 
     def to_position(self) -> "Position":
         """Project this principal down to what the circle is allowed to see.
@@ -292,10 +299,41 @@ class Critique(_Lenient):
     message: str = ""
 
 
+EffectKind = Literal[
+    "accept_split",
+    "paid_help",
+    "remove_tasks",
+    "decline_action",
+    "none",
+]
+
+
+class OptionEffect(_Lenient):
+    """What choosing an option would actually do, in terms code can apply.
+
+    This is what makes a human decision reusable. The label is prose for the
+    family; the effect is the part the fairness engine can price today and the
+    precedent system can apply next month without asking again.
+
+      accept_split    the current split stands despite the spread
+      paid_help       paid help covers `task_ids`
+      remove_tasks    `task_ids` come off the plan
+      decline_action  do not take `action` (and do not suggest it again)
+      none            nothing the system can apply, like a conversation
+    """
+
+    kind: EffectKind = "none"
+    task_ids: list[str] = Field(default_factory=list)
+    action: str = ""
+    principal_id: str = ""
+
+
 class EscalationOption(_Lenient):
     label: str
     consequence: str
+    # Computed by the fairness engine from `effect`, never taken from a model.
     fairness_delta: float = 0.0
+    effect: OptionEffect | None = None
 
 
 class EscalationCard(_Lenient):
@@ -314,14 +352,113 @@ class EscalationCard(_Lenient):
     the_tension: str = ""
     options: list[EscalationOption] = Field(default_factory=list)
     what_i_will_not_decide: str = ""
-    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")
+    )
+
+
+class Resolution(BaseModel):
+    """A human's answer to an escalation card."""
+
+    escalation_id: str
+    period: str
+    option_index: int
+    option_label: str
+    decided_by: str
+    decided_at: str
+    note: str = ""
+
+
+PrecedentKind = Literal["paid_help", "remove_tasks", "accept_split", "decline_action"]
+
+
+class Precedent(BaseModel):
+    """A resolved escalation turned into a rule the agent applies without asking.
+
+    Built by code from the effect of the option a human chose, never written by a
+    model. `text` is the decision in the family's terms. `provenance()` is how
+    the agent cites it back to them every time it is applied.
+
+    Recurring tasks are matched by title, because task ids restart each period
+    and "the Wednesday overnight stay" is what the family actually decided about.
+    """
+
+    id: str
+    kind: PrecedentKind
+    text: str
+    task_titles: list[str] = Field(default_factory=list)
+    action: str = ""
+    principal_id: str = ""
+    max_deviation: float | None = None
+    source_escalation_id: str
+    period_decided: str
+    decided_by: str
+    decided_at: str
+    active: bool = True
+
+    def provenance(self) -> str:
+        # Stored in UTC, shown in the reader's local time: a family decides on
+        # their own date, not Greenwich's.
+        when = datetime.fromisoformat(self.decided_at).astimezone()
+        return f"{self.decided_by} decided this on {when.day} {when.strftime('%b')}"
+
+
+LedgerKind = Literal[
+    "seeded_rota",
+    "applied_precedent",
+    "noted_change",
+    "proposed_moves",
+    "reversed_move",
+    "kept_better_split",
+    "asked_for_view",
+    "measured_fairness",
+    "published_rota",
+    "raised_escalation",
+    "withheld_private_detail",
+    "blocked_action",
+    "took_action",
+]
+
+
+class LedgerEntry(BaseModel):
+    """One thing the agent did without asking anyone.
+
+    `summary` is what the family reads. `justification` is why the agent was
+    allowed to do it unattended. Entries scoped to one person
+    (`scope="private:farah"`) stay with that person's agent and are never part
+    of the family's ledger.
+    """
+
+    id: str
+    seq: int
+    at: str
+    period: str
+    round_number: int | None = None
+    actor: str
+    kind: LedgerKind
+    summary: str
+    justification: str = ""
+    scope: str = "family"
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class NegotiationRound(BaseModel):
+    """One round. `report` is the split the round ended with (the working rota).
+
+    When a round proposes moves that make the split less even, the working rota
+    does not keep them, so `report` alone would show every such round as
+    identical. `tried` is what the round actually proposed, `moves` what changed
+    hands in it, and `kept` whether it stood. The fairness bar needs all three
+    to show the negotiation honestly: what was tried, and what survived.
+    """
+
     round_number: int
     allocation: Allocation
     critiques: list[Critique]
     report: FairnessReport
+    tried: FairnessReport | None = None
+    moves: list[str] = Field(default_factory=list)
+    kept: bool = True
 
 
 class NegotiationOutcome(BaseModel):
@@ -334,3 +471,7 @@ class NegotiationOutcome(BaseModel):
     final_allocation: Allocation | None = None
     final_report: FairnessReport | None = None
     escalations: list[EscalationCard] = Field(default_factory=list)
+    # Tasks taken out of the family's split by a precedent, and by which one.
+    covered: dict[str, str] = Field(default_factory=dict)
+    applied_precedents: list[str] = Field(default_factory=list)
+    settled_by_precedent: str | None = None

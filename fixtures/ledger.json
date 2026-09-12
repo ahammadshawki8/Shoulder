@@ -1,0 +1,559 @@
+[
+  {
+    "id": "f5c4b51548b1",
+    "seq": 1,
+    "at": "2026-09-11T13:17:59+00:00",
+    "period": "2026-10",
+    "round_number": 1,
+    "actor": "convener",
+    "kind": "seeded_rota",
+    "summary": "Drew up an opening split of 26 of 26 tasks from everyone's stated availability.",
+    "justification": "A first draft is routine. It respects every stated limit, and nothing stands until each person's agent has seen their share.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "2f3d9df25421",
+    "seq": 2,
+    "at": "2026-09-11T13:18:08+00:00",
+    "period": "2026-10",
+    "round_number": 1,
+    "actor": "agent:amina",
+    "kind": "asked_for_view",
+    "summary": "Asked Amina's agent whether this share works: it works. \"This schedule works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "amina",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "dd113109141a",
+    "seq": 3,
+    "at": "2026-09-11T13:18:17+00:00",
+    "period": "2026-10",
+    "round_number": 1,
+    "actor": "agent:rian",
+    "kind": "asked_for_view",
+    "summary": "Asked Rian's agent whether this share works: it works. \"This schedule works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "rian",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "a2e345335ea1",
+    "seq": 4,
+    "at": "2026-09-11T13:18:25+00:00",
+    "period": "2026-10",
+    "round_number": 1,
+    "actor": "agent:farah",
+    "kind": "asked_for_view",
+    "summary": "Asked Farah's agent whether this share works: it works. \"I can manage this share.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "farah",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "3dc20e2ca324",
+    "seq": 5,
+    "at": "2026-09-11T13:18:25+00:00",
+    "period": "2026-10",
+    "round_number": 1,
+    "actor": "convener",
+    "kind": "measured_fairness",
+    "summary": "Measured round 1: Amina is carrying 46 percent more than Farah. The spread is 23 percent against a limit of 15 percent.",
+    "justification": "Fairness is computed by a fixed rule, never estimated by a model. Same inputs, same answer, every time.",
+    "scope": "family",
+    "details": {
+      "max_deviation": 0.229,
+      "proportional": false,
+      "envy_free": false
+    }
+  },
+  {
+    "id": "ef12bd473c46",
+    "seq": 6,
+    "at": "2026-09-11T13:18:36+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "convener",
+    "kind": "proposed_moves",
+    "summary": "Suggested 4 moves: Pharmacy run and pill organiser (Fri) from Amina to Rian; Weekend visit (Sat) from Amina to Rian; Pill organiser refill (Fri) from Amina to Rian; Saturday overnight stay (Sat) from Amina to Rian.",
+    "justification": "Suggesting moves inside everyone's stated limits is routine. Each one is checked against those limits and by the fairness engine before it is kept.",
+    "scope": "family",
+    "details": {
+      "rationale": "All three siblings accepted the current split, but the fairness tools show the deviation from mean adjusted share exceeds tolerance at 0.229. Amina carries an adjusted share of 70.48 while Farah carries 48.33, with the circle mean at 62.67. Rian, despite being 310 km away, can still take on-site work on Friday and Saturday since those fall outside their Monday through Thursday in-person restriction. The four tasks being moved are the only ones available that respect everyone's stated limits. They total 855 minutes and are heavily distance-weighted for Amina. Moving all four to Rian redistributes the load toward proportionality without violating Rian's six-task cap or anyone's availability constraints.",
+      "moves": [
+        "Pharmacy run and pill organiser (Fri) from Amina to Rian",
+        "Weekend visit (Sat) from Amina to Rian",
+        "Pill organiser refill (Fri) from Amina to Rian",
+        "Saturday overnight stay (Sat) from Amina to Rian"
+      ]
+    }
+  },
+  {
+    "id": "b48ea722b0a7",
+    "seq": 7,
+    "at": "2026-09-11T13:18:36+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "convener",
+    "kind": "reversed_move",
+    "summary": "Put back a suggested move that broke a stated limit: Rian cannot take T15 (Fri, medication).",
+    "justification": "A rota that breaks someone's stated limit never reaches the family. This check is a rule, not a judgement.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "5acce0663c15",
+    "seq": 8,
+    "at": "2026-09-11T13:18:36+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "convener",
+    "kind": "reversed_move",
+    "summary": "Put back a suggested move that broke a stated limit: Rian cannot take T09 (Fri, admin).",
+    "justification": "A rota that breaks someone's stated limit never reaches the family. This check is a rule, not a judgement.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "5f671fde051b",
+    "seq": 9,
+    "at": "2026-09-11T13:18:36+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "convener",
+    "kind": "reversed_move",
+    "summary": "Put back a suggested move that broke a stated limit: Rian cannot take T23 (Sat, finance).",
+    "justification": "A rota that breaks someone's stated limit never reaches the family. This check is a rule, not a judgement.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "4713a998a5f9",
+    "seq": 10,
+    "at": "2026-09-11T13:18:36+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "convener",
+    "kind": "kept_better_split",
+    "summary": "Tried those moves and they made the load less even (76 percent against 23 percent), so kept the earlier split.",
+    "justification": "The working rota only ever gets fairer.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "9a9e7a10cf2d",
+    "seq": 11,
+    "at": "2026-09-11T13:18:44+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "agent:amina",
+    "kind": "asked_for_view",
+    "summary": "Asked Amina's agent whether this share works: it works. \"This allocation works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "amina",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "6ecabdde38af",
+    "seq": 12,
+    "at": "2026-09-11T13:18:53+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "agent:rian",
+    "kind": "asked_for_view",
+    "summary": "Asked Rian's agent whether this share works: it works. \"This works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "rian",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "b73cab710c20",
+    "seq": 13,
+    "at": "2026-09-11T13:19:02+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "agent:farah",
+    "kind": "asked_for_view",
+    "summary": "Asked Farah's agent whether this share works: it works. \"This schedule works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "farah",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "9866663e80af",
+    "seq": 14,
+    "at": "2026-09-11T13:19:02+00:00",
+    "period": "2026-10",
+    "round_number": 2,
+    "actor": "convener",
+    "kind": "measured_fairness",
+    "summary": "Measured round 2: Amina is carrying 46 percent more than Farah. The spread is 23 percent against a limit of 15 percent.",
+    "justification": "Fairness is computed by a fixed rule, never estimated by a model. Same inputs, same answer, every time.",
+    "scope": "family",
+    "details": {
+      "max_deviation": 0.229,
+      "proportional": false,
+      "envy_free": false
+    }
+  },
+  {
+    "id": "fabc41dff139",
+    "seq": 15,
+    "at": "2026-09-11T13:19:13+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "convener",
+    "kind": "proposed_moves",
+    "summary": "Suggested 4 moves: Pharmacy run and pill organiser (Fri) from Amina to Rian; Weekend visit (Sat) from Amina to Rian; Pill organiser refill (Fri) from Amina to Rian; Saturday overnight stay (Sat) from Amina to Rian.",
+    "justification": "Suggesting moves inside everyone's stated limits is routine. Each one is checked against those limits and by the fairness engine before it is kept.",
+    "scope": "family",
+    "details": {
+      "rationale": "All three siblings accepted the previous split, but the fairness tools show the tolerance threshold is exceeded. Amina carries an adjusted share of 70.48 against a circle mean of 62.67, while Rian at 69.21 is close and Farah at 48.33 is substantially below. The deviation of 0.229 exceeds the 0.15 tolerance.\n\nThe only available moves transfer tasks from Amina to Rian. Rian is 310 km away, so distance-weighted tasks like the overnight stay will cost Rian less than they cost Amina at 4 km. All four moves keep Rian at 9 tasks, still under the stated cap of 6 tasks. I am moving all four available tasks because they collectively represent the best opportunity to compress the spread between the highest and lowest adjusted shares while respecting every stated limit.",
+      "moves": [
+        "Pharmacy run and pill organiser (Fri) from Amina to Rian",
+        "Weekend visit (Sat) from Amina to Rian",
+        "Pill organiser refill (Fri) from Amina to Rian",
+        "Saturday overnight stay (Sat) from Amina to Rian"
+      ]
+    }
+  },
+  {
+    "id": "d72fa7709b7e",
+    "seq": 16,
+    "at": "2026-09-11T13:19:13+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "convener",
+    "kind": "reversed_move",
+    "summary": "Put back a suggested move that broke a stated limit: Rian cannot take T15 (Fri, medication).",
+    "justification": "A rota that breaks someone's stated limit never reaches the family. This check is a rule, not a judgement.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "bc432c9e5c63",
+    "seq": 17,
+    "at": "2026-09-11T13:19:14+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "convener",
+    "kind": "reversed_move",
+    "summary": "Put back a suggested move that broke a stated limit: Rian cannot take T09 (Fri, admin).",
+    "justification": "A rota that breaks someone's stated limit never reaches the family. This check is a rule, not a judgement.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "37d6384dbbcd",
+    "seq": 18,
+    "at": "2026-09-11T13:19:14+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "convener",
+    "kind": "reversed_move",
+    "summary": "Put back a suggested move that broke a stated limit: Rian cannot take T23 (Sat, finance).",
+    "justification": "A rota that breaks someone's stated limit never reaches the family. This check is a rule, not a judgement.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "804741af34cc",
+    "seq": 19,
+    "at": "2026-09-11T13:19:14+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "convener",
+    "kind": "kept_better_split",
+    "summary": "Tried those moves and they made the load less even (76 percent against 23 percent), so kept the earlier split.",
+    "justification": "The working rota only ever gets fairer.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "661ab8796c18",
+    "seq": 20,
+    "at": "2026-09-11T13:19:21+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "agent:amina",
+    "kind": "asked_for_view",
+    "summary": "Asked Amina's agent whether this share works: it works. \"This works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "amina",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "598c093d304c",
+    "seq": 21,
+    "at": "2026-09-11T13:19:30+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "agent:rian",
+    "kind": "asked_for_view",
+    "summary": "Asked Rian's agent whether this share works: it works. \"This works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "rian",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "7bbe1d78fd32",
+    "seq": 22,
+    "at": "2026-09-11T13:19:39+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "agent:farah",
+    "kind": "asked_for_view",
+    "summary": "Asked Farah's agent whether this share works: it works. \"This schedule works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "farah",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "0981078eb744",
+    "seq": 23,
+    "at": "2026-09-11T13:19:39+00:00",
+    "period": "2026-10",
+    "round_number": 3,
+    "actor": "convener",
+    "kind": "measured_fairness",
+    "summary": "Measured round 3: Amina is carrying 46 percent more than Farah. The spread is 23 percent against a limit of 15 percent.",
+    "justification": "Fairness is computed by a fixed rule, never estimated by a model. Same inputs, same answer, every time.",
+    "scope": "family",
+    "details": {
+      "max_deviation": 0.229,
+      "proportional": false,
+      "envy_free": false
+    }
+  },
+  {
+    "id": "bfca361b1a22",
+    "seq": 24,
+    "at": "2026-09-11T13:19:51+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "convener",
+    "kind": "proposed_moves",
+    "summary": "Suggested 3 moves: Pharmacy run and pill organiser (Fri) from Amina to Rian; Weekend visit (Sat) from Amina to Rian; Saturday overnight stay (Sat) from Amina to Rian.",
+    "justification": "Suggesting moves inside everyone's stated limits is routine. Each one is checked against those limits and by the fairness engine before it is kept.",
+    "scope": "family",
+    "details": {
+      "rationale": "All three siblings accepted the previous split, but the fairness tools show the deviation still exceeds tolerance at 0.229. Amina carries an adjusted share of 70.48 while Farah carries 48.33. The gap is 22.15 points.\n\nThe available moves are severely constrained. Only four of Amina's six tasks can legally move, and all four can only go to Rian. Farah's unavailability on Friday and Saturday, plus her refusal of night tasks, blocks her from taking any of these.\n\nI am moving three tasks to Rian: the Saturday overnight stay (T16, 540 minutes), the Saturday weekend visit (T10, 180 minutes), and the Friday pharmacy run (T02, 75 minutes). These are the three heaviest tasks available to move. The Saturday overnight is the single largest burden Amina holds that can be reassigned. The visit and pharmacy run add further relief.\n\nThis brings Rian to 6 tasks total, which is exactly at the stated cap. The fourth available move, T15, would exceed that cap and is therefore not proposed.\n\nWhether this revision closes the gap enough depends on how distance weighting affects these tasks for Rian at 310 km versus Amina at 4 km, which only the fairness tools can determine.",
+      "moves": [
+        "Pharmacy run and pill organiser (Fri) from Amina to Rian",
+        "Weekend visit (Sat) from Amina to Rian",
+        "Saturday overnight stay (Sat) from Amina to Rian"
+      ]
+    }
+  },
+  {
+    "id": "4a9ac765e8a7",
+    "seq": 25,
+    "at": "2026-09-11T13:19:51+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "convener",
+    "kind": "reversed_move",
+    "summary": "Put back a suggested move that broke a stated limit: Rian cannot take T09 (Fri, admin).",
+    "justification": "A rota that breaks someone's stated limit never reaches the family. This check is a rule, not a judgement.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "9a408287db1b",
+    "seq": 26,
+    "at": "2026-09-11T13:19:51+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "convener",
+    "kind": "reversed_move",
+    "summary": "Put back a suggested move that broke a stated limit: Rian cannot take T23 (Sat, finance).",
+    "justification": "A rota that breaks someone's stated limit never reaches the family. This check is a rule, not a judgement.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "130a7edc2c0e",
+    "seq": 27,
+    "at": "2026-09-11T13:19:51+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "convener",
+    "kind": "kept_better_split",
+    "summary": "Tried those moves and they made the load less even (76 percent against 23 percent), so kept the earlier split.",
+    "justification": "The working rota only ever gets fairer.",
+    "scope": "family",
+    "details": {}
+  },
+  {
+    "id": "426311574114",
+    "seq": 28,
+    "at": "2026-09-11T13:20:00+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "agent:amina",
+    "kind": "asked_for_view",
+    "summary": "Asked Amina's agent whether this share works: it works. \"I can do this share.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "amina",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "4b597091857e",
+    "seq": 29,
+    "at": "2026-09-11T13:20:10+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "agent:rian",
+    "kind": "asked_for_view",
+    "summary": "Asked Rian's agent whether this share works: it works. \"This works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "rian",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "fa7754102d4d",
+    "seq": 30,
+    "at": "2026-09-11T13:20:17+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "agent:farah",
+    "kind": "asked_for_view",
+    "summary": "Asked Farah's agent whether this share works: it works. \"This works for me.\"",
+    "justification": "Nothing stands until the person it lands on has had their say, through their own agent.",
+    "scope": "family",
+    "details": {
+      "principal_id": "farah",
+      "verdict": "accept",
+      "reason_class": "none",
+      "contested_task_ids": []
+    }
+  },
+  {
+    "id": "30844551cd67",
+    "seq": 31,
+    "at": "2026-09-11T13:20:17+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "convener",
+    "kind": "measured_fairness",
+    "summary": "Measured round 4: Amina is carrying 46 percent more than Farah. The spread is 23 percent against a limit of 15 percent.",
+    "justification": "Fairness is computed by a fixed rule, never estimated by a model. Same inputs, same answer, every time.",
+    "scope": "family",
+    "details": {
+      "max_deviation": 0.229,
+      "proportional": false,
+      "envy_free": false
+    }
+  },
+  {
+    "id": "dc9457b81c5f",
+    "seq": 32,
+    "at": "2026-09-11T13:20:27+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "convener",
+    "kind": "blocked_action",
+    "summary": "Stopped before booking paid help for Wednesday overnight stay (Wed 14 Oct); Follow-up nephrology appointment (Fri 23 Oct).",
+    "justification": "Spending the family's money, and bringing someone new into her home, is a decision for the family and for her.",
+    "scope": "family",
+    "details": {
+      "tool": "arrange_paid_help",
+      "input": {
+        "task_ids": [
+          "T13",
+          "T22"
+        ],
+        "reason": "These two tasks create a burden imbalance that cannot be resolved by reassignment given everyone's stated constraints. Covering them with paid help brings the allocation within the fairness limit."
+      },
+      "escalation_id": "esc-rahman-family-2026-10-arrange_paid_help-1"
+    }
+  },
+  {
+    "id": "aec7201e292a",
+    "seq": 33,
+    "at": "2026-09-11T13:20:27+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "convener",
+    "kind": "raised_escalation",
+    "summary": "Asked the family instead: Paid help could cover 2 of this month's tasks. Whether to bring someone in is your decision, not mine.",
+    "justification": "Anything outside what I may do alone becomes a question for the people it affects.",
+    "scope": "family",
+    "details": {
+      "escalation_id": "esc-rahman-family-2026-10-arrange_paid_help-1",
+      "kind": "authority_exceeded"
+    }
+  },
+  {
+    "id": "a9284d645361",
+    "seq": 34,
+    "at": "2026-09-11T13:20:45+00:00",
+    "period": "2026-10",
+    "round_number": 4,
+    "actor": "convener",
+    "kind": "raised_escalation",
+    "summary": "Handed a decision to the family: Amina is carrying 46 percent more than Farah.",
+    "justification": "When a fair split cannot be reached inside everyone's limits, the choice belongs to the people it affects.",
+    "scope": "family",
+    "details": {
+      "escalation_id": "esc-rahman-family-2026-10-fairness_breach",
+      "kind": "fairness_breach"
+    }
+  }
+]

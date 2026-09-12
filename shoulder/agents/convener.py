@@ -11,9 +11,12 @@ the model revising in response to critiques.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 from strands import Agent
 from strands.models import BedrockModel
+from strands.models.model import Model
 
 from shoulder.config import REASONING_MODEL, REGION, REMOTE_CAPABLE
 from shoulder.resilience import with_retry
@@ -23,16 +26,20 @@ from shoulder.models.core import (
     Circle,
     Critique,
     EscalationCard,
+    EscalationOption,
     FairnessReport,
+    OptionEffect,
     Position,
     _Lenient,
 )
+from shoulder.tools.actions import ACTION_TOOLS
 from shoulder.tools.fairness import (
     FAIRNESS_TOOLS,
     needs_travel,
     personal_disutility,
     task_load,
 )
+from shoulder.tools.remedies import best_paid_help, price_effect, valid_task_ids
 
 CONVENER_PROMPT = """You are the Convener for a family arranging care for their \
 mother. Three adult siblings each have their own agent. You coordinate between
@@ -96,11 +103,20 @@ class ProposedRevision(_Lenient):
     rationale: str = ""
 
 
-def build_convener_agent() -> Agent:
+def build_convener_agent(
+    *, hooks: list[Any] | None = None, model: Model | None = None
+) -> Agent:
+    """The Convener, with tools that measure and tools that act.
+
+    The acting tools are only ever reached through the authority envelope hook
+    passed in `hooks` (see `shoulder.hooks.authority`). The negotiation always
+    passes one.
+    """
     return Agent(
-        model=BedrockModel(model_id=REASONING_MODEL, region_name=REGION),
+        model=model or BedrockModel(model_id=REASONING_MODEL, region_name=REGION),
         system_prompt=CONVENER_PROMPT,
-        tools=FAIRNESS_TOOLS,
+        tools=[*FAIRNESS_TOOLS, *ACTION_TOOLS],
+        hooks=hooks or [],
         callback_handler=None,
     )
 
@@ -384,6 +400,93 @@ admitting the limits do not allow one.
     )
 
 
+def _engine_findings(circle: Circle, allocation: Allocation, report: FairnessReport) -> str:
+    """What the deterministic engine can say about remedies, for the model to use.
+
+    The model is better at judging what a family might accept than at searching
+    325 pairs of tasks. So the search is done here and handed over as a fact.
+    """
+    found = best_paid_help(circle, allocation, report)
+    if found is None:
+        return "  No paid help for one or two tasks would make the split fairer."
+    ids, deviation = found
+    tasks = [circle.task(t) for t in ids]
+    listed = ", ".join(f"{t.id} {t.title} ({t.weekday})" for t in tasks if t)
+    return (
+        f"  Paid help covering {listed} would move the worst deviation from "
+        f"{report.max_deviation} to {deviation}."
+    )
+
+
+def attempt_remedies(
+    agent: Agent,
+    circle: Circle,
+    allocation: Allocation,
+    report: FairnessReport,
+) -> str:
+    """Out of rounds: give the Convener one chance to act beyond moving tasks.
+
+    This is where the authority envelope earns its place. The Convener has tools
+    that act in the world, and some of them would genuinely close the gap, like
+    booking paid help for the overnight stays. Whether it is allowed to is not
+    its call. Whatever it reaches for goes through the envelope hook: routine
+    actions run and are ledgered, the rest come back as "not done, raised with
+    the family" and become escalation cards of their own.
+
+    Runs through the agent loop, not structured output, because tools only run
+    inside the loop. The conversation is cleared afterwards so the structured
+    calls that follow start clean.
+    """
+    from shoulder.agents.principal import positions_brief
+
+    current = "\n".join(
+        f"  {p.name} ({p.id}) holds: "
+        + ", ".join(
+            f"{t.id} {t.weekday} {t.title} [{t.type}]"
+            for t in (circle.task(x) for x in sorted(allocation.bundle(p.id)))
+            if t is not None
+        )
+        for p in circle.principals
+    )
+    prompt = f"""The negotiation rounds are over and the split is still outside the
+fairness limit. Before this goes back to the family, consider whether anything
+beyond moving tasks between them would help.
+
+WHO CAN DO WHAT
+{positions_brief(circle.principals)}
+
+CURRENT SPLIT
+{current}
+
+WHAT THE FAIRNESS TOOLS SAY
+{_fairness_brief(report)}
+
+WHAT THE FAIRNESS ENGINE FOUND
+{_engine_findings(circle, allocation, report)}
+
+You have tools that act, not only tools that measure. If one action would
+genuinely help this family close the gap, take the single most helpful one. If
+none would, take no action.
+
+Before you act, check with the fairness tools that the action would actually
+bring every share closer to the limit. For an action that removes tasks from the
+family's load, call fairness_report on the current assignments without those
+tasks and compare max_deviation with the figure above. An action that would not
+help is worse than no action at all.
+
+Then say in one or two plain sentences what you did and why.
+"""
+    try:
+        reply = with_retry(
+            lambda: str(agent(prompt)),
+            label="convener remedies",
+            fallback=lambda: "",
+        )
+    finally:
+        agent.messages.clear()
+    return clean(reply.strip())
+
+
 def write_escalation(
     agent: Agent,
     circle: Circle,
@@ -414,9 +517,17 @@ WHAT YOU TRIED
 WHAT THE SIBLINGS SAID
 {chr(10).join(f'  {c.principal_id}: {c.verdict} ({c.reason_class}) - {c.message}' for c in critiques)}
 
-Write the escalation card for the family.
+WHAT THE FAIRNESS ENGINE FOUND
+{_engine_findings(circle, allocation, report)}
 
-  headline: one sentence, factual, naming who is carrying more and by how much.
+Write the escalation card for the family. Write it for a family in a hard
+moment, not for an engineer. Use no numbers at all: no decimals, percentages,
+counts of points, and none of the words "adjusted share", "deviation",
+"tolerance", "mean" or "proportional". The system sets the headline and places
+the exact figures from the fairness engine beside your words, so yours only
+have to carry the reasoning.
+
+  headline: leave it empty; the system writes it from the fairness report.
   what_i_tried: the concrete moves you attempted, in plain language.
   the_tension: why it cannot be closed, in terms of stated limits only. Never
     speculate about anyone's reasons.
@@ -424,6 +535,18 @@ Write the escalation card for the family.
     the option of leaving it as it stands.
   what_i_will_not_decide: say clearly that choosing between these is theirs, and
     why you are not the right one to choose.
+
+Every option carries an `effect`, which is what choosing it would do in terms
+the system can apply. Use exactly one of these kinds:
+  accept_split    leave the split as it stands
+  paid_help       paid help covers the tasks in task_ids (use real task ids)
+  remove_tasks    the tasks in task_ids come off the plan
+  none            anything else, such as the family talking it through
+Leave fairness_delta at 0. It is computed for you from the effect.
+
+Never offer an option that asks a named person to give up, relax or change one
+of their stated limits or their capacity. Only that person can revisit their
+own limits, and they do it privately with their own agent.
 
 Set kind to "{kind}". Never suggest that anyone is not pulling their weight. One
 of them may be carrying something you cannot see.
@@ -444,14 +567,47 @@ of them may be carrying something you cannot see.
     )
     card.period = circle.period
     card.kind = kind  # type: ignore[assignment]
-    if not card.id:
-        card.id = f"esc-{circle.id}-{circle.period}"
+    # A stable id, not the model's: the family store and the precedents that
+    # cite this card need to find it again.
+    card.id = f"esc-{circle.id}-{circle.period}-{kind}"
 
-    card.headline = clean(card.headline) or report.headline()
+    # The headline carries the one number on the card a family reads first, so
+    # it comes from the fairness report, never from the model. The first live
+    # card read "70.48 adjusted share ... against a mean of 62.67".
+    card.headline = report.headline()
     card.the_tension = clean(card.the_tension)
     card.what_i_will_not_decide = clean(card.what_i_will_not_decide)
     card.what_i_tried = clean_all(card.what_i_tried)
     for option in card.options:
         option.label = clean(option.label)
         option.consequence = clean(option.consequence)
+        # The effect is checked and the number is computed. Nothing numeric on
+        # this card is taken from the model.
+        if option.effect is not None:
+            option.effect.task_ids = valid_task_ids(circle, option.effect.task_ids)
+            option.effect.action = ""
+            option.effect.principal_id = ""
+            if option.effect.kind in ("paid_help", "remove_tasks") and not option.effect.task_ids:
+                option.effect.kind = "none"
+            if option.effect.kind == "decline_action":
+                option.effect.kind = "none"
+        option.fairness_delta = price_effect(option.effect, circle, allocation, report)
+    if not any(o.effect and o.effect.kind == "accept_split" for o in card.options):
+        if report.unassigned_tasks:
+            # Never promise cover that is not there. Found by the Tier 7 eval.
+            undone = len(report.unassigned_tasks)
+            consequence = (
+                f"Every stated limit is respected, but {undone} "
+                f"task{'s' if undone != 1 else ''} nobody can take stay uncovered."
+            )
+        else:
+            consequence = (
+                "Every stated limit is respected and the care is covered, "
+                "with the load uneven as described."
+            )
+        card.options.insert(0, EscalationOption(
+            label="Keep the current split",
+            consequence=consequence,
+            effect=OptionEffect(kind="accept_split"),
+        ))
     return card

@@ -21,7 +21,8 @@
           "blocks_task_types": [],
           "max_tasks_per_period": null,
           "requires_remote": false,
-          "applies_to_remote": true
+          "applies_to_remote": true,
+          "sensitive_terms": []
         }
       ],
       "aversions": {
@@ -51,7 +52,8 @@
           "blocks_task_types": [],
           "max_tasks_per_period": null,
           "requires_remote": false,
-          "applies_to_remote": false
+          "applies_to_remote": false,
+          "sensitive_terms": []
         },
         {
           "id": "rian-trips",
@@ -63,7 +65,8 @@
           "blocks_task_types": [],
           "max_tasks_per_period": 6,
           "requires_remote": false,
-          "applies_to_remote": true
+          "applies_to_remote": true,
+          "sensitive_terms": []
         }
       ],
       "aversions": {
@@ -92,7 +95,22 @@
           "blocks_task_types": [],
           "max_tasks_per_period": null,
           "requires_remote": false,
-          "applies_to_remote": true
+          "applies_to_remote": true,
+          "sensitive_terms": [
+            "chemo",
+            "infusion",
+            "cancer",
+            "oncology",
+            "oncologist",
+            "tumour",
+            "tumor",
+            "medical",
+            "treatment",
+            "diagnos",
+            "illness",
+            "hospital",
+            "health"
+          ]
         },
         {
           "id": "farah-nights",
@@ -106,7 +124,14 @@
           ],
           "max_tasks_per_period": null,
           "requires_remote": false,
-          "applies_to_remote": true
+          "applies_to_remote": true,
+          "sensitive_terms": [
+            "neutropeni",
+            "immunocompromised",
+            "immune system",
+            "white blood cell",
+            "infection risk"
+          ]
         }
       ],
       "aversions": {

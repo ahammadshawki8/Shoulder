@@ -1,34 +1,96 @@
 [
   {
-    "id": "fairness-breach-final-round",
+    "id": "esc-rahman-family-2026-10-fairness_breach",
     "period": "2026-10",
     "kind": "fairness_breach",
-    "headline": "Amina is carrying 70.48 adjusted share against a circle mean of 62.67, and Farah is carrying 48.33, creating a deviation of 0.229 when the tolerance ceiling is 0.15.",
+    "headline": "Amina is carrying 46 percent more than Farah.",
     "what_i_tried": [
-      "Built an opening split from stated availability and capacity",
-      "Moved four tasks from Amina to Rian to reduce Amina's load, but Rian's distance multiplied the weighted burden and reversed the imbalance",
-      "Moved those four in-person weekend tasks back to Amina to ease Rian's burden, but this pushed Amina's adjusted share to 96.13",
-      "Moved four tasks from Amina to Rian again to bring Amina down, landing at the current allocation"
+      "Built an opening split from everyone's stated availability and capacity.",
+      "Tried moving four tasks from Amina to Rian on the weekend, but the split became less even.",
+      "Tried moving those same tasks again with adjusted reasoning about distance, but the result was still further from fair.",
+      "Tried moving three of Amina's heaviest tasks to Rian, stopping at the task cap, but again the split moved in the wrong direction."
     ],
-    "the_tension": "Amina and Rian can trade tasks, but every in-person task carries heavy travel weight for Rian due to distance. Shifting weekend in-person work to Amina eases Rian but overloads Amina. Shifting it back to Rian eases Amina but crushes Rian. Farah cannot receive any of Amina's tasks because Farah has refused night shifts and is unavailable on Fridays and Saturdays, and the tasks that would rebalance the circle fall in those windows. The stated limits lock the three of you into a pattern where no task movement can bring everyone within tolerance of the mean.",
+    "the_tension": "Every attempt to lighten Amina's load had to send tasks to Rian because Farah is unavailable on Friday and Saturday and has declined night tasks. The tasks Amina holds that can move are all on those weekend days or overnight. Rian is already close to the cap on number of tasks. The distance from Rian's home to your mother changes how much these tasks weigh, but not in a way that narrows the gap. The moves available within everyone's stated limits do not bring this closer to fair.",
     "options": [
       {
-        "label": "Leave the allocation as it stands",
-        "consequence": "Amina carries 70.48 adjusted share and Farah carries 48.33, with the deviation remaining above tolerance. Everyone has accepted their current schedule.",
-        "fairness_delta": 0.0
+        "label": "Bring in paid help for the Wednesday overnight stay and the Friday nephrology appointment",
+        "consequence": "The load becomes more evenly distributed across the three of you. Those two tasks come off your plates entirely.",
+        "fairness_delta": -0.1,
+        "effect": {
+          "kind": "paid_help",
+          "task_ids": [
+            "T13",
+            "T22"
+          ],
+          "action": "",
+          "principal_id": ""
+        }
       },
       {
-        "label": "One sibling adjusts their stated availability or refusals to unlock new task paths",
-        "consequence": "If Farah can take Friday or Saturday tasks, or accept night shifts, some of Amina's load can move. If Rian can accept weekday in-person work despite distance, some weighting pressure eases. If Amina can reduce declared capacity, the adjusted share calculation changes.",
-        "fairness_delta": 0.0
+        "label": "Leave the plan as it stands",
+        "consequence": "Amina continues to carry a heavier load than the others relative to what each of you said you can manage. Everyone has already said they accept it.",
+        "fairness_delta": 0.0,
+        "effect": {
+          "kind": "accept_split",
+          "task_ids": [],
+          "action": "",
+          "principal_id": ""
+        }
       },
       {
-        "label": "Reduce the total volume of tasks in the care plan",
-        "consequence": "Fewer tasks may allow a fair split within everyone's stated limits, but this changes what care your mother receives.",
-        "fairness_delta": 0.0
+        "label": "Talk together about whether any limits can shift, or whether other tasks might come off the plan",
+        "consequence": "You would need to decide together which tasks matter most and whether anyone has room to stretch in ways they have not yet named.",
+        "fairness_delta": 0.0,
+        "effect": {
+          "kind": "none",
+          "task_ids": [],
+          "action": "",
+          "principal_id": ""
+        }
       }
     ],
-    "what_i_will_not_decide": "I will not choose between these because I do not know what any of you are carrying outside this plan, what your mother needs most, or what any sibling can truly afford to change. Those decisions belong to the three of you together.",
-    "created_at": "2026-09-09T02:59:08.854632"
+    "what_i_will_not_decide": "I can tell you the split is uneven, but I cannot tell you whether that unevenness is worth accepting, whether paid help is the right call, or which tasks matter most. Those decisions belong to the people who know your mother and know what you each are carrying outside this plan.",
+    "created_at": "2026-09-11T13:20:45+00:00"
+  },
+  {
+    "id": "esc-rahman-family-2026-10-arrange_paid_help-1",
+    "period": "2026-10",
+    "kind": "authority_exceeded",
+    "headline": "Paid help could cover 2 of this month's tasks. Whether to bring someone in is your decision, not mine.",
+    "what_i_tried": [
+      "Looked for moves between you that stay inside everyone's stated limits.",
+      "Found that paid help for Wednesday overnight stay (Wed 14 Oct); Follow-up nephrology appointment (Fri 23 Oct) would take 11.5 hours of care off Amina and Rian.",
+      "Stopped before booking anything."
+    ],
+    "the_tension": "The spread of the load would go from 23 percent to 13 percent, against a limit of 15 percent. It also means spending money, and someone new in Nasrin's home.",
+    "options": [
+      {
+        "label": "Bring in paid help for these tasks",
+        "consequence": "The spread goes from 23 percent to 13 percent. You agree between you who pays, and Nasrin has a say in it. I will arrange the same each month until you say otherwise.",
+        "fairness_delta": -0.1,
+        "effect": {
+          "kind": "paid_help",
+          "task_ids": [
+            "T13",
+            "T22"
+          ],
+          "action": "",
+          "principal_id": ""
+        }
+      },
+      {
+        "label": "Keep this care within the family",
+        "consequence": "Nothing changes. The current split stands, and I will not suggest paid help again.",
+        "fairness_delta": 0.0,
+        "effect": {
+          "kind": "decline_action",
+          "task_ids": [],
+          "action": "arrange_paid_help",
+          "principal_id": ""
+        }
+      }
+    ],
+    "what_i_will_not_decide": "Whether to pay for care, who pays, and whether someone new comes into Nasrin's home. Those choices belong to your family, and to Nasrin.",
+    "created_at": "2026-09-11T13:20:27+00:00"
   }
 ]

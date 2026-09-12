@@ -1,31 +1,26 @@
 """Command line entry point for the Shoulder demo.
 
-    python -m shoulder.cli            run the negotiation and write fixtures
-    python -m shoulder.cli --dry      deterministic seed only, no model calls
+    python -m shoulder.cli                      negotiate October, write fixtures
+    python -m shoulder.cli --period 2026-11     the next month, applying past decisions
+    python -m shoulder.cli --dry                deterministic seed only, no model calls
+
+Each run remembers (in .shoulder/) the rota, the escalations, and what each
+person told their agent. Answer the escalations with `python -m shoulder.decide`
+before running the next month, and those answers are applied.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
-import os
 import sys
 
 from shoulder.agents.convener import seed_allocation
-from shoulder.agents.principal import positions_payload
-from shoulder.config import FIXTURES_DIR, MAX_ROUNDS
+from shoulder.config import MAX_ROUNDS
 from shoulder.models.core import Circle, NegotiationOutcome
-from shoulder.seed.demo_circle import build_circle
+from shoulder.seed.demo_circle import PERIOD, build_circle
 from shoulder.tools.fairness import build_fairness_report, set_active_circle
 
 RULE = "-" * 74
-
-
-def _write(path: str, payload: dict | list) -> str:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(payload, fh, indent=2, ensure_ascii=False)
-    return path
 
 
 def print_header(circle: Circle) -> None:
@@ -83,20 +78,8 @@ def run_dry(circle: Circle) -> int:
     return 0
 
 
-def run_full(circle: Circle) -> int:
-    from shoulder.graph.negotiation import negotiate
-
-    print(f"Negotiating, at most {MAX_ROUNDS} rounds.\n")
-    outcome: NegotiationOutcome = negotiate(circle)
-
-    print(f"\n{RULE}\nFINAL ROTA\n{RULE}")
-    if outcome.final_report:
-        print_report(outcome.final_report, circle)
-
-    print(f"\n{RULE}\nWHAT NEEDS A HUMAN\n{RULE}")
-    if not outcome.escalations:
-        print("  Nothing. The circle settled on its own.")
-    for card in outcome.escalations:
+def print_cards(cards) -> None:
+    for card in cards:
         print(f"\n  {card.headline}\n")
         if card.what_i_tried:
             print("  What I tried:")
@@ -107,28 +90,48 @@ def run_full(circle: Circle) -> int:
         if card.options:
             print("\n  Options:")
             for i, o in enumerate(card.options, 1):
-                print(f"    {i}. {o.label}")
+                delta = f"  (spread {o.fairness_delta * 100:+.0f} points)" if o.fairness_delta else ""
+                print(f"    {i}. {o.label}{delta}")
                 print(f"       {o.consequence}")
         if card.what_i_will_not_decide:
             print(f"\n  What I will not decide:\n    {card.what_i_will_not_decide}")
 
-    written = [
-        _write(f"{FIXTURES_DIR}/circle.json", circle.model_dump(mode="json")),
-        _write(f"{FIXTURES_DIR}/outcome.json", outcome.model_dump(mode="json")),
-        _write(
-            f"{FIXTURES_DIR}/positions.json", json.loads(positions_payload(circle.principals))
-        ),
-    ]
+
+def run_full(circle: Circle) -> int:
+    from shoulder.session import run_period, write_family, write_fixtures
+    from shoulder.store.family import FamilyStore
+
+    remembered = FamilyStore().precedents()
+    print(f"Negotiating, at most {MAX_ROUNDS} rounds. "
+          f"{len(remembered)} past decision(s) to apply.\n")
+    run = run_period(circle.period, circle=circle)
+    outcome: NegotiationOutcome = run.outcome
+    ledger = run.ledger
+
+    if outcome.covered:
+        print(f"\n{RULE}\nCOVERED BY A PAST DECISION\n{RULE}")
+        for task_id in sorted(outcome.covered):
+            task = circle.task(task_id)
+            print(f"  {task_id}  {task.title if task else ''}")
+
+    print(f"\n{RULE}\nFINAL ROTA\n{RULE}")
     if outcome.final_report:
-        written.append(
-            _write(f"{FIXTURES_DIR}/fairness_report.json",
-                   outcome.final_report.model_dump(mode="json"))
-        )
+        print_report(outcome.final_report, circle)
+
+    print(f"\n{RULE}\nWHAT NEEDS A HUMAN\n{RULE}")
+    if not outcome.escalations:
+        print("  Nothing. The circle settled on its own.")
+    print_cards(outcome.escalations)
     if outcome.escalations:
-        written.append(
-            _write(f"{FIXTURES_DIR}/escalations.json",
-                   [c.model_dump(mode="json") for c in outcome.escalations])
-        )
+        print("\n  Answer these with: python -m shoulder.decide")
+
+    family = ledger.entries()
+    print(f"\n{RULE}\nWHAT I DID WITHOUT ASKING ({len(family)} ledger entries)\n{RULE}")
+    for entry in family:
+        when = f"r{entry.round_number}" if entry.round_number else "  "
+        print(f"  {when:<3} {entry.summary}")
+
+    written = [*write_fixtures(run), write_family()]
 
     print(f"\n{RULE}\nFIXTURES WRITTEN (the UI builds against these)\n{RULE}")
     for w in written:
@@ -140,9 +143,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Shoulder demo")
     parser.add_argument("--dry", action="store_true",
                         help="deterministic seed only, no model calls")
+    parser.add_argument("--period", default=PERIOD,
+                        help=f"month to negotiate, YYYY-MM (default {PERIOD})")
     args = parser.parse_args()
 
-    circle = build_circle()
+    circle = build_circle(args.period)
     print_header(circle)
     return run_dry(circle) if args.dry else run_full(circle)
 
