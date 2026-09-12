@@ -152,6 +152,7 @@ Build toward the storyboard in §8 - it defines what the screens must show.
 ### Block 4 - Ashfaq · Sat 13 Sep evening
 
 - [x] Tier 7 evals: fairness invariant, **privacy adversarial eval**, escalation precision/recall, precedent regression (`python -m evals`)
+- [x] Rebuilt `app/`, the family-facing product, on the real fairness engine, with a front door that offers the demo or an empty circle a judge can set up and use. See `CLAUDE.md` §15.
 - [ ] Clean-clone QA - follow the README exactly as a stranger would and file what breaks
 - [ ] Gather video assets: screen recordings of each §8 beat, at high resolution, before the script exists
 

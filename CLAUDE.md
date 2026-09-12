@@ -940,3 +940,64 @@ labelled scenarios with zero missed escalations. Say the limits out loud too; th
 **Next:** Tier 7 is done and nothing in it is blocking. Still open: Tier 8 (AgentCore, the
 schedule, a live link), README, and the Devpost draft. Clean-clone QA and the video assets are the
 rest of Block 4.
+
+### 2026-09-12 - Session 4 continued, the family app (Ashfaq -> Shawki)
+
+**There are two front ends now. Read this paragraph before touching either.**
+
+| | |
+|---|---|
+| `web/` | The Tier 6 showcase: six screens mapped one to one onto the storyboard in section 8, including Why, Under the hood and the round player. Built to be filmed. Untouched this session. |
+| `app/` | The product a family would actually use, and the one a judge should be handed. This is where the work went. |
+
+```
+cd app && npm install && npm run dev        http://localhost:5174, no AWS
+cd app && npm run verify:engine             the browser's maths against Python's
+```
+
+**Two ways in.** The front door asks whether you want to look around the Rahmans (the fixtures,
+labelled as invented people with real numbers) or set up your own circle (empty, on this device).
+Each world has its own localStorage namespace, so poking at the demo cannot touch a real circle.
+Setting one up asks who is being cared for, then each person's capacity, distance, days they
+cannot do, work they will not take, and the private reason nobody else sees. That last field is
+the product's promise, asked for on the way in.
+
+**The numbers are the engine's, in both worlds.** `app/src/data/engine.js` is a port of
+`shoulder/tools/fairness.py`: effort weights, the travel rule, capacity-adjusted proportionality,
+eligibility, the greedy seed, and the paid-help search. `npm run verify:engine` checks it against
+`fixtures/fairness_report.json` burden by burden and prices the October card's paid-help option;
+it agrees with Python, including 23 percent to 13. A circle somebody builds themselves gets a real
+opening split from `seedAllocation`, tasks land on whoever has room with the reason stated, and
+the decision card is built from the same maths rather than written by hand.
+
+**What was actually wrong before** (worth knowing, because the screens looked fine):
+- Tasks were read as `task_type` and `duration_hours`; the fixtures write `type` and
+  `duration_min`, so all 26 rendered as a generic "Care Duty" of "undefinedh" at a made-up 10:00.
+- The split was hardcoded at 34/33/33 and the bar divided the load by counting tasks, which says
+  Farah carries the most when the engine says she carries the least. The hero number contradicted
+  the thesis.
+- The escalation card's before and after bars were literals, not the engine's figures.
+- "What it did" was a blank page: it called `.filter` on an object, and `ledger.json` is a list,
+  so all 34 real ledger entries were never read.
+
+**Fragile / honest limits:**
+- A circle somebody builds lives in localStorage and nowhere else. Clearing site data loses it,
+  and it does not sync between devices. Tier 8 is where that would change.
+- Cards in the own circle are derived from how things stand, never stored, because a stored card
+  went stale the moment a task moved. What silences one is what the family decided: keeping the
+  split holds until the spread widens past what they accepted, talking it through holds until the
+  plan changes. Same shape as the precedents in `shoulder/precedent.py`.
+- The live privacy catch on the "Your agent" screen reads `fixtures/privacy_demo.json`, and the
+  committed copy is a real `--live` catch. Running `python -m shoulder.demos.leak` without
+  `--live` overwrites it with the scripted draft, which is a weaker thing to show. Regenerate with
+  `python -m shoulder.demos.leak --live`, or restore the file from git.
+- `app/` reads fixtures at build time and writes nothing back to `.shoulder/`. A live link needs a
+  thin API over `FamilyStore`.
+- `app/package.json` is unchanged apart from the `verify:engine` script. The screenshots in this
+  session were taken with `puppeteer-core` installed with `--no-save`, so it is not a dependency.
+
+**Handoff to Shawki (Block 5).** Verify with `python -m pytest` (99, offline), `python -m evals`,
+`cd app && npm run dev`, and `cd web && npm run dev`. Both front ends work; pick `app/` for the
+product shots and `web/` for the storyboard beats, or film `app/` throughout and keep `web/` as
+the fallback. Still open and not started by me: Tier 8, the README, the Devpost draft, clean-clone
+QA, and the video assets.
