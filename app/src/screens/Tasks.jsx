@@ -3,6 +3,7 @@ import { PAID, Store, WEEKDAYS, dateOf, durationLabel, friendlyDate } from "../d
 import { Bell, Calendar, Check, ChevronRight, List, Plus } from "../components/Icons.jsx";
 import Face from "../components/Face.jsx";
 import TaskDrawer from "../components/TaskDrawer.jsx";
+import AgentsCard from "../components/AgentsCard.jsx";
 import { FairnessBar, TaskGlyph, spreadLabel, useStore, useToast } from "../components/ui.jsx";
 
 export default function Tasks({ onNavigate, onAdd }) {
@@ -174,6 +175,8 @@ export default function Tasks({ onNavigate, onAdd }) {
         </div>
 
         <aside className="tasks-side" aria-label="This month at a glance">
+          <AgentsCard />
+
           {upNext ? (
             <button type="button" className="glance-item" onClick={() => setOpenTask(upNext.id)}>
               <TaskGlyph type={upNext.type} />
@@ -299,6 +302,9 @@ function DayGroup({ day, items, scope, onOpen, onToggle }) {
               <span className="task-meta">
                 {task.time ? `${task.time}, ` : ""}
                 {durationLabel(task.durationMin)}
+                {Store.pendingHandover(task.id) && (
+                  <>, asking {Store.person(Store.pendingHandover(task.id).to)?.shortName}'s agent</>
+                )}
               </span>
             </span>
             {scope === "all" && (

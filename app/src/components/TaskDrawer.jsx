@@ -24,6 +24,8 @@ export default function TaskDrawer({ taskId, onClose }) {
   const logged = Store.note(task.id);
   const loggedBy = logged ? Store.person(logged.by) : null;
   const eligible = new Set(Store.eligible(task.id));
+  const pending = Store.pendingHandover(task.id);
+  const pendingTo = pending ? Store.person(pending.to) : null;
 
   const run = async (action) => {
     setBusy(true);
@@ -142,7 +144,16 @@ export default function TaskDrawer({ taskId, onClose }) {
         <ErrorLine error={error} />
       </div>
 
-      {!done && (
+      {!done && pending && (
+        <div className="drawer-block">
+          <p className="agent-wait" role="status">
+            <i className="agent-pulse" aria-hidden="true" />
+            Asking {pendingTo?.shortName || "their"}'s agent whether this works for them. It moves only if it does.
+          </p>
+        </div>
+      )}
+
+      {!done && !pending && (
         <div className="drawer-block">
           <button type="button" className="link" onClick={() => setHandingOver(!handingOver)}>
             {handingOver ? "Keep it with the current person" : "Give this to someone else"}
@@ -162,7 +173,13 @@ export default function TaskDrawer({ taskId, onClose }) {
                   >
                     <Face person={person} size={24} />
                     {person.id === meId ? "Me" : person.shortName}
-                    {isHolder ? <small>Has it now</small> : !allowed && <small>Not available for this</small>}
+                    {isHolder ? (
+                      <small>Has it now</small>
+                    ) : !allowed ? (
+                      <small>Not available for this</small>
+                    ) : (
+                      person.id !== meId && <small>Their agent is asked first</small>
+                    )}
                   </button>
                 );
               })}

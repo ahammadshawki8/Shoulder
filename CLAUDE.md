@@ -61,6 +61,10 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
   keep adding new routes to that sweep.
 - **The server decides, the browser renders.** Fairness, eligibility, "why assigned" and every option's
   preview come from the Python engine in the API. Do not reintroduce a JavaScript copy of the engine.
+- **Agents negotiate, code enforces (since Session 8).** In the app, who ends up with a task is negotiated
+  by the Strands agents (`shoulder/api/agents.py`). Whether someone may take a task at all, and every
+  fairness number, stay deterministic. A person's own choice (Me, Paid help, a decision card) is never
+  second-guessed by an agent.
 - **There is no demo mode.** The Rahmans are an ordinary seeded family (`rahman` / `farah`), re-seeded
   on every server start. Nothing in `app/` or `shoulder/api/` may branch on the family code.
 
@@ -1378,3 +1382,66 @@ Convener. The hosted app runs the deterministic engine and needs no Bedrock acce
   shot list. It films the live app for every product beat and `web/` only for the round player.
 - **Still to do by a person:** record the video, publish the three posts with "Agents for Humans" in each
   title, paste the story into Devpost, and confirm the track (section 2).
+
+### 2026-09-13 - Session 8, the agent negotiation wired into the family app (Shawki)
+
+**Asked:** "wire the agent negotiation into the app", specifically so that a task for whoever has room,
+a person's reasons and instructions, and handing a task over are decided by the agents debating rather
+than by the deterministic placement alone.
+
+**How it works now** (`shoulder/api/agents.py`, two background workers):
+- **Negotiation.** Adding a task for "Whoever has room", someone joining or leaving, or changing capacity,
+  distance, limits, private reasons or agent instructions schedules a negotiation 90 seconds later
+  (`SHOULDER_AGENT_DELAY_S`), so a burst of edits becomes one run. "Negotiate now" starts one at once.
+  The run builds a `Circle` from the live family: each `Principal` gets its private reasons and sensitive
+  terms from `member_secrets` and its instructions from `member_agent`, finished tasks are `locked` (they
+  count towards load and never move), and round one starts from the family's current plan
+  (`starting`) instead of the greedy seed. It is the real `negotiate()` graph: Convener, one agent per
+  person with `PrivacyGuard`, `AuthorityGuard`, fairness tools, bounded rounds, escalation.
+- **Streaming.** `AppLedger` hands every ledger entry to the app as it is written: family entries go into
+  the family's activity (with `round`, whitelisted `details`, and `run`), private "withheld" entries become
+  a privacy catch for that person only. The app polls every 2.5 seconds while agents are busy.
+- **Applying.** Moves are applied only to open tasks whose holder has not changed since the snapshot
+  (a person's edit during a run wins) and only if still legal. All open stored cards are marked
+  `superseded` and the run's cards added (`source: "agents"`). A `generation` stamp stops a run that
+  started before a re-seed from writing into the new family.
+- **Handover.** "Give this to someone else" to another member records `pending_handovers` and asks the
+  receiving `Principal`'s agent for a `Critique` of its share with the task added. Accept (or a counter
+  that does not contest this task) moves it; anything else, or no answer, leaves it where it is. Limits
+  are still checked in code before any agent is asked. Me and Paid help apply at once.
+- **Instructions are guarded like reasons.** `build_principal_agent(instructions=...)` puts them in the
+  prompt and adds them to the privacy guard as a private, shape-less constraint.
+- **The Convener no longer repeats itself.** Moves that made the split worse are passed back into the
+  revision prompt as "already tried" (`revise_allocation(tried=..., locked=...)`); in a live run it had
+  offered the same two moves in rounds 2, 3 and 4.
+- **Budget.** `SHOULDER_AGENT_COOLDOWN_S` (600), `SHOULDER_AGENT_DAILY_NEGOTIATIONS` (30),
+  `SHOULDER_AGENT_DAILY_HANDOVERS` (200), counted in the `agent_runs` table so a restart does not reset
+  them. When the handover budget is spent the move happens directly and the activity says why.
+- **Modes.** `SHOULDER_AGENTS=live` uses Claude Sonnet 4.5 on Bedrock; anything else uses the scripted
+  models from `shoulder/demos/offline.py`, which is what tests and machines without AWS use.
+
+**Frontend:** an agents card at the top of the Tasks side column and in Agent activity (state, round,
+reason, last result, Negotiate now), a pending state in the task drawer and task rows while a receiving
+agent is asked, "Their agent is asked first" on handover choices, activity rounds grouped per run, and the
+round graph reads "Shoulder started from: The family's plan". `#/control/activity` opens that tab. About
+copy and the "how it is built" diagram now show the agents inside the app (diagrams re-exported).
+
+**Verified:**
+- `pytest` 155 passed (11 new in `tests/test_agents.py`: negotiation, cards superseded, cooldown,
+  auto-trigger, Me and Paid help not triggering, a leaking agent caught with the catch only for Farah,
+  handover accepted and declined, limits refused before any agent, a hand edit during a run kept,
+  instructions in the prompt and screened). `evals --quick` 31 of 31. Fixtures untouched.
+- **One live run locally on Claude:** the Rahmans, 162 seconds, four rounds, real replies from each
+  agent, the authority envelope stopped booking paid help and raised it, two cards, no reason in Amina's
+  view. Then the repeated-moves fix above.
+- Browser, scripted mode: add a task for whoever has room, the card counts down, runs, finishes; a
+  handover shows "Asking Rian's agent", then moves with "Rian's agent agreed". No console errors.
+
+**AWS:** IAM role and instance profile `shoulder-ec2-agents` (inline policy: `bedrock:InvokeModel` and
+`InvokeModelWithResponseStream` on Claude Sonnet 4.5 only) attached to `i-057c41c5a4758ef90`; instance
+metadata hop limit raised to 2 so the container can read the role's credentials.
+`deploy/docker-compose.yml` sets `SHOULDER_AGENTS=live` and the budget.
+
+**Cost to expect:** roughly 20 model calls per negotiation, on the order of half a dollar each on
+Sonnet 4.5; about one call per handover. With the defaults the worst case is about 15 dollars a day.
+Lower `SHOULDER_AGENT_DAILY_NEGOTIATIONS` in the compose file to spend less.

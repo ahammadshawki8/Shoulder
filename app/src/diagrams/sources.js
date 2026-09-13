@@ -8,7 +8,7 @@
  */
 
 const MONTH = `flowchart LR
-  A["Everyone adds what<br/>they can and cannot do"] --> B["Shoulder works out<br/>the fairest split"]
+  A["Everyone adds what<br/>they can and cannot do"] --> B["The agents negotiate<br/>the fairest split"]
   B --> C{"Fair enough?"}
   C -->|Yes| D["The plan appears<br/>in Tasks"]
   C -->|No| E["One decision<br/>in Needs you"]
@@ -27,14 +27,14 @@ const PRIVACY = `flowchart LR
 const BUILT = `flowchart LR
   UI["Family app<br/>in the browser"] -->|"httpOnly cookie"| API["Shoulder server<br/>sessions and one<br/>view per person"]
   API --> DB[("SQLite")]
-  API --> ENG["Fairness engine<br/>no language model"]
-  CON["Convener<br/>Strands graph"] --> ENG
-  CON <-->|A2A| PA["One agent per person<br/>with privacy hook"]
-  CON --> BR["Amazon Bedrock"]
+  API -->|"when the plan changes"| CON["Convener<br/>Strands graph"]
+  CON <-->|"asks each one"| PA["One agent per person<br/>reasons, instructions,<br/>privacy hook"]
+  CON --> ENG["Fairness engine<br/>no language model"]
+  CON --> BR["Claude on<br/>Amazon Bedrock"]
   PA --> BR`;
 
 export const DIAGRAMS = {
   month: { source: MONTH, label: "How a month gets shared, and where the family is asked." },
   privacy: { source: PRIVACY, label: "Where what you tell Shoulder goes, and what reaches your family." },
-  built: { source: BUILT, label: "The family app, its server, and the Strands Agents negotiation." },
+  built: { source: BUILT, label: "The family app, its server, and the agents that negotiate for each person." },
 };

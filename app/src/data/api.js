@@ -69,6 +69,8 @@ export const api = {
   toggleComplete: (taskId, note = "") => call("POST", `/tasks/${enc(taskId)}/complete`, { note }),
   setNote: (taskId, text) => call("PUT", `/tasks/${enc(taskId)}/note`, { text }),
 
+  negotiate: () => call("POST", "/agents/negotiate"),
+
   resolve: (cardId, optionIndex) =>
     call("POST", `/escalations/${enc(cardId)}/resolve`, { option_index: optionIndex }),
 };

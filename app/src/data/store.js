@@ -259,6 +259,16 @@ export const Store = {
   },
 
   fairness: () => view.fairness,
+
+  /** What the family's agents are doing: idle, scheduled, queued or running. */
+  agents: () => view?.agents || { mode: "scripted", state: "idle", last: null },
+  /** The handover waiting on a receiving agent for this task, if there is one. */
+  pendingHandover: (taskId) => view?.pending_handovers?.[taskId] || null,
+  /** True while anything the agents were asked to do is still under way. */
+  agentsBusy() {
+    if (!view) return false;
+    return view.agents?.state !== "idle" || Object.keys(view.pending_handovers || {}).length > 0;
+  },
   escalations: () => view.escalations,
   pendingChanges: () => view.pending_changes,
   precedents: () => view.precedents.filter((p) => p.active !== false),
@@ -318,6 +328,7 @@ export const Store = {
   assignTask: (taskId, to) => change(api.assignTask(taskId, to)),
   toggleComplete: (taskId, note = "") => change(api.toggleComplete(taskId, note)),
   setNote: (taskId, text) => change(api.setNote(taskId, text)),
+  negotiate: () => change(api.negotiate()),
 
   async resolve(cardId, optionIndex) {
     const card = view.escalations.find((c) => c.id === cardId);

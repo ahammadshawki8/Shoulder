@@ -77,6 +77,7 @@ def view_for(
     viewer_id: str,
     viewer_secrets: dict[str, dict[str, Any]],
     viewer_instructions: str = "",
+    agents: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """The whole family, as `viewer_id` may see it."""
     pending = []
@@ -117,6 +118,12 @@ def view_for(
         "ledger": state["ledger"],
         "escalations": escalations,
         "pending_changes": pending,
+        # Handovers waiting on the receiving person's agent. Who and which task only.
+        "pending_handovers": {
+            task_id: {"to": h["to"], "by": h["by"], "at": h["at"]}
+            for task_id, h in (state.get("pending_handovers") or {}).items()
+        },
+        "agents": agents or {"mode": "scripted", "state": "idle", "last": None},
         # The viewer's own agent: their instructions and the brief built from
         # them. Never anyone else's.
         "my_agent": {

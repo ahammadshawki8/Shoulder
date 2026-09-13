@@ -13,6 +13,7 @@ visitor deciding both cards would leave every later visitor an empty inbox.
 from __future__ import annotations
 
 import json
+from secrets import token_hex
 from pathlib import Path
 from typing import Any
 
@@ -102,6 +103,7 @@ def build() -> tuple[dict[str, Any], dict[str, list[tuple[str, str, list[str]]]]
     state["covered"] = dict(outcome.get("covered") or {})
     state["completed"] = [t["id"] for t in state["tasks"] if t["on_date"] < TODAY]
     state["escalations"] = [{**card, "status": "open"} for card in cards]
+    state["generation"] = token_hex(6)
     state["ledger"] = [
         {
             "id": e["id"],
@@ -143,6 +145,7 @@ def reseed(db: Database) -> None:
             db.insert_family(conn, CODE, state)
         else:
             db.save_state(conn, CODE, state)
+        db.clear_runs(conn, CODE)
         existing = set(db.member_ids(conn, CODE))
         for member_id in existing:
             if member_id in seeded:

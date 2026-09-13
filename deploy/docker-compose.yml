@@ -23,6 +23,18 @@ services:
       # than to everyone at once. The app port is not published, so only Caddy
       # can reach it.
       FORWARDED_ALLOW_IPS: "*"
+      # The family's agents run on Claude through Amazon Bedrock, using the
+      # instance's IAM role (shoulder-ec2-agents, allowed Claude Sonnet 4.5 only).
+      SHOULDER_AGENTS: "live"
+      SHOULDER_REGION: "us-east-1"
+      AWS_DEFAULT_REGION: "us-east-1"
+      # A burst of changes becomes one negotiation this many seconds later.
+      SHOULDER_AGENT_DELAY_S: "90"
+      # The budget: at most one negotiation per family every ten minutes, and
+      # a daily cap across every family on the server.
+      SHOULDER_AGENT_COOLDOWN_S: "600"
+      SHOULDER_AGENT_DAILY_NEGOTIATIONS: "30"
+      SHOULDER_AGENT_DAILY_HANDOVERS: "200"
     volumes:
       - shoulder-data:/data
     expose:

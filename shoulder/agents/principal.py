@@ -24,7 +24,7 @@ from shoulder.config import REASONING_MODEL, REGION
 from shoulder.hooks.privacy import PrivacyGuard
 from shoulder.resilience import with_retry
 from shoulder.text import clean
-from shoulder.models.core import Allocation, CareTask, Critique, Principal
+from shoulder.models.core import Allocation, CareTask, Constraint, Critique, Principal, Tier
 from shoulder.agents.brief import (  # noqa: F401  re-exported
     INSTRUCTIONS,
     SYSTEM_PROMPT,
@@ -42,6 +42,8 @@ def build_principal_agent(
     model: Model | None = None,
     system_prompt: str | None = None,
     echo: bool = False,
+    instructions: str = "",
+    recipient: str = "their mother",
 ) -> Agent:
     """Construct the agent that speaks for one person.
 
@@ -51,9 +53,29 @@ def build_principal_agent(
     The privacy guard is always attached. There is deliberately no way to build
     a principal agent without it. `model` and `system_prompt` exist so the leak
     demo can stand in a misbehaving model; the guard does not change with them.
+
+    `instructions` are the person's own words to their agent. They go into the
+    prompt, and the guard screens them like a private reason: people explain
+    themselves to their agent in ways they would not to their family.
     """
+    guarded = principal
+    if instructions.strip():
+        guarded = principal.model_copy(
+            update={
+                "constraints": [
+                    *principal.constraints,
+                    Constraint(
+                        id=f"{principal.id}-instructions",
+                        summary="Their own instructions to their agent",
+                        tier=Tier.PRIVATE,
+                        hardness="soft",
+                        reason=instructions.strip(),
+                    ),
+                ]
+            }
+        )
     guard = PrivacyGuard(
-        principal,
+        guarded,
         # Over the wire the reply is text; in process it is the Critique object.
         reply="text" if wire_format else "structured",
         ledger=ledger,
@@ -61,7 +83,8 @@ def build_principal_agent(
     )
     return Agent(
         model=model or BedrockModel(model_id=REASONING_MODEL, region_name=REGION),
-        system_prompt=system_prompt or build_system_prompt(principal, wire_format),
+        system_prompt=system_prompt
+        or build_system_prompt(principal, wire_format, instructions=instructions, recipient=recipient),
         hooks=[guard],
         callback_handler=None,
     )

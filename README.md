@@ -174,7 +174,7 @@ python -m shoulder.demos.leak            # the privacy hook catching a leak, no 
 python -m shoulder.demos.leak --live     # the same, with a real model on Bedrock
 python -m shoulder.demos.envelope        # the authority envelope at work, no AWS needed
 python -m shoulder.demos.next_month      # two months back to back: it learns, no AWS needed
-pytest                                   # 144 tests, no AWS needed
+pytest                                   # 155 tests, no AWS needed
 ```
 
 Runs remember their history in `.shoulder/` (SQLite, never committed). Delete it to start the family
@@ -224,6 +224,31 @@ Reasons are stored in their own table and never enter the family record, so no r
 accident. Other people's limits even arrive under opaque identifiers, because a limit's own id can give
 something away. `tests/test_api.py` logs in as each person and checks every response the API can
 produce for anyone else's private words.
+
+**The agents negotiate inside the app.** Each person has a Strands agent that reads their private
+reasons and their own instructions, guarded by the privacy hook, and a Convener that proposes moves.
+They work in the background, on Claude through Amazon Bedrock when `SHOULDER_AGENTS=live`:
+
+- **A task for whoever has room** is placed with the person who has the most room for now, and about
+  90 seconds later the agents renegotiate the whole open plan. Joining, leaving, or changing limits,
+  reasons or instructions schedules a negotiation the same way, and anyone can ask for one now.
+- **Handing a task to someone** asks that person's own agent first. The task moves only if it agrees.
+- **Me** and **Paid help** are a person's own decision, so they apply at once.
+- Each step appears in Agent activity as it happens, grouped into rounds with a decision graph.
+  Anything a privacy hook stopped goes only to the person it protected.
+- What stays in code: whether someone may take a task at all, and every fairness number. A budget
+  (one negotiation per family every ten minutes, a daily cap) bounds what live runs cost.
+
+```mermaid
+flowchart LR
+    C["A change to the plan"] --> W["Wait about 90 seconds<br/>so edits become one run"]
+    W --> N["Negotiation<br/>Strands graph, Claude on Bedrock"]
+    N --> A["Moves applied<br/>unless someone changed that task"]
+    N --> Q["Decision cards<br/>for the family"]
+    H["Hand a task over"] --> R["Receiving person's agent"]
+    R -->|"agrees"| M["Task moves"]
+    R -->|"declines"| S["Stays where it is"]
+```
 
 **The server decides; the browser shows.** Who does what, how even the split is, who may take each
 task, and what every option on a decision card would do are all computed by the Python engine on the
@@ -311,7 +336,7 @@ precedent.
 | `shoulder/precedent.py` | Turning a family's decision into a rule, and applying it next time. |
 | `shoulder/session.py` | One period end to end, with memory: the loop the weekly schedule runs. |
 | `shoulder/store/` | SQLite: the family's session (rotas, cards, decisions, precedents) and each person's own. |
-| `shoulder/api/` | The family app's API: sign-up and login, the per-person privacy projection, and every change, over SQLite. |
+| `shoulder/api/` | The family app's API: sign-up and login, the per-person privacy projection, and every change, over SQLite. `agents.py` runs the negotiation and handovers for a family. |
 | `app/` | The family app in Vite and React. Renders what the API returns and holds no family data. Diagram sources are in `app/src/diagrams/`, drawn ahead of time into `app/public/diagrams/`. |
 | `web/` | The storyboard screens: the negotiation and what happens under the hood, reading `fixtures/`. |
 | `Dockerfile`, `deploy/` | The production image and the EC2 deployment. |

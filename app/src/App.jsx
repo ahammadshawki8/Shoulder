@@ -20,7 +20,8 @@ const NAV = [
 const ROUTES = [...NAV.map((n) => n.id), "about"];
 
 function routeFromHash() {
-  const hash = window.location.hash.replace(/^#\/?/, "");
+  // "#/control/activity" opens Control Panel on a tab; the route is the first part.
+  const hash = window.location.hash.replace(/^#\/?/, "").split("/")[0];
   return ROUTES.includes(hash) ? hash : "tasks";
 }
 
@@ -50,7 +51,17 @@ export default function App() {
   useEffect(() => {
     const fresh = () => document.visibilityState === "visible" && Store.status() === "ready" && Store.refresh();
     document.addEventListener("visibilitychange", fresh);
-    const timer = setInterval(fresh, 20000);
+    // Every few seconds while the agents are working, so each step shows up as
+    // it happens; every twenty seconds otherwise.
+    let last = 0;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const every = Store.status() === "ready" && Store.agentsBusy() ? 2500 : 20000;
+      if (now - last >= every) {
+        last = now;
+        fresh();
+      }
+    }, 1000);
     return () => {
       document.removeEventListener("visibilitychange", fresh);
       clearInterval(timer);

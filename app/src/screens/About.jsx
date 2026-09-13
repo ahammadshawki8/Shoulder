@@ -61,10 +61,10 @@ export default function About() {
           </li>
           <li>
             <div>
-              <h3>Shoulder works out the split</h3>
+              <h3>Their agents negotiate the split</h3>
               <p>
-                Each task goes to the person with the most room once limits are respected, weighed by how long
-                and heavy it is and how far away they live.
+                Whenever the plan changes, each person's agent weighs its share against what only that person has
+                told it. A coordinating agent proposes moves, and a fairness engine measures every one.
               </p>
             </div>
           </li>
@@ -130,7 +130,7 @@ export default function About() {
         <div className="section-head">
           <div>
             <h2>How it is built</h2>
-            <p>The family app and the agent negotiation share one fairness engine.</p>
+            <p>Every agent is a Strands agent on Amazon Bedrock. Limits and fairness are enforced in code around them.</p>
           </div>
         </div>
         <Diagram name="built" />

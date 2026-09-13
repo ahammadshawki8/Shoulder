@@ -271,6 +271,16 @@ def fairness_brief(report: FairnessReport) -> str:
     return _fairness_brief(report)
 
 
+def _tried_block(tried: list[str] | None) -> str:
+    if not tried:
+        return ""
+    lines = "\n".join(f"  - {move}" for move in dict.fromkeys(tried))
+    return (
+        "\nALREADY TRIED IN AN EARLIER ROUND, AND IT MADE THE SPLIT WORSE\n"
+        f"{lines}\nDo not propose these again. Look for a different move, or none.\n"
+    )
+
+
 def revise_allocation(
     agent: Agent,
     circle: Circle,
@@ -278,8 +288,16 @@ def revise_allocation(
     report: FairnessReport,
     critiques: list[Critique],
     round_number: int,
+    *,
+    tried: list[str] | None = None,
+    locked: set[str] | frozenset[str] = frozenset(),
 ) -> Allocation:
-    """Ask the Convener to fix what the last round got wrong."""
+    """Ask the Convener to fix what the last round got wrong.
+
+    `tried` are moves an earlier round proposed that made the split worse, so
+    the Convener does not keep offering them. `locked` tasks are finished work:
+    they count towards the load and are never offered as moves.
+    """
     from shoulder.agents.principal import positions_brief
 
     objections = "\n".join(
@@ -320,7 +338,7 @@ def revise_allocation(
     movable: list[str] = []
     for tid in sorted(allocation.bundle(overloaded.principal_id)):
         task = circle.task(tid)
-        if task is None:
+        if task is None or tid in locked:
             continue
         takers = [
             pos.name
@@ -352,7 +370,7 @@ WHAT THE FAIRNESS TOOLS SAY
 
 WHAT THE SIBLINGS SAID
 {objections}
-
+{_tried_block(tried)}
 Right now {overloaded.name} carries the most at an adjusted share of
 {overloaded.adjusted_share}, and {underloaded.name} the least at
 {underloaded.adjusted_share}. The circle mean is {report.mean_adjusted_share}.

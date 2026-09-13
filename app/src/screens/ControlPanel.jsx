@@ -13,7 +13,19 @@ const TABS = [
 
 export default function ControlPanel({ theme, onToggleTheme }) {
   useStore();
-  const [tab, setTab] = useState("you");
+  const [tab, setTab] = useState(() => {
+    const wanted = window.location.hash.split("/")[2];
+    return TABS.some((t) => t.id === wanted) ? wanted : "you";
+  });
+
+  useEffect(() => {
+    const onHash = () => {
+      const wanted = window.location.hash.split("/")[2];
+      if (TABS.some((t) => t.id === wanted)) setTab(wanted);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
   const [toast, say] = useToast();
 
   return (

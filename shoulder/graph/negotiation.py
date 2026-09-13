@@ -118,7 +118,18 @@ class NegotiationState:
         precedents: list[Precedent] | None = None,
         changes: dict[str, tuple[list[str], list[str]]] | None = None,
         models: dict[str, Any] | None = None,
+        starting: Allocation | None = None,
+        instructions: dict[str, str] | None = None,
+        locked: dict[str, str] | None = None,
     ) -> None:
+        # `starting` is a plan the family already has (the family app passes its
+        # current rota), used in place of the greedy opening split. `locked` is
+        # work already done: it counts towards each person's load and never moves.
+        self.starting = starting
+        self.locked = dict(locked or {})
+        # Moves a round proposed that made the split worse, so they are not offered again.
+        self.rejected_moves: list[str] = []
+        self.instructions = instructions or {}
         # `full_circle` is every task this period. `circle` becomes what the
         # family actually splits, once recall has taken out what precedents cover.
         self.full_circle = circle
@@ -183,7 +194,12 @@ class NegotiationState:
             self.a2a = None
             self.principal_agents = {
                 p.id: build_principal_agent(
-                    p, ledger=self.ledger, model=models.get(p.id), echo=True
+                    p,
+                    ledger=self.ledger,
+                    model=models.get(p.id),
+                    echo=True,
+                    instructions=self.instructions.get(p.id, ""),
+                    recipient=circle.care_recipient,
                 )
                 for p in circle.principals
             }
@@ -320,7 +336,32 @@ class ProposeNode(_Node):
         s.round_number += 1
         s.round_tried, s.round_moves, s.round_kept = None, [], True
 
-        if s.round_number == 1:
+        if s.round_number == 1 and s.starting is not None:
+            # Start from the family's own plan, with anything no longer legal put back.
+            known = {t.id for t in s.circle.tasks}
+            current = s.starting.model_copy(
+                update={
+                    "assignments": {t: p for t, p in s.starting.assignments.items() if t in known},
+                    "round_number": 1,
+                }
+            )
+            s.allocation, _corrections = repair_allocation(s.circle, current)
+            s.allocation.assignments.update(s.locked)
+            s.allocation.round_number = 1
+            s.attempts.append("Started from the plan the family already has.")
+            open_tasks = [t for t in s.circle.tasks if t.id not in s.locked]
+            held = sum(1 for t in open_tasks if t.id in s.allocation.assignments)
+            s.ledger.record(
+                "seeded_rota",
+                f"Started from the family's current plan: {held} of "
+                f"{len(open_tasks)} open tasks already have someone.",
+                justification=(
+                    "The negotiation improves the plan the family is living with. Nothing "
+                    "moves until each person's agent has seen their share."
+                ),
+                round_number=1,
+            )
+        elif s.round_number == 1:
             s.allocation = seed_allocation(s.circle)
             s.attempts.append(
                 "Built an opening split from everyone's stated availability, "
@@ -346,7 +387,11 @@ class ProposeNode(_Node):
                 s.report,
                 s.critiques,
                 s.round_number,
+                tried=s.rejected_moves,
+                locked=set(s.locked),
             )
+            # Finished work is not up for negotiation.
+            proposed.assignments.update(s.locked)
             moves = _moves(s.circle, previous, proposed)
             s.ledger.record(
                 "proposed_moves",
@@ -365,6 +410,7 @@ class ProposeNode(_Node):
             )
             # The model proposes. This decides what is allowed to stand.
             s.allocation, corrections = repair_allocation(s.circle, proposed)
+            s.allocation.assignments.update(s.locked)
             s.allocation.round_number = s.round_number
             s.attempts.append(
                 f"Round {s.round_number}: {s.allocation.rationale.strip()}"
@@ -389,6 +435,7 @@ class ProposeNode(_Node):
             best = s.best_report
             if best is not None and _rank(trial) > _rank(best):
                 s.round_kept = False
+                s.rejected_moves.extend(moves)
                 print(f"  [reject]   round {s.round_number} moves made it worse "
                       f"({trial.max_deviation} vs {best.max_deviation}), "
                       f"keeping the better split")
@@ -631,6 +678,9 @@ def negotiate(
     precedents: list[Precedent] | None = None,
     changes: dict[str, tuple[list[str], list[str]]] | None = None,
     models: dict[str, Any] | None = None,
+    starting: Allocation | None = None,
+    instructions: dict[str, str] | None = None,
+    locked: dict[str, str] | None = None,
 ) -> NegotiationOutcome:
     """Run one full negotiation for a circle and return everything it produced.
 
@@ -650,6 +700,9 @@ def negotiate(
         precedents=precedents,
         changes=changes,
         models=models,
+        starting=starting,
+        instructions=instructions,
+        locked=locked,
     )
     graph = build_negotiation_graph(state)
     graph(

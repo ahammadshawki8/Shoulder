@@ -2442,6 +2442,117 @@ button.glance-item:hover {
   color: var(--accent);
 }
 
+/* -- the family's agents ----------------------------------------------------------------- */
+
+.agents-card {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.agents-card.is-working {
+  border-color: var(--accent);
+}
+
+.agents-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.agents-head h3 {
+  font-size: var(--t-sm);
+  font-weight: 650;
+}
+
+.agents-head small {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--ink-2);
+}
+
+.agents-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.45rem;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.agents-status.is-quiet {
+  display: block;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.agents-reason {
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.agents-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.agents-card.is-compact {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.agents-card.is-compact .agents-head {
+  display: none;
+}
+
+.agents-card.is-compact .agents-actions {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.console-agents {
+  padding: 0.75rem 1.2rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.agent-pulse {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: agent-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes agent-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-pulse {
+    animation: none;
+  }
+}
+
+.agent-wait {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-size: var(--t-sm);
+  color: var(--ink);
+}
+
+.agent-wait .agent-pulse {
+  margin-top: 0.4rem;
+}
+
 /* -- agent activity ---------------------------------------------------------------------- */
 
 .console {

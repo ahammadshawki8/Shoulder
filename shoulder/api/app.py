@@ -26,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from shoulder.api import domain, projection, seed
+from shoulder.api.agents import AgentService
 from shoulder.api.db import SESSION_DAYS, Database
 
 COOKIE = "shoulder_session"
@@ -154,7 +155,11 @@ def normalise_code(value: str) -> str:
 # -- the app ------------------------------------------------------------------
 
 
-def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
+def create_app(
+    db_path: str | None = None,
+    reseed_demo: bool = True,
+    agent_options: dict[str, Any] | None = None,
+) -> FastAPI:
     db = Database(db_path or os.getenv("SHOULDER_DB", ".shoulder/shoulder.db"))
     limiter = RateLimiter()
     secure_cookies = os.getenv("SHOULDER_SECURE_COOKIES", "0") == "1"
@@ -170,8 +175,11 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             except Exception:  # a failed re-seed must not stop the next one
                 log.exception("Re-seeding the Rahmans failed")
 
+    agents = AgentService(db, **(agent_options or {}))
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        agents.start()
         task = None
         if reseed_demo:
             seed.reseed(db)
@@ -180,10 +188,12 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
         yield
         if task:
             task.cancel()
+        agents.stop()
 
     app = FastAPI(title="Shoulder", version="1.0.0", lifespan=lifespan)
     app.state.db = db
     app.state.limiter = limiter
+    app.state.agents = agents
 
     @app.middleware("http")
     async def headers(request: Request, call_next):
@@ -238,6 +248,7 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             member_id,
             db.secrets_for(family_code, member_id),
             db.instructions_for(family_code, member_id),
+            agents.view(family_code),
         )
 
     def mutate(request: Request, change: Callable[[dict[str, Any], str, str, Any], Any]):
@@ -250,8 +261,11 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             state = db.load_state(conn, family_code)
             if state is None or domain.member(state, member_id) is None:
                 return fail("You are no longer part of this family.", 401)
-            change(state, family_code, member_id, conn)
+            follow_up = change(state, family_code, member_id, conn)
             db.save_state(conn, family_code, state)
+        # Work for the agents is started only once the change is committed.
+        if callable(follow_up):
+            follow_up()
         return view(family_code, member_id)
 
     # -- identity ---------------------------------------------------------------
@@ -320,6 +334,7 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             if reason:
                 db.put_secret(conn, code, member_id, record["constraints"][0]["id"], reason)
             start_session(response, code, member_id, conn)
+        agents.request_negotiation(code, f"{name} joined", member_id)
         return {"family_code": code, "member_id": member_id}
 
     @app.post("/api/session")
@@ -367,7 +382,7 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
 
     @app.patch("/api/me")
     def update_me(body: ProfileUpdate, request: Request):
-        def change(state, _code, member_id, _conn):
+        def change(state, code, member_id, _conn):
             m = domain.member(state, member_id)
             moved = False
             if body.name is not None:
@@ -383,7 +398,9 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             elif body.avatar is not None:
                 m["avatar"] = domain._avatar(body.avatar)
             if moved:
-                domain.rebalance(state, f"{domain.short_name(state, member_id)} changed what they can carry")
+                name = domain.short_name(state, member_id)
+                domain.rebalance(state, f"{name} changed what they can carry")
+                return lambda: agents.request_negotiation(code, f"{name} changed what they can carry", member_id)
 
         return mutate(request, change)
 
@@ -395,7 +412,9 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             for constraint_id in dropped:
                 db.delete_secret(conn, code, member_id, constraint_id)
             if changed:
-                domain.rebalance(state, f"{domain.short_name(state, member_id)} changed what they cannot do")
+                name = domain.short_name(state, member_id)
+                domain.rebalance(state, f"{name} changed what they cannot do")
+                return lambda: agents.request_negotiation(code, f"{name} changed what they cannot do", member_id)
 
         return mutate(request, change)
 
@@ -403,8 +422,11 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
     def update_agent(body: AgentInstructions, request: Request):
         text = domain.clean_instructions(body.instructions)
 
-        def change(_state, code, member_id, conn):
+        def change(state, code, member_id, conn):
             db.put_instructions(conn, code, member_id, text)
+            # Only their own agent reads these, but it may now see its share differently.
+            name = domain.short_name(state, member_id)
+            return lambda: agents.request_negotiation(code, f"{name} gave their agent new instructions", member_id)
 
         return mutate(request, change)
 
@@ -428,6 +450,8 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
                 # Writing a reason makes the limit private. Its shape still binds.
                 c["tier"] = "private"
             db.put_secret(conn, code, member_id, constraint_id, reason)
+            name = domain.short_name(state, member_id)
+            return lambda: agents.request_negotiation(code, f"{name} updated something only their agent knows", member_id)
 
         return mutate(request, change)
 
@@ -452,6 +476,7 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
                     domain.rebalance(state, f"{name} left")
                     db.save_state(conn, code, state)
                     db.delete_member(conn, code, member_id)
+                    agents.request_negotiation(code, f"{name} left", None)
         response.delete_cookie(COOKIE, path="/")
         return {"ok": True}
 
@@ -528,7 +553,7 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
 
     @app.post("/api/tasks")
     def add_task(body: NewTask, request: Request):
-        def change(state, _code, member_id, _conn):
+        def change(state, code, member_id, _conn):
             if body.type not in domain.TASK_TYPES:
                 raise domain.DomainError("Please choose a kind of task.")
             record = {
@@ -547,10 +572,14 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             state["tasks"].append(record)
             me = domain.short_name(state, member_id)
 
-            if body.assignee in ("", "auto"):
+            negotiate = body.assignee in ("", "auto")
+            if negotiate:
                 holder, blocked = domain.suggest(state, task)
                 if holder:
-                    why = f"{domain.short_name(state, holder)} has the most room once everyone's limits are respected."
+                    why = (
+                        f"With {domain.short_name(state, holder)} for now, who has the most room inside "
+                        "everyone's limits. The agents will negotiate it with everyone shortly."
+                    )
                 else:
                     why = "Nobody in the family can take this inside their stated limits."
                 if blocked:
@@ -570,6 +599,8 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             state["why"][record["id"]] = why
             taker = domain.short_name(state, holder) if holder else "nobody yet"
             domain.add_ledger(state, f"Added {record['title']}, for {taker}", why, member_id)
+            if negotiate:
+                return lambda: agents.request_negotiation(code, f"{me} added {record['title']}", member_id)
 
         return mutate(request, change)
 
@@ -587,10 +618,15 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
 
     @app.post("/api/tasks/{task_id}/assign")
     def assign_task(task_id: str, body: Assign, request: Request):
-        def change(state, _code, member_id, _conn):
+        def change(state, code, member_id, _conn):
             task = _task(state, task_id)
             me = domain.short_name(state, member_id)
             why = domain._clean_text(body.reason, "the reason", 300) or f"Moved by {me}."
+            pending = state.setdefault("pending_handovers", {})
+            if task_id in pending:
+                raise domain.DomainError(
+                    f"Already asking {domain.short_name(state, pending[task_id]['to'])}'s agent about this task.", 409
+                )
             if body.to == "paid":
                 state["covered"][task_id] = domain.PAID_HELP
                 state["assignments"].pop(task_id, None)
@@ -598,6 +634,27 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
                 refusal = domain.can_take(state, body.to, task)
                 if refusal:
                     raise domain.DomainError(refusal + ".")
+                to_name = domain.short_name(state, body.to)
+                if body.to != member_id and task_id not in state["completed"]:
+                    # Work only moves to someone else once their own agent has had its say.
+                    pending[task_id] = {
+                        "to": body.to,
+                        "from": state["assignments"].get(task_id),
+                        "by": member_id,
+                        "at": domain.now_iso(),
+                    }
+                    domain.add_ledger(
+                        state,
+                        f"{me} asked to hand {task['title']} to {to_name}",
+                        f"Asking {to_name}'s agent first. It knows what only {to_name} knows.",
+                        member_id,
+                    )
+
+                    def ask() -> None:
+                        if not agents.request_handover(code, task_id, body.to, member_id):
+                            _handover_without_agents(code, task_id, member_id)
+
+                    return ask
                 state["covered"].pop(task_id, None)
                 state["assignments"][task_id] = body.to
             state["why"][task_id] = why
@@ -606,6 +663,38 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             )
 
         return mutate(request, change)
+
+    def _handover_without_agents(code: str, task_id: str, by: str) -> None:
+        """The day's agent budget is spent: move it as asked, and say so."""
+        with db.write() as conn:
+            state = db.load_state(conn, code)
+            if state is None:
+                return
+            pending = (state.get("pending_handovers") or {}).pop(task_id, None)
+            task = next((t for t in state["tasks"] if t["id"] == task_id), None)
+            if pending and task and domain.can_take(state, pending["to"], task) is None:
+                state["covered"].pop(task_id, None)
+                state["assignments"][task_id] = pending["to"]
+                state["why"][task_id] = f"Moved by {domain.short_name(state, by)}."
+                domain.add_ledger(
+                    state,
+                    f"{task['title']} moved to {domain.short_name(state, pending['to'])}",
+                    "The agents have used today's budget, so this moved without asking their agent.",
+                    by,
+                )
+            db.save_state(conn, code, state)
+
+    @app.post("/api/agents/negotiate")
+    def negotiate_now(request: Request):
+        session = who(request)
+        if session is None:
+            return fail("Please log in again.", 401)
+        code, member_id = session
+        state = db.read_state(code)
+        if state is None:
+            return fail("This family no longer exists.", 401)
+        agents.request_negotiation(code, f"{domain.short_name(state, member_id)} asked for it", member_id, now=True)
+        return view(code, member_id)
 
     @app.post("/api/tasks/{task_id}/complete")
     def toggle_complete(task_id: str, body: Complete, request: Request):

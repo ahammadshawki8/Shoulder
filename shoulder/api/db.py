@@ -64,6 +64,22 @@ CREATE TABLE IF NOT EXISTS member_agent (
         REFERENCES members(family_code, member_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS agent_runs (
+    id          TEXT PRIMARY KEY,
+    family_code TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    status      TEXT NOT NULL,
+    reason      TEXT NOT NULL DEFAULT '',
+    started_by  TEXT,
+    mode        TEXT NOT NULL DEFAULT '',
+    created_at  TEXT NOT NULL,
+    started_at  TEXT,
+    finished_at TEXT,
+    summary     TEXT NOT NULL DEFAULT ''
+);
+
+CREATE INDEX IF NOT EXISTS agent_runs_by_family ON agent_runs (family_code, created_at);
+
 CREATE TABLE IF NOT EXISTS privacy_catches (
     family_code TEXT NOT NULL,
     member_id   TEXT NOT NULL,
@@ -169,6 +185,7 @@ class Database:
         conn.execute("DELETE FROM privacy_catches WHERE family_code = ?", (code,))
         conn.execute("DELETE FROM member_secrets WHERE family_code = ?", (code,))
         conn.execute("DELETE FROM member_agent WHERE family_code = ?", (code,))
+        conn.execute("DELETE FROM agent_runs WHERE family_code = ?", (code,))
         conn.execute("DELETE FROM members WHERE family_code = ?", (code,))
         conn.execute("DELETE FROM families WHERE code = ?", (code,))
 
@@ -280,6 +297,49 @@ class Database:
             ).fetchall()
         return {r["member_id"]: r["instructions"] for r in rows}
 
+    # -- agent runs ------------------------------------------------------------
+    #
+    # One row per negotiation or handover the agents carried out. Used for the
+    # cooldown and the daily budget, which must survive a restart, and to show a
+    # family what their agents last did.
+
+    def create_run(self, run_id: str, family_code: str, kind: str, reason: str, started_by: str | None, mode: str) -> None:
+        with self.write() as conn:
+            conn.execute(
+                """INSERT INTO agent_runs (id, family_code, kind, status, reason, started_by, mode, created_at)
+                   VALUES (?, ?, ?, 'queued', ?, ?, ?, ?)""",
+                (run_id, family_code, kind, reason, started_by, mode, _now().isoformat()),
+            )
+
+    def mark_run(self, run_id: str, status: str, summary: str = "") -> None:
+        column = "started_at" if status == "running" else "finished_at"
+        with self.write() as conn:
+            conn.execute(
+                f"UPDATE agent_runs SET status = ?, summary = ?, {column} = ? WHERE id = ?",
+                (status, summary, _now().isoformat(), run_id),
+            )
+
+    def last_run(self, family_code: str, kind: str | None = None) -> dict[str, Any] | None:
+        query = "SELECT * FROM agent_runs WHERE family_code = ?"
+        args: list[Any] = [family_code]
+        if kind:
+            query += " AND kind = ?"
+            args.append(kind)
+        with self.connect() as conn:
+            row = conn.execute(query + " ORDER BY created_at DESC LIMIT 1", args).fetchone()
+        return dict(row) if row else None
+
+    def runs_since(self, kind: str, since: datetime) -> int:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) AS n FROM agent_runs WHERE kind = ? AND status != 'skipped' AND created_at >= ?",
+                (kind, since.isoformat()),
+            ).fetchone()
+        return int(row["n"])
+
+    def clear_runs(self, conn: sqlite3.Connection, family_code: str) -> None:
+        conn.execute("DELETE FROM agent_runs WHERE family_code = ?", (family_code,))
+
     # -- privacy catches -----------------------------------------------------
     #
     # A catch quotes the message the privacy hook stopped, which means it quotes
@@ -300,6 +360,21 @@ class Database:
                 (family_code, member_id),
             ).fetchall()
         return [{"at": r["at"], **json.loads(r["body"])} for r in rows]
+
+    def secret_rows(self, family_code: str) -> dict[str, dict[str, dict[str, Any]]]:
+        """Every member's reasons, by member and constraint. Only for their own agents."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT member_id, constraint_id, reason, sensitive_terms FROM member_secrets WHERE family_code = ?",
+                (family_code,),
+            ).fetchall()
+        out: dict[str, dict[str, dict[str, Any]]] = {}
+        for r in rows:
+            out.setdefault(r["member_id"], {})[r["constraint_id"]] = {
+                "reason": r["reason"],
+                "sensitive_terms": json.loads(r["sensitive_terms"]),
+            }
+        return out
 
     def all_secret_texts(self, family_code: str) -> dict[str, list[str]]:
         """Every member's reasons and terms. For tests and audits only."""

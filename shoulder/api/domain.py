@@ -326,6 +326,9 @@ def new_state(recipient: dict[str, Any]) -> dict[str, Any]:
         relation = "Someone else"
     return {
         "today": None,
+        # Changes when a family is replaced wholesale (the Rahmans' re-seed), so
+        # an agent run that started before cannot write into the new family.
+        "generation": secrets.token_hex(6),
         "recipient": {
             "name": _clean_text(recipient.get("name"), "their name", 80, required=True),
             "relation": relation,

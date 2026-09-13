@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Store } from "../data/store.js";
 import Face from "./Face.jsx";
 import { BrandMark } from "./ui.jsx";
+import AgentsCard from "./AgentsCard.jsx";
 
 /**
  * Everything the agents did, as a conversation.
@@ -41,7 +42,8 @@ const ACTIONS = {
 };
 
 function groupKey(entry) {
-  if (entry.round && ROUND_KINDS.has(entry.kind)) return `round-${entry.round}`;
+  // Rounds restart in every negotiation, so a round belongs to its run.
+  if (entry.round && ROUND_KINDS.has(entry.kind)) return `round-${entry.run || "seed"}-${entry.round}`;
   if (DECISION_KINDS.has(entry.kind)) return "decision";
   return null;
 }
@@ -103,6 +105,10 @@ export default function AgentActivity() {
           </p>
         </div>
       </header>
+
+      <div className="console-agents">
+        <AgentsCard compact />
+      </div>
 
       <div className="console-body">
         {groups.length === 0 && (
@@ -271,7 +277,10 @@ function RoundGraph({ r, fair, spread }) {
     <div className="graph" role="img" aria-label="How this round went from proposal to verdict">
       <div className="graph-stage">
         {r.opening ? (
-          <Node label="Shoulder drew up" value="An opening split" />
+          <Node
+            label={/current plan/.test(r.opening.summary) ? "Shoulder started from" : "Shoulder drew up"}
+            value={/current plan/.test(r.opening.summary) ? "The family's plan" : "An opening split"}
+          />
         ) : (
           <Node label="Shoulder suggested" value={`${r.moves} move${r.moves === 1 ? "" : "s"}`} />
         )}
