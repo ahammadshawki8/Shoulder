@@ -101,7 +101,8 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
 - **Do not create new summary, status, or report markdown files.** No `SUMMARY.md`,
   `PROGRESS.md`, `NOTES.md`, `IMPLEMENTATION.md` or similar. Update `CLAUDE.md` instead. The only
   markdown files that should exist are `CLAUDE.md`, `TaskDivision.md`, `README.md`, and the
-  license. Add another only if it is genuinely required for the submission.
+  license. Add another only if it is genuinely required for the submission. The submission material
+  the user asked for lives in `submission/` (Devpost story, three blog posts, video script).
 - **No emojis, and no long em dashes, anywhere.** Not in code, comments, commit messages,
   documentation, UI copy, the README, blog posts, or the video script. Use commas, colons,
   parentheses, or a rewritten sentence.
@@ -491,15 +492,15 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 - [x] **Live demo link** (explicitly raises Technical Implementation score): the family app on EC2, see Session 7
 
 ### Tier 9 - Submission
-- [ ] README with problem, architecture, setup, research citations
+- [x] README with problem, architecture, setup, research citations, live link and hosting
 - [x] Architecture diagram exported as an image (`docs/architecture.svg` and `.png`, ELK layout)
 - [ ] `make demo` runs from a clean clone with seeded data
 - [ ] Public repo, MIT license visible in About
 - [ ] AWS Builder ID obtained
-- [ ] Video ≤ 5 min (target 3:30) on YouTube, public - see `## 8. The demo`
-- [ ] **Blog post 1:** "Agents for Humans: Teaching an Agent to Keep a Secret" (A2A privacy boundary)
-- [ ] **Blog post 2:** "Agents for Humans: Fair Division as a Deterministic Tool"
-- [ ] **Blog post 3:** "Agents for Humans: Building an Agent That Refuses to Decide"
+- [ ] Video ≤ 5 min (target 3:30) on YouTube, public - see `## 8. The demo`. Script with shot instructions in `submission/script.md`
+- [ ] **Blog post 1:** "Agents for Humans: Teaching an Agent to Keep a Secret" (A2A privacy boundary). Drafted in `submission/`, not yet published
+- [ ] **Blog post 2:** "Agents for Humans: Fair Division as a Deterministic Tool". Drafted in `submission/`, not yet published
+- [ ] **Blog post 3:** "Agents for Humans: Building an Agent That Refuses to Decide". Drafted in `submission/`, not yet published
 - [ ] Devpost draft submitted **by Sat 13 Sep**
 - [ ] Track confirmed with the user (see `## 2`)
 - [ ] Final submission with hours to spare
@@ -1360,3 +1361,20 @@ Convener. The hosted app runs the deterministic engine and needs no Bedrock acce
   To change a diagram: edit the source, `npm run dev`, open `/diagrams.html`, press Save all, commit.
   `components/Diagram.jsx` fetches the file for the current theme. About now draws in about 150 ms; the
   main script is 240 KB and `dist` 752 KB. `mermaid` is a dev dependency only.
+
+**Submission material written** (`submission/`, at the user's request; no emojis, no long dashes):
+- `devpost-story.md`: opens on Amina in the hospital car park, then Inspiration, What it does, How we
+  built it, Challenges, Accomplishments, What we learned, What's next, and why Shoulder deserves first
+  prize. Cites Raab et al. 2014, AARP 2026, National Partnership for Women and Families, NegotiAge (JAGS),
+  MAGPIE (arXiv 2510.15186), IJCAI 2023, arXiv 2305.02986, AAAI 2024, and the two cross-cultural papers.
+  Two mermaid diagrams. Written to the user's brief: strengths only, skimmable bullets. Every figure in
+  it is one this file records (37 of 37, 14 of 14, 1.0 and 1.0 over 25, 2 0 0 0, 23 to 12 percent,
+  144 tests, 31 gated checks). AgentCore appears only under What's next, because it is not built.
+- `blog-1-teaching-an-agent-to-keep-a-secret.md`, `blog-2-fair-division-as-a-deterministic-tool.md`,
+  `blog-3-building-an-agent-that-refuses-to-decide.md`: the three titles from Tier 9, each with one
+  mermaid diagram, ready to paste into builder.aws.com.
+- `script.md`: a 3 minute 10 second video in eight scenes, each with on-screen instructions and
+  voiceover, a recording setup (including how to restore the Rahmans' cards on the server), and a
+  shot list. It films the live app for every product beat and `web/` only for the round player.
+- **Still to do by a person:** record the video, publish the three posts with "Agents for Humans" in each
+  title, paste the story into Devpost, and confirm the track (section 2).

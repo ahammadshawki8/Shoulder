@@ -312,9 +312,10 @@ precedent.
 | `shoulder/session.py` | One period end to end, with memory: the loop the weekly schedule runs. |
 | `shoulder/store/` | SQLite: the family's session (rotas, cards, decisions, precedents) and each person's own. |
 | `shoulder/api/` | The family app's API: sign-up and login, the per-person privacy projection, and every change, over SQLite. |
-| `app/` | The family app in Vite and React. Renders what the API returns and holds no family data. |
+| `app/` | The family app in Vite and React. Renders what the API returns and holds no family data. Diagram sources are in `app/src/diagrams/`, drawn ahead of time into `app/public/diagrams/`. |
 | `web/` | The storyboard screens: the negotiation and what happens under the hood, reading `fixtures/`. |
 | `Dockerfile`, `deploy/` | The production image and the EC2 deployment. |
+| `submission/` | The Devpost story, the three Agents for Humans blog posts, and the demo video script. |
 | `docs/` | The architecture diagram, exported from the mermaid source in CLAUDE.md. |
 | `shoulder/demos/` | Runnable demonstrations of both hooks. |
 | `shoulder/seed/demo_circle.py` | The demo family. Entirely fictional. |
