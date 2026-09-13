@@ -20,7 +20,7 @@ export default function Inbox({ onNavigate }) {
 
   if (!cards.length && !changes.length) {
     return (
-      <div className="page">
+      <div className="page page-narrow">
         {toast}
         <div className="empty">
           <h2>Nothing needs you</h2>
@@ -41,7 +41,7 @@ export default function Inbox({ onNavigate }) {
   const total = cards.length + toAnswer.length;
 
   return (
-    <div className="page">
+    <div className="page page-narrow">
       {toast}
       <header className="page-head">
         <div>
@@ -218,19 +218,18 @@ function ChangeCard({ change, onDone }) {
         </div>
       </div>
       <dl className="change-diff">
-        {rows.length ? (
-          rows.map(([label, before, after]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>
-                <span className="quiet">{before || "None"}</span> becomes <strong>{after || "None"}</strong>
-              </dd>
-            </div>
-          ))
-        ) : (
+        {rows.map(([label, before, after]) => (
+          <div key={label}>
+            <dt>{label}</dt>
+            <dd>
+              <span className="quiet">{before || "None"}</span> becomes <strong>{after || "None"}</strong>
+            </dd>
+          </div>
+        ))}
+        {(current.avatar || null) !== (next.avatar || null) && (
           <div>
             <dt>Photo</dt>
-            <dd>A new photo</dd>
+            <dd>{next.avatar ? "A new photo" : "Remove the photo"}</dd>
           </div>
         )}
       </dl>

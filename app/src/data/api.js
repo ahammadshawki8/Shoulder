@@ -53,7 +53,8 @@ export const api = {
   family: () => call("GET", "/family"),
 
   updateMe: (fields) => call("PATCH", "/me", fields),
-  toggleDay: (day) => call("POST", "/me/days", { day }),
+  updateLimits: (daysOff, refuses) => call("PUT", "/me/limits", { days_off: daysOff, refuses }),
+  updateAgent: (instructions) => call("PUT", "/me/agent", { instructions }),
   setReason: (constraintId, reason) => call("PUT", `/me/reasons/${enc(constraintId)}`, { reason }),
   privacyCatches: () => call("GET", "/me/privacy"),
   leave: () => call("DELETE", "/me"),

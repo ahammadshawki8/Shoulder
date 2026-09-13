@@ -76,6 +76,7 @@ def view_for(
     state: dict[str, Any],
     viewer_id: str,
     viewer_secrets: dict[str, dict[str, Any]],
+    viewer_instructions: str = "",
 ) -> dict[str, Any]:
     """The whole family, as `viewer_id` may see it."""
     pending = []
@@ -116,4 +117,10 @@ def view_for(
         "ledger": state["ledger"],
         "escalations": escalations,
         "pending_changes": pending,
+        # The viewer's own agent: their instructions and the brief built from
+        # them. Never anyone else's.
+        "my_agent": {
+            "instructions": viewer_instructions,
+            "brief": domain.agent_brief(state, viewer_id, viewer_secrets, viewer_instructions),
+        },
     }

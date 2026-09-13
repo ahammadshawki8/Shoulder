@@ -1,10 +1,37 @@
 import React from "react";
 import { Lock, Scale, Shield } from "../components/Icons.jsx";
+import Diagram from "../components/Diagram.jsx";
+
+const MONTH = `flowchart LR
+  A["Everyone adds what<br/>they can and cannot do"] --> B["Shoulder works out<br/>the fairest split"]
+  B --> C{"Fair enough?"}
+  C -->|Yes| D["The plan appears<br/>in Tasks"]
+  C -->|No| E["One decision<br/>in Needs you"]
+  E --> F["The answer becomes<br/>an agreement"]
+  F -.->|next month| B`;
+
+const PRIVACY = `flowchart LR
+  L["Days and kinds of<br/>work you cannot do"] --> F[("Family record")]
+  R["Your reasons and<br/>agent instructions"] --> T[("Kept apart,<br/>read only for you")]
+  F --> O["What your family sees"]
+  F --> Y["What you see"]
+  T --> Y
+  A["Your agent's messages"] --> H(["Privacy check in code"])
+  H -->|"nothing that gives<br/>a reason away"| O`;
+
+const BUILT = `flowchart LR
+  UI["Family app<br/>in the browser"] -->|"httpOnly cookie"| API["Shoulder server<br/>sessions and one<br/>view per person"]
+  API --> DB[("SQLite")]
+  API --> ENG["Fairness engine<br/>no language model"]
+  CON["Convener<br/>Strands graph"] --> ENG
+  CON <-->|A2A| PA["One agent per person<br/>with privacy hook"]
+  CON --> BR["Amazon Bedrock"]
+  PA --> BR`;
 
 /** What Shoulder is for, how it works, and what it will never do. */
 export default function About() {
   return (
-    <div className="page">
+    <div className="page page-narrow about">
       <header className="page-head">
         <div>
           <h1>About Shoulder</h1>
@@ -12,17 +39,17 @@ export default function About() {
         </div>
       </header>
 
-      <section className="section">
+      <section className="about-intro">
         <div className="prose">
           <p className="prose-lede">
-            In three out of four families, when a parent starts needing care, one adult child ends up doing
-            almost all of it. Not because anyone decided that, but because the conversation that would
-            share it out is the hardest one a family has.
+            In three out of four families, when a parent starts needing care, one adult child ends up doing almost
+            all of it. Not because anyone decided that, but because the conversation that would share it out is the
+            hardest one a family has.
           </p>
           <p>
-            Most caregiving apps are shared to-do lists. They can show that one person is doing more. They
-            cannot change it, because changing it means negotiating between people who each have limits
-            they may not want to explain.
+            Most caregiving apps are shared to-do lists. They can show that one person is doing more. They cannot
+            change it, because changing it means negotiating between people who each have limits they may not want
+            to explain.
           </p>
         </div>
         <div className="figures">
@@ -43,15 +70,18 @@ export default function About() {
 
       <section className="section">
         <div className="section-head">
-          <h2>How it works</h2>
+          <div>
+            <h2>How a month gets shared</h2>
+            <p>The same four steps every month. The family is asked only at one of them.</p>
+          </div>
         </div>
         <ol className="steps">
           <li>
             <div>
               <h3>Everyone adds themselves</h3>
               <p>
-                Each person says how much they can take on, which days and kinds of work they cannot do, and
-                why, if there is a reason they would rather not say out loud.
+                How much they can take on, which days and kinds of work they cannot do, and why, if there is a
+                reason they would rather not say out loud.
               </p>
             </div>
           </li>
@@ -59,32 +89,33 @@ export default function About() {
             <div>
               <h3>Shoulder works out the split</h3>
               <p>
-                Every task goes to the person with the most room once everyone's limits are respected,
-                weighed by how long it takes, how heavy it is, and how far away they live.
+                Each task goes to the person with the most room once limits are respected, weighed by how long
+                and heavy it is and how far away they live.
               </p>
             </div>
           </li>
           <li>
             <div>
               <h3>It asks only when it has to</h3>
-              <p>
-                If the limits leave no fair split, it does not choose. It shows the family the real options
-                and exactly what each one would change.
-              </p>
+              <p>If the limits leave no fair split, it shows the family the real options and what each would change.</p>
             </div>
           </li>
           <li>
             <div>
-              <h3>Your answer becomes an agreement</h3>
+              <h3>The answer becomes an agreement</h3>
               <p>What the family decides is followed from then on, and always says who decided it and when.</p>
             </div>
           </li>
         </ol>
+        <Diagram source={MONTH} label="How a month gets shared, and where the family is asked." />
       </section>
 
       <section className="section">
         <div className="section-head">
-          <h2>What it will never do</h2>
+          <div>
+            <h2>What it will never do</h2>
+            <p>Three promises, each kept in code rather than in a policy.</p>
+          </div>
         </div>
         <div className="promises">
           <div className="promise">
@@ -93,9 +124,8 @@ export default function About() {
             </span>
             <h3>Share your reasons</h3>
             <p>
-              Your family sees which days and kinds of work you cannot do, never why. The server removes
-              reasons before anything reaches them, and a check in code blocks any message that would give
-              one away.
+              Your family sees which days and kinds of work you cannot do, never why. Reasons live apart from the
+              family record, and a check in code blocks any agent message that would give one away.
             </p>
           </div>
           <div className="promise">
@@ -104,8 +134,8 @@ export default function About() {
             </span>
             <h3>Guess at what is fair</h3>
             <p>
-              Fairness is calculated the same way every time, measured against what each person said they can
-              carry. No language model decides it.
+              Fairness is calculated the same way every time, measured against what each person said they can carry.
+              No language model decides it.
             </p>
           </div>
           <div className="promise">
@@ -114,11 +144,22 @@ export default function About() {
             </span>
             <h3>Decide for the family</h3>
             <p>
-              It handles the routine work. Spending money, dropping care, or asking someone to do more than they
-              said they can is always the family's choice.
+              It handles the routine work. Spending money, dropping care, or asking someone to do more than they said
+              they can is always the family's choice.
             </p>
           </div>
         </div>
+        <Diagram source={PRIVACY} label="Where what you tell Shoulder goes, and what reaches your family." />
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <div>
+            <h2>How it is built</h2>
+            <p>The family app and the agent negotiation share one fairness engine.</p>
+          </div>
+        </div>
+        <Diagram source={BUILT} label="The family app, its server, and the Strands Agents negotiation." />
       </section>
 
       <section className="section">

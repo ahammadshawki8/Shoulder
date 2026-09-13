@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { RELATIONS, Store } from "../data/store.js";
 import ProfileFields, { EMPTY_PROFILE, toProfile } from "../components/ProfileFields.jsx";
 import { Brand, ErrorLine, ThemeToggle } from "../components/ui.jsx";
-import { Check, ChevronRight, Copy } from "../components/Icons.jsx";
+import { Check, ChevronRight, Copy, Key, Lock, Plus, Scale } from "../components/Icons.jsx";
 
 /**
  * Getting into a family.
@@ -60,9 +60,9 @@ export default function Auth({ theme, onToggleTheme }) {
   if (step === "codes") body = <Codes codes={codes} />;
 
   return (
-    <div className="auth">
+    <div className={`auth ${step === "landing" ? "is-landing" : ""}`}>
       <div className="auth-top">
-        <Brand />
+        <Brand onClick={() => go("landing")} label="Shoulder, back to the start" />
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
       </div>
       <main className="auth-body">{body}</main>
@@ -74,32 +74,123 @@ export default function Auth({ theme, onToggleTheme }) {
 
 function Landing({ onJoin, onCreate }) {
   return (
-    <>
-      <div className="auth-lede">
-        <h1>Share the care of a parent, fairly.</h1>
-        <p>
-          Each of you tells Shoulder what you can and cannot do. It works out a fair split of the
-          month, and only asks the family when it cannot.
+    <div className="landing">
+      <div className="landing-copy">
+        <h1>Nobody should carry the care of a parent alone.</h1>
+        <p className="landing-lede">
+          Each of you tells Shoulder what you can and cannot do. It works out a fair split of the month,
+          keeps your reasons to itself, and only asks the family when it has to.
+        </p>
+
+        <div className="choices">
+          <button type="button" className="choice" onClick={onJoin}>
+            <span className="choice-icon" aria-hidden="true">
+              <Key size={20} />
+            </span>
+            <span className="choice-text">
+              <strong>Join an existing family</strong>
+              <span>You have a family code from a sibling, or you are logging back in.</span>
+            </span>
+            <ChevronRight size={20} />
+          </button>
+          <button type="button" className="choice is-primary" onClick={onCreate}>
+            <span className="choice-icon" aria-hidden="true">
+              <Plus size={20} />
+            </span>
+            <span className="choice-text">
+              <strong>Create your own family</strong>
+              <span>Set up a family for the person you care for, and get a code to share.</span>
+            </span>
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
+        <p className="landing-demo">
+          Looking around? Join with family code <strong>rahman</strong> and member ID <strong>farah</strong>.
         </p>
       </div>
 
-      <div className="choices">
-        <button type="button" className="choice" onClick={onJoin}>
-          <div>
-            <strong>Join an existing family</strong>
-            <span>You have a family code from a sibling, or you are logging back in.</span>
-          </div>
-          <ChevronRight size={20} />
-        </button>
-        <button type="button" className="choice" onClick={onCreate}>
-          <div>
-            <strong>Create your own family</strong>
-            <span>Set up a family for the person you care for, and get a code to share.</span>
-          </div>
-          <ChevronRight size={20} />
-        </button>
+      <LandingPreview />
+
+      <ul className="landing-facts">
+        <li>
+          <strong>3 in 4</strong>
+          <span>families where one adult child ends up doing the caring</span>
+        </li>
+        <li>
+          <strong>Measured, not guessed</strong>
+          <span>the split is calculated against what each person can carry</span>
+        </li>
+        <li>
+          <strong>Your reasons stay yours</strong>
+          <span>your family sees which days you cannot do, never why</span>
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+// The Rahmans' real numbers from the seeded family: 23 percent apart before the
+// family's one decision, 12 percent after it.
+const PREVIEW = [
+  { name: "Amina", color: "#3B6E94", before: 44, after: 38 },
+  { name: "Rian", color: "#BF5D30", before: 31, after: 31 },
+  { name: "Farah", color: "#1B6B73", before: 25, after: 30 },
+];
+
+function LandingPreview() {
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(true), 900);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <figure className="preview" aria-label="An example of how Shoulder shares a month of care">
+      <div className="preview-head">
+        <span>The Rahmans, caring for Nasrin</span>
+        <span className={`preview-status ${settled ? "is-even" : "is-uneven"}`}>
+          {settled ? "12% apart, fair" : "23% apart"}
+        </span>
       </div>
-    </>
+      <p className="preview-title">
+        {settled ? "The care is shared fairly." : "Amina is carrying 46 percent more than Farah."}
+      </p>
+      <div className="fair-bar preview-bar" aria-hidden="true">
+        {PREVIEW.map((p) => (
+          <span
+            key={p.name}
+            className="fair-bar-part"
+            style={{ flexBasis: `${settled ? p.after : p.before}%`, background: p.color }}
+          />
+        ))}
+      </div>
+      <ul className="preview-people">
+        {PREVIEW.map((p) => (
+          <li key={p.name}>
+            <span className="preview-face" style={{ background: p.color }}>
+              {p.name[0]}
+            </span>
+            <span>
+              <strong>{p.name}</strong>
+              <small>{settled ? p.after : p.before}% of the load</small>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="preview-note">
+        <Lock size={15} />
+        <span>Farah cannot do Fridays or Saturdays. Her family never learns why.</span>
+      </div>
+      <div className={`preview-note ${settled ? "is-ok" : ""}`}>
+        <Scale size={15} />
+        <span>
+          {settled
+            ? "The family chose paid help for two tasks. Shoulder follows that from now on."
+            : "Shoulder could not close the gap alone, so it asks the family once."}
+        </span>
+      </div>
+    </figure>
   );
 }
 

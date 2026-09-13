@@ -13,6 +13,9 @@ from fastapi.testclient import TestClient
 from shoulder.api.app import COOKIE, create_app
 
 
+WEEKDAYS_ALL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+
 def _client(tmp_path) -> TestClient:
     app = create_app(db_path=str(tmp_path / "test.db"), reseed_demo=True)
     return TestClient(app)
@@ -169,10 +172,14 @@ def _every_response(client) -> list[str]:
     task = view["tasks"][-1]
     me = view["me"]
     other = next((m["id"] for m in view["members"] if m["id"] != me), me)
+    mine = next(m for m in view["members"] if m["id"] == me)
+    own_days = sorted({d for c in mine["constraints"] for d in c["blocks_weekdays"]})
+    own_types = sorted({t for c in mine["constraints"] for t in c["blocks_task_types"]})
     for method, path, body in [
         ("patch", "/api/me", {"name": view["members"][0]["name"]}),
-        ("post", "/api/me/days", {"day": "Sun"}),
-        ("post", "/api/me/days", {"day": "Sun"}),
+        ("put", "/api/me/limits", {"days_off": [*own_days, "Sun"], "refuses": own_types}),
+        ("put", "/api/me/limits", {"days_off": own_days, "refuses": own_types}),
+        ("put", "/api/me/agent", {"instructions": "Be brief."}),
         ("put", f"/api/tasks/{task['id']}/note", {"text": "Brought her the paper."}),
         ("post", f"/api/tasks/{task['id']}/complete", {"note": ""}),
         ("post", f"/api/tasks/{task['id']}/complete", {"note": ""}),
@@ -188,6 +195,8 @@ def _every_response(client) -> list[str]:
 def test_no_response_ever_carries_someone_elses_reason(client, viewer):
     secrets = _secret_texts(client, "rahman")
     assert secrets["farah"], "the seed must hold Farah's private reasons"
+    for owner, text in client.app.state.db.all_instructions("rahman").items():
+        secrets.setdefault(owner, []).append(text)
     client.post("/api/session", json={"family_code": "rahman", "member_id": viewer})
     for body in _every_response(client):
         lowered = body.lower()
@@ -244,6 +253,79 @@ def test_editing_a_reason_stays_private(client):
     client.cookies.clear()
     client.post(f"/api/families/{code}/members", json=_profile("Alex"))
     assert "hospice" not in client.get("/api/family").text
+
+
+def test_a_member_sees_their_own_agent_brief_with_their_reason(client):
+    client.post("/api/session", json={"family_code": "rahman", "member_id": "farah"})
+    agent = client.get("/api/family").json()["my_agent"]
+    assert "never apologise" in agent["instructions"]
+    assert "Chemotherapy" in agent["brief"] and "never apologise" in agent["brief"]
+    assert "Nasrin" in agent["brief"]
+
+
+def test_agent_instructions_are_saved_and_kept_from_the_family(client):
+    code = _create(client)["family_code"]
+    view = client.put("/api/me/agent", json={"instructions": "Say no to anything after 9pm."}).json()
+    assert view["my_agent"]["instructions"] == "Say no to anything after 9pm."
+    assert "after 9pm" in view["my_agent"]["brief"]
+    client.cookies.clear()
+    client.post(f"/api/families/{code}/members", json=_profile("Alex"))
+    assert "after 9pm" not in client.get("/api/family").text
+    too_long = client.put("/api/me/agent", json={"instructions": "x" * 2001})
+    assert too_long.status_code == 400
+
+
+# -- changing your limits ------------------------------------------------------
+
+
+def _mine(view):
+    return next(m for m in view["members"] if m["is_me"])
+
+
+def test_every_limit_set_at_sign_up_can_be_changed(client):
+    _create(client, me=_profile("Sam", days_off=["Mon", "Tue"], refuses=["night"]))
+    view = client.put("/api/me/limits", json={"days_off": ["Tue", "Sun"], "refuses": ["transport"]}).json()
+    constraints = _mine(view)["constraints"]
+    assert sorted({d for c in constraints for d in c["blocks_weekdays"]}) == ["Sun", "Tue"]
+    assert {t for c in constraints for t in c["blocks_task_types"]} == {"transport"}
+    assert "Sunday" in constraints[0]["summary"] and "driving" in constraints[0]["summary"]
+
+
+def test_clearing_every_limit_removes_it_and_its_reason(client):
+    _create(client, me=_profile("Sam", days_off=["Mon"], private_reason="Dialysis on Mondays"))
+    view = client.put("/api/me/limits", json={"days_off": [], "refuses": []}).json()
+    assert _mine(view)["constraints"] == []
+    assert not any(_secret_texts(client, view["family_code"]).values())
+
+
+def test_trimming_a_private_limit_keeps_it_private(client):
+    client.post("/api/session", json={"family_code": "rahman", "member_id": "farah"})
+    view = client.put("/api/me/limits", json={"days_off": ["Sat"], "refuses": ["night"]}).json()
+    treatment = next(c for c in _mine(view)["constraints"] if c["id"] == "farah-treatment")
+    assert treatment["blocks_weekdays"] == ["Sat"] and treatment["tier"] == "private"
+    assert "Chemotherapy" in treatment["reason"]
+    client.post("/api/session", json={"family_code": "rahman", "member_id": "amina"})
+    assert "Chemotherapy" not in client.get("/api/family").text
+
+
+def test_changing_limits_deals_the_work_out_again(client):
+    client.post("/api/session", json={"family_code": "rahman", "member_id": "amina"})
+    before = client.get("/api/family").json()
+    view = client.put("/api/me/limits", json={"days_off": WEEKDAYS_ALL, "refuses": []}).json()
+    open_amina = [
+        t for t, who in view["assignments"].items()
+        if who == "amina" and t not in view["completed"]
+    ]
+    assert open_amina == []
+    assert view["ledger"][0]["summary"] != before["ledger"][0]["summary"]
+
+
+def test_recipient_photo_can_be_removed(client):
+    _create(client)
+    client.post("/api/recipient/changes", json={"name": "Mary Lee", "avatar": "data:image/png;base64,AAAA"})
+    assert client.get("/api/family").json()["recipient"]["avatar"]
+    client.post("/api/recipient/changes", json={"name": "Mary Lee", "clear_avatar": True})
+    assert client.get("/api/family").json()["recipient"]["avatar"] is None
 
 
 # -- tasks and decisions -------------------------------------------------------

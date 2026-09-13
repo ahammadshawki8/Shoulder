@@ -20,11 +20,16 @@ export default function Tasks({ onNavigate, onAdd }) {
   const covered = Store.covered();
   const fairness = Store.fairness();
   const waiting = Store.needsMeCount();
+  const precedents = Store.precedents();
 
   const mine = tasks.filter((t) => !covered[t.id] && assignments[t.id] === meId);
   const myOpen = mine.filter((t) => !Store.isDone(t.id));
+  const familyOpen = tasks.filter((t) => !covered[t.id] && !Store.isDone(t.id));
+  const familyDone = tasks.filter((t) => Store.isDone(t.id)).length;
+  const unassigned = fairness.unassigned?.length || 0;
   const shown = scope === "mine" ? mine : tasks;
   const upNext = myOpen.find((t) => t.onDate >= today) || null;
+  const anythingShared = fairness.burdens.some((b) => b.task_count > 0);
 
   const [earlier, ahead] = useMemo(() => {
     const group = (list) => {
@@ -59,18 +64,21 @@ export default function Tasks({ onNavigate, onAdd }) {
           <h1>Tasks</h1>
           <p>
             {myOpen.length === 0
-              ? "Nothing left for you this month."
-              : `${myOpen.length} left for you this month.`}
+              ? `Nothing left for you this month. ${familyOpen.length} open across the family.`
+              : `${myOpen.length} left for you this month, ${familyOpen.length} across the family.`}
           </p>
         </div>
       </header>
 
       <section className="fair" aria-labelledby="fair-title">
         <div className="fair-status">
-          <h2 id="fair-title">{fairness.burdens.some((b) => b.task_count) ? fairness.headline : "How the care is shared"}</h2>
-          <span className={`fair-spread ${fairness.proportional ? "is-even" : "is-uneven"}`}>
-            {spreadLabel(fairness)}
-          </span>
+          <div>
+            <p className="fair-kicker">How the care of {Store.recipient().name} is shared</p>
+            <h2 id="fair-title">{anythingShared ? fairness.headline : "Nothing is shared out yet"}</h2>
+          </div>
+          {anythingShared && (
+            <span className={`fair-spread ${fairness.proportional ? "is-even" : "is-uneven"}`}>{spreadLabel(fairness)}</span>
+          )}
         </div>
         <FairnessBar burdens={fairness.burdens} />
         <ul className="fair-legend">
@@ -79,6 +87,7 @@ export default function Tasks({ onNavigate, onAdd }) {
             return (
               <li key={b.principal_id}>
                 <i className="fair-dot" style={{ background: person?.color }} />
+                <Face person={person} size={32} />
                 <div>
                   <strong>
                     {person?.shortName}
@@ -105,101 +114,149 @@ export default function Tasks({ onNavigate, onAdd }) {
         </ul>
       </section>
 
-      <div className="glance">
-        {upNext ? (
-          <button type="button" className="glance-item" onClick={() => setOpenTask(upNext.id)}>
-            <TaskGlyph type={upNext.type} />
-            <span className="glance-text">
-              <small>Your next task, {friendlyDate(upNext.onDate).toLowerCase()}</small>
-              <strong>{upNext.title}</strong>
-            </span>
-            <ChevronRight size={18} />
-          </button>
-        ) : (
-          <button type="button" className="glance-item" onClick={onAdd}>
-            <span className="glyph">
-              <Plus size={16} />
-            </span>
-            <span className="glance-text">
-              <small>Nothing coming up for you</small>
-              <strong>Add a task</strong>
-            </span>
-            <ChevronRight size={18} />
-          </button>
-        )}
+      <div className="tasks-layout">
+        <div className="tasks-main">
+          <div className="list-toolbar">
+            <div className="segmented" role="group" aria-label="Whose tasks">
+              <button type="button" aria-pressed={scope === "mine"} onClick={() => setScope("mine")}>
+                Mine
+              </button>
+              <button type="button" aria-pressed={scope === "all"} onClick={() => setScope("all")}>
+                Everyone
+              </button>
+            </div>
+            <div className="segmented" role="group" aria-label="Layout">
+              <button type="button" aria-pressed={layout === "list"} onClick={() => setLayout("list")}>
+                <List size={15} /> List
+              </button>
+              <button type="button" aria-pressed={layout === "calendar"} onClick={() => setLayout("calendar")}>
+                <Calendar size={15} /> Calendar
+              </button>
+            </div>
+          </div>
 
-        <button
-          type="button"
-          className={`glance-item ${waiting ? "is-alert" : ""}`}
-          onClick={() => onNavigate("inbox")}
-        >
-          <span className="glyph">
-            <Bell size={16} />
-          </span>
-          <span className="glance-text">
-            <small>{waiting ? "Waiting on you" : "Decisions"}</small>
-            <strong>
-              {waiting ? `${waiting} decision${waiting === 1 ? "" : "s"} to make` : "Nothing needs you"}
-            </strong>
-          </span>
-          <ChevronRight size={18} />
-        </button>
-      </div>
-
-      <div className="list-toolbar">
-        <div className="segmented" role="group" aria-label="Whose tasks">
-          <button type="button" aria-pressed={scope === "mine"} onClick={() => setScope("mine")}>
-            Mine
-          </button>
-          <button type="button" aria-pressed={scope === "all"} onClick={() => setScope("all")}>
-            Everyone
-          </button>
+          {layout === "calendar" ? (
+            <MonthCalendar tasks={shown} onOpen={setOpenTask} />
+          ) : (
+            <>
+              {earlierCount > 0 && (
+                <button type="button" className="link toggle-earlier" onClick={() => setShowEarlier(!showEarlier)}>
+                  {showEarlier ? "Hide" : "Show"} {earlierCount} earlier this month
+                </button>
+              )}
+              {showEarlier &&
+                earlier.map(([day, items]) => (
+                  <DayGroup key={day} day={day} items={items} scope={scope} onOpen={setOpenTask} onToggle={toggle} />
+                ))}
+              {ahead.length === 0 ? (
+                <div className="empty">
+                  <h2>{tasks.length ? "Nothing coming up" : "No tasks yet"}</h2>
+                  <p>
+                    {tasks.length
+                      ? scope === "mine"
+                        ? "Nothing ahead is yours. Switch to Everyone to see the whole family's plan."
+                        : "Everything this month is behind you."
+                      : "Add what needs doing, and Shoulder works out who has room for it."}
+                  </p>
+                  <div className="empty-actions">
+                    <button type="button" className="btn btn-primary" onClick={onAdd}>
+                      <Plus size={16} /> Add a task
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                ahead.map(([day, items]) => (
+                  <DayGroup key={day} day={day} items={items} scope={scope} onOpen={setOpenTask} onToggle={toggle} />
+                ))
+              )}
+            </>
+          )}
         </div>
-        <div className="segmented" role="group" aria-label="Layout">
-          <button type="button" aria-pressed={layout === "list"} onClick={() => setLayout("list")}>
-            <List size={15} /> List
-          </button>
-          <button type="button" aria-pressed={layout === "calendar"} onClick={() => setLayout("calendar")}>
-            <Calendar size={15} /> Calendar
-          </button>
-        </div>
-      </div>
 
-      {layout === "calendar" ? (
-        <MonthCalendar tasks={shown} onOpen={setOpenTask} />
-      ) : (
-        <>
-          {earlierCount > 0 && (
-            <button type="button" className="link toggle-earlier" onClick={() => setShowEarlier(!showEarlier)}>
-              {showEarlier ? "Hide" : "Show"} {earlierCount} earlier this month
+        <aside className="tasks-side" aria-label="This month at a glance">
+          {upNext ? (
+            <button type="button" className="glance-item" onClick={() => setOpenTask(upNext.id)}>
+              <TaskGlyph type={upNext.type} />
+              <span className="glance-text">
+                <small>Your next task, {friendlyDate(upNext.onDate).toLowerCase()}</small>
+                <strong>{upNext.title}</strong>
+              </span>
+              <ChevronRight size={18} />
+            </button>
+          ) : (
+            <button type="button" className="glance-item" onClick={onAdd}>
+              <span className="glyph">
+                <Plus size={16} />
+              </span>
+              <span className="glance-text">
+                <small>Nothing coming up for you</small>
+                <strong>Add a task</strong>
+              </span>
+              <ChevronRight size={18} />
             </button>
           )}
-          {showEarlier && earlier.map(([day, items]) => (
-            <DayGroup key={day} day={day} items={items} scope={scope} onOpen={setOpenTask} onToggle={toggle} />
-          ))}
-          {ahead.length === 0 ? (
-            <div className="empty">
-              <h2>{tasks.length ? "Nothing coming up" : "No tasks yet"}</h2>
-              <p>
-                {tasks.length
-                  ? scope === "mine"
-                    ? "Nothing ahead is yours. Switch to Everyone to see the whole family's plan."
-                    : "Everything this month is behind you."
-                  : "Add what needs doing, and Shoulder works out who has room for it."}
-              </p>
-              <div className="empty-actions">
-                <button type="button" className="btn btn-primary" onClick={onAdd}>
-                  <Plus size={16} /> Add a task
-                </button>
+
+          <button type="button" className={`glance-item ${waiting ? "is-alert" : ""}`} onClick={() => onNavigate("inbox")}>
+            <span className="glyph">
+              <Bell size={16} />
+            </span>
+            <span className="glance-text">
+              <small>{waiting ? "Waiting on you" : "Decisions"}</small>
+              <strong>{waiting ? `${waiting} decision${waiting === 1 ? "" : "s"} to make` : "Nothing needs you"}</strong>
+            </span>
+            <ChevronRight size={18} />
+          </button>
+
+          <section className="side-card" aria-labelledby="month-title">
+            <h3 id="month-title">This month</h3>
+            <dl className="side-stats">
+              <div>
+                <dt>Your tasks done</dt>
+                <dd>
+                  {mine.length - myOpen.length} of {mine.length}
+                </dd>
               </div>
+              <div>
+                <dt>Family tasks done</dt>
+                <dd>
+                  {familyDone} of {tasks.length}
+                </dd>
+              </div>
+              <div>
+                <dt>Covered by paid help</dt>
+                <dd>{fairness.paid_count}</dd>
+              </div>
+              <div>
+                <dt>Nobody can take yet</dt>
+                <dd className={unassigned ? "is-warn" : undefined}>{unassigned}</dd>
+              </div>
+            </dl>
+          </section>
+
+          <section className="side-card" aria-labelledby="agreed-title">
+            <div className="side-card-head">
+              <h3 id="agreed-title">Agreed</h3>
+              {precedents.length > 0 && (
+                <a href="#/agreed" className="link">
+                  See all
+                </a>
+              )}
             </div>
-          ) : (
-            ahead.map(([day, items]) => (
-              <DayGroup key={day} day={day} items={items} scope={scope} onOpen={setOpenTask} onToggle={toggle} />
-            ))
-          )}
-        </>
-      )}
+            {precedents.length ? (
+              <ul className="side-list">
+                {precedents.slice(0, 2).map((p) => (
+                  <li key={p.id}>
+                    <p>{p.text}</p>
+                    <small>{p.provenance}</small>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="side-empty">Nothing yet. When the family answers a decision, Shoulder follows it from then on.</p>
+            )}
+          </section>
+        </aside>
+      </div>
 
       {openTask && <TaskDrawer taskId={openTask} onClose={() => setOpenTask(null)} />}
     </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { DISTANCES, RELATIONS, Store, TYPE_META, WEEKDAYS } from "../data/store.js";
+import { DAY_NAMES, DISTANCES, REFUSABLE, RELATIONS, Store, TYPE_META, WEEKDAYS } from "../data/store.js";
 import { Check, Copy, Lock } from "../components/Icons.jsx";
 import Face from "../components/Face.jsx";
 import { ErrorLine, Modal, ThemeToggle, useStore, useToast } from "../components/ui.jsx";
@@ -16,12 +16,12 @@ export default function ControlPanel({ theme, onToggleTheme }) {
   const [toast, say] = useToast();
 
   return (
-    <div className="page">
+    <div className="page page-narrow">
       {toast}
       <header className="page-head">
         <div>
           <h1>Control Panel</h1>
-          <p>Your limits, your family, and everything Shoulder did without asking.</p>
+          <p>Your settings, your family, and everything Shoulder did without asking.</p>
         </div>
         <div className="page-head-actions">
           <ThemeToggle theme={theme} onToggle={onToggleTheme} />
@@ -54,7 +54,23 @@ export default function ControlPanel({ theme, onToggleTheme }) {
   );
 }
 
-// -- you ------------------------------------------------------------------------------
+// -- helpers ----------------------------------------------------------------------------
+
+function readPhoto(event, onLoad, onError) {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  if (file.size > 1_000_000) {
+    onError("That photo is too large. Please use one under 1 MB.");
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => onLoad(reader.result);
+  reader.readAsDataURL(file);
+}
+
+const sameSet = (a, b) => a.length === b.length && a.every((x) => b.includes(x));
+const flip = (list, value) => (list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
 
 function CopyValue({ label, value }) {
   const [copied, setCopied] = useState(false);
@@ -64,9 +80,7 @@ function CopyValue({ label, value }) {
         <span className="code-label">{label}</span>
       </div>
       <div className="code-row">
-        <span className="code-value" style={{ fontSize: "var(--t-lg)" }}>
-          {value}
-        </span>
+        <span className="code-value">{value}</span>
         <button
           type="button"
           className="btn btn-secondary btn-sm"
@@ -89,12 +103,13 @@ function CopyValue({ label, value }) {
   );
 }
 
+// -- you ------------------------------------------------------------------------------
+
 function YouTab({ say }) {
   const meId = Store.meId();
   const me = Store.me();
   const person = Store.person(meId);
   const shared = Store.shared(meId);
-  const fixed = Store.fixedDays(meId);
   const privateLimits = me.constraints.filter((c) => c.tier === "private");
 
   const [name, setName] = useState(me.name);
@@ -121,17 +136,8 @@ function YouTab({ say }) {
     }
   };
 
-  const onPhoto = (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (file.size > 1_000_000) {
-      setError("That photo is too large. Please use one under 1 MB.");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => save({ avatar: reader.result }, "Photo updated");
-    reader.readAsDataURL(file);
+  const saveCapacity = () => {
+    if (capacity / 100 !== me.capacity) save({ capacity: capacity / 100 }, "Capacity saved, split worked out again");
   };
 
   const distanceValue = DISTANCES.some((d) => d.value === me.distance_km) ? me.distance_km : "custom";
@@ -143,7 +149,7 @@ function YouTab({ say }) {
           <h2>Your codes</h2>
           <p>You need both to log in on another device. Share only the family code.</p>
         </header>
-        <div className="stack">
+        <div className="codes-pair">
           <CopyValue label="Family code" value={Store.familyCode()} />
           <CopyValue label="Member ID" value={meId} />
         </div>
@@ -159,10 +165,20 @@ function YouTab({ say }) {
             <Face person={person} size={56} />
             <label className="btn btn-secondary btn-sm">
               Change photo
-              <input type="file" accept="image/*" className="sr-only" onChange={onPhoto} />
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => readPhoto(e, (avatar) => save({ avatar }, "Photo updated"), setError)}
+              />
             </label>
             {me.avatar && (
-              <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => save({ clear_avatar: true }, "Photo removed")}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={busy}
+                onClick={() => save({ clear_avatar: true }, "Photo removed")}
+              >
                 Remove
               </button>
             )}
@@ -196,12 +212,13 @@ function YouTab({ say }) {
                 step="5"
                 value={capacity}
                 onChange={(e) => setCapacity(Number(e.target.value))}
-                onMouseUp={() => capacity / 100 !== me.capacity && save({ capacity: capacity / 100 }, "Capacity saved, split worked out again")}
-                onTouchEnd={() => capacity / 100 !== me.capacity && save({ capacity: capacity / 100 }, "Capacity saved, split worked out again")}
-                onKeyUp={() => capacity / 100 !== me.capacity && save({ capacity: capacity / 100 }, "Capacity saved, split worked out again")}
+                onMouseUp={saveCapacity}
+                onTouchEnd={saveCapacity}
+                onKeyUp={saveCapacity}
               />
               <span className="range-value">{capacity}%</span>
             </div>
+            <span className="field-hint">Your share of the load is measured against this, not split evenly.</span>
           </div>
 
           <div className="field">
@@ -229,10 +246,10 @@ function YouTab({ say }) {
 
       <section className="settings-grid">
         <header>
-          <h2>Days you cannot do</h2>
-          <p>Greyed days came from a limit you set when you joined and stay fixed.</p>
+          <h2>What you cannot do</h2>
+          <p>The days and kinds of work you cannot take. Saving deals the open work out again.</p>
         </header>
-        <DayToggles meId={meId} fixed={fixed} say={say} />
+        <LimitsEditor meId={meId} say={say} />
       </section>
 
       <section className="settings-grid">
@@ -241,13 +258,20 @@ function YouTab({ say }) {
           <p>Never shown to your family. The limit still counts; only you see why.</p>
         </header>
         <div className="stack">
-          {me.constraints.length === 0 && <p className="muted">You have not set any limits.</p>}
-          {me.constraints
-            .filter((c) => c.id !== `${meId}-personal`)
-            .map((c) => (
-              <ReasonEditor key={c.id} constraint={c} say={say} />
-            ))}
+          {me.constraints.length === 0 ? (
+            <p className="muted">Add a day or a kind of work you cannot do, then you can say why here.</p>
+          ) : (
+            me.constraints.map((c) => <ReasonEditor key={c.id} constraint={c} say={say} />)
+          )}
         </div>
+      </section>
+
+      <section className="settings-grid">
+        <header>
+          <h2>Your agent</h2>
+          <p>Shoulder's agent speaks for you when the plan is negotiated. Tell it how you want that done.</p>
+        </header>
+        <AgentEditor say={say} />
       </section>
 
       <section className="settings-grid">
@@ -262,11 +286,13 @@ function YouTab({ say }) {
             <dt>Lives</dt>
             <dd>{DISTANCES.find((d) => d.value === shared.distanceKm)?.label || `${shared.distanceKm} km away`}</dd>
             <dt>Cannot do</dt>
-            <dd>{shared.days.length ? shared.days.join(", ") : "Any day is fine"}</dd>
+            <dd>{shared.days.length ? shared.days.map((d) => DAY_NAMES[d]).join(", ") : "Any day is fine"}</dd>
             <dt>Does not take</dt>
             <dd>{shared.refuses.length ? shared.refuses.map((t) => TYPE_META[t]?.label || t).join(", ") : "Any kind of work"}</dd>
             <dt>Private reasons</dt>
             <dd>{privateLimits.some((c) => c.reason) ? "Held back from everyone" : "None"}</dd>
+            <dt>Your agent</dt>
+            <dd>{Store.myAgent().instructions ? "Its instructions are held back from everyone" : "No instructions"}</dd>
           </dl>
           <PrivacyCatch />
         </div>
@@ -284,9 +310,6 @@ function YouTab({ say }) {
           <button type="button" className="btn btn-danger" onClick={() => setLeaving(true)}>
             Leave family
           </button>
-          <a href="#/about" className="link">
-            About Shoulder
-          </a>
         </div>
       </section>
 
@@ -295,17 +318,32 @@ function YouTab({ say }) {
   );
 }
 
-function DayToggles({ meId, fixed, say }) {
+function LimitsEditor({ meId, say }) {
+  const shared = Store.shared(meId);
+  const savedDays = shared.days.join();
+  const savedRefuses = shared.refuses.join();
+  const [days, setDays] = useState(shared.days);
+  const [refuses, setRefuses] = useState(shared.refuses);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const blocked = new Set(Store.shared(meId).days);
 
-  const toggle = async (day) => {
+  useEffect(() => {
+    setDays(savedDays ? savedDays.split(",") : []);
+    setRefuses(savedRefuses ? savedRefuses.split(",") : []);
+  }, [savedDays, savedRefuses]);
+
+  const kinds = [...new Set([...REFUSABLE, ...shared.refuses])];
+  const dirty = !sameSet(days, shared.days) || !sameSet(refuses, shared.refuses);
+
+  const save = async () => {
     setBusy(true);
     setError("");
     try {
-      await Store.toggleDay(day);
-      say("Days saved, split worked out again");
+      await Store.updateLimits(
+        WEEKDAYS.filter((d) => days.includes(d)),
+        refuses
+      );
+      say("Limits saved, split worked out again");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -314,23 +352,133 @@ function DayToggles({ meId, fixed, say }) {
   };
 
   return (
-    <div className="stack">
-      <div className="days">
-        {WEEKDAYS.map((day) => (
+    <div className="form">
+      <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend className="field-label" style={{ marginBottom: "0.45rem" }}>
+          Days you cannot do
+        </legend>
+        <div className="days">
+          {WEEKDAYS.map((day) => (
+            <button
+              type="button"
+              key={day}
+              className="day"
+              aria-pressed={days.includes(day)}
+              aria-label={DAY_NAMES[day]}
+              disabled={busy}
+              onClick={() => setDays(flip(days, day))}
+            >
+              {day}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+        <legend className="field-label" style={{ marginBottom: "0.45rem" }}>
+          Work you cannot take
+        </legend>
+        <div className="chips">
+          {kinds.map((type) => (
+            <button
+              type="button"
+              key={type}
+              className="chip"
+              aria-pressed={refuses.includes(type)}
+              disabled={busy}
+              onClick={() => setRefuses(flip(refuses, type))}
+            >
+              {TYPE_META[type]?.label || type}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      <ErrorLine error={error} />
+      <div className="row-actions">
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy || !dirty} onClick={save}>
+          {busy ? "Saving" : "Save limits"}
+        </button>
+        {dirty && !busy && (
           <button
             type="button"
-            key={day}
-            className="day"
-            aria-pressed={blocked.has(day)}
-            disabled={busy || fixed.has(day)}
-            title={fixed.has(day) ? "Set when you joined" : undefined}
-            onClick={() => toggle(day)}
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              setDays(shared.days);
+              setRefuses(shared.refuses);
+            }}
           >
-            {day}
+            Undo changes
           </button>
-        ))}
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AgentEditor({ say }) {
+  const agent = Store.myAgent();
+  const [text, setText] = useState(agent.instructions);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [showBrief, setShowBrief] = useState(false);
+  const dirty = text.trim() !== agent.instructions.trim();
+
+  useEffect(() => setText(agent.instructions), [agent.instructions]);
+
+  const save = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await Store.updateAgent(text.trim());
+      say(text.trim() ? "Instructions saved" : "Instructions cleared");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="form">
+      <div className="field">
+        <label className="field-label private-label" htmlFor="agent-instructions">
+          <Lock size={14} />
+          Instructions for your agent
+        </label>
+        <textarea
+          id="agent-instructions"
+          className="textarea textarea-tall"
+          value={text}
+          maxLength={2000}
+          placeholder="For example: keep my answers short, and I would rather take extra visits than any driving."
+          onChange={(e) => setText(e.target.value)}
+        />
+        <span className="field-hint">
+          Only you and your agent read these. Put anything you would not want repeated in a private reason
+          instead. {text.length} of 2000 characters.
+        </span>
       </div>
       <ErrorLine error={error} />
+      <div className="row-actions">
+        <button type="button" className="btn btn-primary btn-sm" disabled={busy || !dirty} onClick={save}>
+          {busy ? "Saving" : "Save instructions"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost btn-sm"
+          aria-expanded={showBrief}
+          onClick={() => setShowBrief(!showBrief)}
+        >
+          {showBrief ? "Hide what your agent is told" : "See what your agent is told"}
+        </button>
+      </div>
+      {showBrief && (
+        <div className="brief">
+          <p>Built from your limits, your private reasons and your saved instructions, by the same code the negotiation uses.</p>
+          <pre>{agent.brief}</pre>
+        </div>
+      )}
     </div>
   );
 }
@@ -367,6 +515,7 @@ function ReasonEditor({ constraint, say }) {
         className="textarea"
         value={reason}
         maxLength={1000}
+        placeholder="Why, in your own words. Optional."
         onChange={(e) => setReason(e.target.value)}
       />
       <div className="row-actions">
@@ -473,25 +622,38 @@ function FamilyTab({ say }) {
   const others = Store.members().filter((m) => m.id !== meId).length;
   const mine = Store.pendingChanges().filter((c) => c.initiated_by === meId);
 
-  const [form, setForm] = useState({ name: recipient.name, relation: recipient.relation, note: recipient.note || "" });
+  const blank = () => ({ name: recipient.name, relation: recipient.relation, note: recipient.note || "", avatar: null, clear: false });
+  const [form, setForm] = useState(blank);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setForm({ name: recipient.name, relation: recipient.relation, note: recipient.note || "" });
-  }, [recipient.name, recipient.relation, recipient.note]);
+    setForm(blank());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipient.name, recipient.relation, recipient.note, recipient.avatar]);
 
   const dirty =
     form.name.trim() !== recipient.name ||
     form.relation !== recipient.relation ||
-    form.note.trim() !== (recipient.note || "");
+    form.note.trim() !== (recipient.note || "") ||
+    Boolean(form.avatar) ||
+    form.clear;
+
+  const shownAvatar = form.clear ? null : form.avatar || recipient.avatar;
 
   const submit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
-      await Store.proposeRecipient({ name: form.name.trim(), relation: form.relation, note: form.note.trim() });
+      await Store.proposeRecipient({
+        name: form.name.trim(),
+        relation: form.relation,
+        note: form.note.trim(),
+        avatar: form.avatar || null,
+        clear_avatar: form.clear,
+      });
+      setForm((f) => ({ ...f, avatar: null, clear: false }));
       say(others ? "Sent to the family to agree" : "Details saved");
     } catch (err) {
       setError(err.message);
@@ -505,9 +667,30 @@ function FamilyTab({ say }) {
       <section className="settings-grid">
         <header>
           <h2>The person you care for</h2>
-          <p>{others ? "A change here only happens once everyone in the family agrees." : "You are the only member, so changes apply straight away."}</p>
+          <p>
+            {others
+              ? "Everything set when the family was created. A change only happens once everyone agrees."
+              : "Everything set when the family was created. You are the only member, so changes apply straight away."}
+          </p>
         </header>
         <form className="form" onSubmit={submit}>
+          <div className="photo-row">
+            <Face person={{ avatar: shownAvatar, initials: (form.name || "?").slice(0, 1).toUpperCase(), color: "var(--accent)" }} size={56} />
+            <label className="btn btn-secondary btn-sm">
+              {shownAvatar ? "Change photo" : "Add a photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={(e) => readPhoto(e, (avatar) => setForm({ ...form, avatar, clear: false }), setError)}
+              />
+            </label>
+            {shownAvatar && (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setForm({ ...form, avatar: null, clear: Boolean(recipient.avatar) })}>
+                Remove
+              </button>
+            )}
+          </div>
           <div className="field">
             <label className="field-label" htmlFor="recipient-name-edit">
               Their name
@@ -556,6 +739,11 @@ function FamilyTab({ say }) {
             <button type="submit" className="btn btn-primary" disabled={busy || !dirty || !form.name.trim()}>
               {others ? "Ask the family" : "Save details"}
             </button>
+            {dirty && (
+              <button type="button" className="btn btn-ghost" onClick={() => setForm(blank())}>
+                Undo changes
+              </button>
+            )}
           </div>
         </form>
       </section>

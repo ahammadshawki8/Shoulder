@@ -1229,3 +1229,43 @@ python -m pytest                       132 tests
 - **Next:** Tier 8. `python -m shoulder.api` already serves the app and API from one process, which is
   most of a live demo link; set `SHOULDER_SECURE_COOKIES=1` behind HTTPS and give it a persistent
   `SHOULDER_DB` path. Then the submission material.
+
+### 2026-09-13 - Session 6 continued, settings, layout, landing, diagrams (Shawki)
+
+**Asked:** the brand goes to Tasks and your photo goes to Control Panel; a landing page that stands
+out; no empty right side, with centred, symmetrical layouts; every sign-up setting editable, plus
+instructions for your own agent; small mermaid diagrams on About.
+
+**Built:**
+- `PUT /api/me/limits` replaces the day toggle (`/api/me/days` and the fixed-days rule are gone).
+  `domain.set_limits` keeps existing limit ids, so trimming a private limit keeps it private and keeps
+  its reason; a limit left with nothing to limit is removed with its reason; anything new goes into
+  the member's own `{id}-limits`. Summaries now read "Cannot do Friday and Saturday. Does not take
+  overnight care."
+- Agent instructions: `member_agent` table, `PUT /api/me/agent` (2000 characters), owner-only
+  `my_agent` in the view with the instructions and the brief. The system prompt moved to
+  `shoulder/agents/brief.py` (re-exported from `principal.py`) and takes `instructions` and `recipient`;
+  with both at their defaults it is byte-identical to before, checked against every seeded principal.
+  Farah is seeded with instructions, and the privacy sweep now checks instructions as well as reasons.
+- The recipient's photo can be changed or removed, through the same everyone-agrees flow.
+- Pages are centred (1200px, or 1000px for Control Panel, Needs you, Agreed and About). Tasks is the
+  fairness hero across the top, then the list beside a sticky column: next task, decisions, this
+  month's counts, and the latest agreements. Under 1180px the column moves above the list.
+- Landing: large headline, the two choices with Create as the primary, and a preview of the Rahmans'
+  real fairness bar settling from 44/31/25 (23 percent apart) to 38/31/30 (12 percent) after paid help.
+- About: three mermaid diagrams (a month, where private things go, how it is built), drawn by
+  `components/Diagram.jsx` from the theme tokens and redrawn when the theme changes. Mermaid is
+  lazy-loaded, so it adds nothing to the first page load.
+- Mobile gets a top bar with the brand and your photo.
+
+**Verified:** `pytest` 139 passed (7 new). The built app in Playwright: created a family with every
+sign-up field, edited limits, name, distance, the recipient's note and agent instructions, and the
+brief showed the instructions and the recipient's name. A sibling joining on a phone-width browser got
+no trace of the reason or the instructions. Brand and photo links go to Tasks and Control Panel on
+desktop and mobile. No console errors, and no horizontal overflow at 390px or 1024px, in light and dark.
+
+**Known and left:** a reason stays on its limit when the limit's days change, so it can go stale
+("Dialysis every Monday" on a limit that is now Wednesday); the person can edit it beside the limit.
+The family app stores and shows agent instructions, but it does not run model negotiations itself;
+the negotiation pipeline reads them through `build_system_prompt(instructions=...)`.
+

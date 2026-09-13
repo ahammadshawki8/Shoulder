@@ -54,6 +54,16 @@ CREATE TABLE IF NOT EXISTS member_secrets (
         REFERENCES members(family_code, member_id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS member_agent (
+    family_code  TEXT NOT NULL,
+    member_id    TEXT NOT NULL,
+    instructions TEXT NOT NULL DEFAULT '',
+    updated_at   TEXT NOT NULL,
+    PRIMARY KEY (family_code, member_id),
+    FOREIGN KEY (family_code, member_id)
+        REFERENCES members(family_code, member_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS privacy_catches (
     family_code TEXT NOT NULL,
     member_id   TEXT NOT NULL,
@@ -158,6 +168,7 @@ class Database:
         conn.execute("DELETE FROM sessions WHERE family_code = ?", (code,))
         conn.execute("DELETE FROM privacy_catches WHERE family_code = ?", (code,))
         conn.execute("DELETE FROM member_secrets WHERE family_code = ?", (code,))
+        conn.execute("DELETE FROM member_agent WHERE family_code = ?", (code,))
         conn.execute("DELETE FROM members WHERE family_code = ?", (code,))
         conn.execute("DELETE FROM families WHERE code = ?", (code,))
 
@@ -178,7 +189,7 @@ class Database:
         )
 
     def delete_member(self, conn: sqlite3.Connection, family_code: str, member_id: str) -> None:
-        for table in ("sessions", "member_secrets", "privacy_catches", "members"):
+        for table in ("sessions", "member_secrets", "member_agent", "privacy_catches", "members"):
             conn.execute(
                 f"DELETE FROM {table} WHERE family_code = ? AND member_id = ?",
                 (family_code, member_id),
@@ -204,6 +215,12 @@ class Database:
             (family_code, member_id, constraint_id, reason, json.dumps(sensitive_terms or [])),
         )
 
+    def delete_secret(self, conn: sqlite3.Connection, family_code: str, member_id: str, constraint_id: str) -> None:
+        conn.execute(
+            "DELETE FROM member_secrets WHERE family_code = ? AND member_id = ? AND constraint_id = ?",
+            (family_code, member_id, constraint_id),
+        )
+
     def secrets_for(self, family_code: str, member_id: str) -> dict[str, dict[str, Any]]:
         """Only ever called with the logged-in member's own id."""
         with self.connect() as conn:
@@ -219,6 +236,37 @@ class Database:
             }
             for r in rows
         }
+
+    # -- instructions to a member's own agent --------------------------------
+    #
+    # Written by one person for their own agent, and as private as a reason:
+    # people explain themselves to their agent in ways they would not to family.
+
+    def put_instructions(self, conn: sqlite3.Connection, family_code: str, member_id: str, text: str) -> None:
+        conn.execute(
+            """INSERT INTO member_agent (family_code, member_id, instructions, updated_at)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT (family_code, member_id)
+               DO UPDATE SET instructions = excluded.instructions, updated_at = excluded.updated_at""",
+            (family_code, member_id, text, _now().isoformat()),
+        )
+
+    def instructions_for(self, family_code: str, member_id: str) -> str:
+        """Only ever called with the logged-in member's own id."""
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT instructions FROM member_agent WHERE family_code = ? AND member_id = ?",
+                (family_code, member_id),
+            ).fetchone()
+        return row["instructions"] if row else ""
+
+    def all_instructions(self, family_code: str) -> dict[str, str]:
+        """For tests and audits only."""
+        with self.connect() as conn:
+            rows = conn.execute(
+                "SELECT member_id, instructions FROM member_agent WHERE family_code = ?", (family_code,)
+            ).fetchall()
+        return {r["member_id"]: r["instructions"] for r in rows}
 
     # -- privacy catches -----------------------------------------------------
     #

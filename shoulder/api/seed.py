@@ -108,6 +108,16 @@ def build() -> tuple[dict[str, Any], dict[str, list[tuple[str, str, list[str]]]]
     return state, secrets
 
 
+# What Farah has asked of her own agent. Invented, like everything in the seed,
+# and as private as her reason.
+INSTRUCTIONS = {
+    "farah": (
+        "Keep my answers short, and never apologise for what I cannot do. "
+        "I would rather take extra visits than any of the driving."
+    ),
+}
+
+
 def reseed(db: Database) -> None:
     """Replace the Rahmans with a fresh copy, in one transaction."""
     state, secrets = build()
@@ -119,6 +129,8 @@ def reseed(db: Database) -> None:
         for member_id, rows in secrets.items():
             for constraint_id, reason, terms in rows:
                 db.put_secret(conn, CODE, member_id, constraint_id, reason, terms)
+        for member_id, text in INSTRUCTIONS.items():
+            db.put_instructions(conn, CODE, member_id, text)
 
         # The live catch from the privacy hook, for the person it protected.
         demo = _load("privacy_demo.json")

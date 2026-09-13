@@ -37,13 +37,29 @@ export function BrandMark() {
   );
 }
 
-export function Brand() {
-  return (
-    <span className="brand">
+/** The name and mark. Given `href` or `onClick` it becomes the way home. */
+export function Brand({ href, onClick, label = "Shoulder, go to Tasks" }) {
+  const inner = (
+    <>
       <BrandMark />
       Shoulder
-    </span>
+    </>
   );
+  if (href) {
+    return (
+      <a className="brand" href={href} aria-label={label}>
+        {inner}
+      </a>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" className="brand" onClick={onClick} aria-label={label}>
+        {inner}
+      </button>
+    );
+  }
+  return <span className="brand">{inner}</span>;
 }
 
 // -- theme ---------------------------------------------------------------------

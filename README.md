@@ -171,7 +171,7 @@ python -m shoulder.demos.leak            # the privacy hook catching a leak, no 
 python -m shoulder.demos.leak --live     # the same, with a real model on Bedrock
 python -m shoulder.demos.envelope        # the authority envelope at work, no AWS needed
 python -m shoulder.demos.next_month      # two months back to back: it learns, no AWS needed
-pytest                                   # 132 tests, no AWS needed
+pytest                                   # 139 tests, no AWS needed
 ```
 
 Runs remember their history in `.shoulder/` (SQLite, never committed). Delete it to start the family
@@ -196,6 +196,12 @@ alone. A sibling joins with just the family code and gets their own member ID. L
 both. The Rahmans are already there: family code `rahman`, member ID `farah` (or `amina`, `rian`).
 They are restored to their original state every time the server starts.
 
+**Everything you set can be changed later.** Control Panel holds every answer from sign-up (your
+name, photo, capacity, distance, the days and kinds of work you cannot do, and the reason behind each
+limit) and the details of the person you care for, which change only when the whole family agrees. It
+is also where you write standing instructions for your own agent, and read the exact brief it works
+from, built by the same function the negotiation uses. Instructions are as private as reasons.
+
 **Nothing about the family is kept in the browser.** Everything lives in SQLite on the server. Logging
 in sets an httpOnly session cookie that page scripts cannot read, and the database stores only its
 hash. The one thing the browser remembers is your light or dark theme.
@@ -206,7 +212,7 @@ see it:
 ```mermaid
 flowchart LR
     DB[("families<br/>no reasons in it")] --> P["projection<br/>for the member asking"]
-    S[("member_secrets<br/>reasons, kept apart")] -->|"only the viewer's own"| P
+    S[("member_secrets, member_agent<br/>reasons and agent instructions")] -->|"only the viewer's own"| P
     P --> Y["You: your limits<br/>and your reasons"]
     P --> O["Everyone else: which days<br/>and kinds of work, never why"]
 ```

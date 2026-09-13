@@ -47,6 +47,7 @@ class Recipient(BaseModel):
     relation: str = "Mum"
     note: str = ""
     avatar: str | None = None
+    clear_avatar: bool = False
 
 
 class CreateFamily(BaseModel):
@@ -67,8 +68,13 @@ class ProfileUpdate(BaseModel):
     clear_avatar: bool = False
 
 
-class DayToggle(BaseModel):
-    day: str
+class LimitsUpdate(BaseModel):
+    days_off: list[str] = Field(default_factory=list)
+    refuses: list[str] = Field(default_factory=list)
+
+
+class AgentInstructions(BaseModel):
+    instructions: str = ""
 
 
 class ReasonUpdate(BaseModel):
@@ -184,7 +190,11 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
     def view(family_code: str, member_id: str) -> dict[str, Any]:
         state = db.read_state(family_code)
         return projection.view_for(
-            family_code, state, member_id, db.secrets_for(family_code, member_id)
+            family_code,
+            state,
+            member_id,
+            db.secrets_for(family_code, member_id),
+            db.instructions_for(family_code, member_id),
         )
 
     def mutate(request: Request, change: Callable[[dict[str, Any], str, str, Any], Any]):
@@ -334,31 +344,24 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
 
         return mutate(request, change)
 
-    @app.post("/api/me/days")
-    def toggle_day(body: DayToggle, request: Request):
-        if body.day not in domain.WEEKDAYS:
-            return fail("That is not a day of the week.", 400)
-
-        def change(state, _code, member_id, _conn):
+    @app.put("/api/me/limits")
+    def update_limits(body: LimitsUpdate, request: Request):
+        def change(state, code, member_id, conn):
             m = domain.member(state, member_id)
-            own_id = f"{member_id}-personal"
-            fixed = {
-                d for c in m["constraints"] if c["id"] != own_id for d in c.get("blocks_weekdays") or []
-            }
-            if body.day in fixed:
-                raise domain.DomainError("That day is part of a limit you set when you joined.")
-            mine = next((c for c in m["constraints"] if c["id"] == own_id), None)
-            if mine is None:
-                mine = {
-                    "id": own_id, "summary": "", "tier": "shareable", "hardness": "hard",
-                    "blocks_weekdays": [], "blocks_task_types": [], "max_tasks_per_period": None,
-                    "requires_remote": False, "applies_to_remote": True,
-                }
-                m["constraints"].append(mine)
-            days = set(mine["blocks_weekdays"]) ^ {body.day}
-            mine["blocks_weekdays"] = [d for d in domain.WEEKDAYS if d in days]
-            mine["summary"] = domain.limits_summary(mine["blocks_weekdays"], [])
-            domain.rebalance(state, f"{domain.short_name(state, member_id)} changed which days they can do")
+            changed, dropped = domain.set_limits(m, body.days_off, body.refuses)
+            for constraint_id in dropped:
+                db.delete_secret(conn, code, member_id, constraint_id)
+            if changed:
+                domain.rebalance(state, f"{domain.short_name(state, member_id)} changed what they cannot do")
+
+        return mutate(request, change)
+
+    @app.put("/api/me/agent")
+    def update_agent(body: AgentInstructions, request: Request):
+        text = domain.clean_instructions(body.instructions)
+
+        def change(_state, code, member_id, conn):
+            db.put_instructions(conn, code, member_id, text)
 
         return mutate(request, change)
 
@@ -419,7 +422,9 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
                 "name": domain._clean_text(body.name, "their name", 80, required=True),
                 "relation": body.relation if body.relation in domain.RELATIONS else "Someone else",
                 "note": domain._clean_text(body.note, "the note", 200),
-                "avatar": domain._avatar(body.avatar) if body.avatar else current.get("avatar"),
+                "avatar": None
+                if body.clear_avatar
+                else domain._avatar(body.avatar) if body.avatar else current.get("avatar"),
             }
             others = [m["id"] for m in state["members"] if m["id"] != member_id]
             name = domain.short_name(state, member_id)

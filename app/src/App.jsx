@@ -80,8 +80,15 @@ export default function App() {
 
   return (
     <div className="shell">
+      <header className="topbar">
+        <Brand href="#/tasks" />
+        <a href="#/control" className="topbar-me" aria-label="Your settings in Control Panel">
+          <Face person={me} size={32} />
+        </a>
+      </header>
+
       <aside className="rail">
-        <Brand />
+        <Brand href="#/tasks" />
 
         <div className="rail-recipient">
           <Face
@@ -125,8 +132,10 @@ export default function App() {
         </a>
 
         <div className="rail-me">
-          <Face person={me} size={30} />
-          <span className="rail-me-name">{me?.name}</span>
+          <a href="#/control" className="rail-me-link" title="Your settings" aria-current={route === "control" ? "page" : undefined}>
+            <Face person={me} size={30} />
+            <span className="rail-me-name">{me?.name}</span>
+          </a>
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
       </aside>

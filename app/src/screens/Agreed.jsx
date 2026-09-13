@@ -12,7 +12,7 @@ export default function Agreed({ onNavigate }) {
   const precedents = Store.precedents();
 
   return (
-    <div className="page">
+    <div className="page page-narrow">
       <header className="page-head">
         <div>
           <h1>Agreed</h1>

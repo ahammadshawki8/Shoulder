@@ -280,21 +280,14 @@ export const Store = {
     };
   },
 
-  /** Days set when joining. Only the personal day list can be toggled later. */
-  fixedDays(memberId) {
-    const own = `${memberId}-personal`;
-    const days = new Set();
-    for (const c of this.member(memberId)?.constraints || []) {
-      if (c.id === own) continue;
-      (c.blocks_weekdays || []).forEach((d) => days.add(d));
-    }
-    return days;
-  },
+  /** This person's own agent: their instructions, and the brief built from them. */
+  myAgent: () => view.my_agent || { instructions: "", brief: "" },
 
   // -- changing --------------------------------------------------------------
 
   updateMe: (fields) => change(api.updateMe(fields)),
-  toggleDay: (day) => change(api.toggleDay(day)),
+  updateLimits: (daysOff, refuses) => change(api.updateLimits(daysOff, refuses)),
+  updateAgent: (instructions) => change(api.updateAgent(instructions)),
   setReason: (constraintId, reason) => change(api.setReason(constraintId, reason)),
   privacyCatches: () => api.privacyCatches(),
 

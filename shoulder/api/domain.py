@@ -142,14 +142,124 @@ def _date(value: Any) -> str:
 # -- constructing a family ----------------------------------------------------
 
 
+DAY_WORDS = {
+    "Mon": "Monday", "Tue": "Tuesday", "Wed": "Wednesday", "Thu": "Thursday",
+    "Fri": "Friday", "Sat": "Saturday", "Sun": "Sunday",
+}
+TYPE_WORDS = {
+    "appointment": "appointments", "medication": "medication", "night": "overnight care",
+    "transport": "driving", "admin": "paperwork", "finance": "money matters",
+    "visit": "visits", "household": "work at home",
+}
+
+
+def _and(words: list[str]) -> str:
+    return words[0] if len(words) == 1 else f"{', '.join(words[:-1])} and {words[-1]}"
+
+
 def limits_summary(days: list[str], refuses: list[str]) -> str:
     """Written from the limit itself, never from the reason. Safe to share."""
     parts = []
     if days:
-        parts.append(f"Cannot do {', '.join(days)}")
+        parts.append(f"Cannot do {_and([DAY_WORDS.get(d, d) for d in days])}.")
     if refuses:
-        parts.append(f"does not take {', '.join(refuses)} work")
-    return (", ".join(parts) + ".") if parts else "Something they would rather not explain."
+        parts.append(f"Does not take {_and([TYPE_WORDS.get(t, t) for t in refuses])}.")
+    return " ".join(parts) if parts else "Something they would rather not explain."
+
+
+def _has_shape(c: dict[str, Any]) -> bool:
+    return bool(
+        c.get("blocks_weekdays")
+        or c.get("blocks_task_types")
+        or c.get("max_tasks_per_period") is not None
+        or c.get("requires_remote")
+    )
+
+
+def set_limits(m: dict[str, Any], days_off: Any, refuses: Any) -> tuple[bool, list[str]]:
+    """Make a member's days off and refused work exactly these.
+
+    Existing limits keep their ids, and with them any private reason, so taking
+    a day away from a private limit does not quietly make the rest of it public.
+    A limit left with nothing to limit is removed. Anything new goes into the
+    member's own limit. Returns whether anything changed, and the ids removed.
+    """
+    days = _weekdays(days_off)
+    types = _task_types(refuses)
+    changed = False
+    dropped: list[str] = []
+    kept: list[dict[str, Any]] = []
+
+    for c in m["constraints"]:
+        had_shape = _has_shape(c)
+        old_days = c.get("blocks_weekdays") or []
+        old_types = c.get("blocks_task_types") or []
+        new_days = [d for d in old_days if d in days]
+        new_types = [t for t in old_types if t in types]
+        if new_days != old_days or new_types != old_types:
+            changed = True
+            c["blocks_weekdays"] = new_days
+            c["blocks_task_types"] = new_types
+            if had_shape and not _has_shape(c):
+                dropped.append(c["id"])
+                continue
+            c["summary"] = limits_summary(new_days, new_types)
+        kept.append(c)
+
+    have_days = {d for c in kept for d in c.get("blocks_weekdays") or []}
+    have_types = {t for c in kept for t in c.get("blocks_task_types") or []}
+    add_days = [d for d in days if d not in have_days]
+    add_types = [t for t in types if t not in have_types]
+    if add_days or add_types:
+        changed = True
+        own_id = f"{m['id']}-limits"
+        own = next((c for c in kept if c["id"] == own_id), None)
+        if own is None:
+            own = {
+                "id": own_id, "summary": "", "tier": "shareable", "hardness": "hard",
+                "blocks_weekdays": [], "blocks_task_types": [], "max_tasks_per_period": None,
+                "requires_remote": False, "applies_to_remote": True,
+            }
+            kept.append(own)
+        own_days = set(own.get("blocks_weekdays") or []) | set(add_days)
+        own["blocks_weekdays"] = [d for d in WEEKDAYS if d in own_days]
+        own["blocks_task_types"] = sorted(set(own.get("blocks_task_types") or []) | set(add_types))
+        own["hardness"] = "hard"
+        own["summary"] = limits_summary(own["blocks_weekdays"], own["blocks_task_types"])
+
+    m["constraints"] = kept
+    return changed, dropped
+
+
+MAX_INSTRUCTIONS = 2000
+
+
+def clean_instructions(value: Any) -> str:
+    return _clean_text(value, "your instructions", MAX_INSTRUCTIONS)
+
+
+def agent_brief(
+    state: dict[str, Any],
+    member_id: str,
+    own_secrets: dict[str, dict[str, Any]],
+    instructions: str,
+) -> str:
+    """The system prompt this member's agent works from, reasons included.
+
+    Built by the same function the negotiation uses, so what a person reads is
+    what their agent is told. Only ever returned to that person.
+    """
+    from shoulder.agents.brief import build_system_prompt
+
+    m = member(state, member_id)
+    principal = to_principal(m)
+    for c in principal.constraints:
+        reason = (own_secrets.get(c.id) or {}).get("reason")
+        if reason:
+            c.reason = reason
+    return build_system_prompt(
+        principal, instructions=instructions, recipient=state["recipient"]["name"]
+    )
 
 
 def build_member(
