@@ -138,7 +138,7 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
 | Repo URL | https://github.com/ahammadshawki8/Shoulder |
 | Devpost submission URL | _TBD_ |
 | AWS Builder ID | _TBD_ |
-| Live demo link | _TBD_ |
+| Live demo link | https://shoulder-100-56-157-153.sslip.io (family code `rahman`, member ID `farah`) |
 | Video URL (YouTube, public) | _TBD_ |
 | Blog post 1 URL | _TBD_ |
 | Blog post 2 URL | _TBD_ |
@@ -488,7 +488,7 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 - [ ] AgentCore Identity: each sibling a distinct authenticated principal
 - [ ] AgentCore Gateway for notifications
 - [ ] OTEL traces to CloudWatch
-- [ ] **Live demo link** (explicitly raises Technical Implementation score)
+- [x] **Live demo link** (explicitly raises Technical Implementation score): the family app on EC2, see Session 7
 
 ### Tier 9 - Submission
 - [ ] README with problem, architecture, setup, research citations
@@ -1299,3 +1299,56 @@ the negotiation pipeline reads them through `build_system_prompt(instructions=..
   which Chrome's caret browsing (F7) draws; inputs keep theirs. The decision graph switches from a row
   to a column by its own width (container query at 700px). The window header now reads "Shoulder and
   N personal agents" with their faces, so it does not repeat the tab name.
+
+### 2026-09-13 - Session 7, finalised and hosted (Shawki)
+
+**Live:** https://shoulder-100-56-157-153.sslip.io . Log in with `rahman` / `farah`, or create a family.
+
+**Final review fixes (each pinned by a test, 144 passed):**
+- Tasks the family chose to take off the plan were stored in `covered` like paid help, so they showed as
+  "Paid help", counted in `paid_count`, and kept the stale "nobody can take this" reason. `domain.PAID_HELP`
+  and `domain.OFF_PLAN` now tell them apart; the app hides off-plan tasks.
+- Behind a reverse proxy every visitor had the proxy's address, so one login rate limit applied to all
+  judges at once. Uvicorn now trusts `X-Forwarded-For` (`FORWARDED_ALLOW_IPS`, set only in production,
+  where the app port is not published). The limiter forgets empty keys so its memory stays bounded.
+- Task times are validated as HH:MM. API responses are `no-store`, hashed build assets are cached for a
+  year, pages always revalidate (so a redeploy never serves a page pointing at deleted scripts), plus
+  `nosniff`, `DENY` framing and a same-origin referrer policy.
+- `seed.reseed` now refreshes the Rahmans in place: Amina, Rian and Farah keep their member rows and
+  therefore their sessions; newcomers who joined the Rahmans are removed. `SHOULDER_RESEED_HOURS` runs
+  it on a timer (12 in production, the user's choice).
+- `make clean` used to delete `fixtures/*.json`. Fixed. `READY_FOR_SUBMISSION.md` (a stale Session 5
+  status file with emojis, against the documentation rules) was deleted. Unused images removed and the
+  four portraits resized from about 800 KB to about 17 KB each (they render at 56px at most).
+- Full browser pass on the production build: create, add tasks, one nobody can take, a sibling joins on
+  a phone and picks it up, marks it done, logs out and back in with an upper-case member ID; the Rahmans'
+  cards come back after a timed re-seed while Farah stays logged in. No console errors. `evals --quick`
+  31 of 31 gated checks, `web/` builds, fixtures untouched.
+
+**How it is hosted** (all resources tagged `Project=shoulder`, us-east-1, account 897545289507):
+
+| Resource | Id |
+|---|---|
+| EC2 instance, t3.small, Ubuntu 24.04, 20 GB encrypted gp3 | `i-057c41c5a4758ef90` |
+| Elastic IP | `100.56.157.153` (`eipalloc-026de0625f1d87771`) |
+| Security group | `sg-07acd051736739ea4`: 80 and 443 open, 22 only from the deployer's two addresses |
+| Key pair | `shoulder-deploy`, private key at `~/.ssh/shoulder-deploy.pem` on Shawki's machine, never in the repo |
+
+- `deploy/ec2-user-data.sh` did the first boot: 2 GB swap (the image build needs it on 2 GB RAM),
+  Docker from Docker's apt repository, a clone of this repo into `/opt/shoulder`, and
+  `docker compose up -d --build` in `deploy/`. First build took about 11 minutes, mostly pip.
+- `deploy/docker-compose.yml`: the app (`Dockerfile`, non-root, SQLite in the `shoulder-data` volume,
+  secure cookies, 12-hour re-seed) and Caddy 2.8, which obtained a Let's Encrypt certificate for the
+  sslip.io hostname (a free wildcard DNS name that resolves to the IP inside it) and redirects HTTP.
+- **Redeploy:** push to `main`, then `deploy/redeploy.sh` (pulls and rebuilds; data volume kept).
+- **Cost:** roughly 15 dollars a month for the instance, 1.60 for the disk and 3.60 for the public IP,
+  about 20 dollars a month in credits.
+- **Tear down** when the judging is over: terminate the instance, release the Elastic IP, then delete
+  the security group and the key pair (`aws ec2 terminate-instances`, `release-address`,
+  `delete-security-group`, `delete-key-pair`).
+- **Gotchas met:** Git Bash rewrote `/dev/sda1` in `--block-device-mappings` into a Windows path
+  (set `MSYS_NO_PATHCONV=1`); the key saved with `--output text` had Windows line endings and OpenSSH
+  refused it (strip ``); the deployer's public IP alternates between two addresses, so SSH allows both.
+
+**Not done, still Tier 8 proper:** AgentCore Runtime, Memory, Identity, Gateway and the scheduled
+Convener. The hosted app runs the deterministic engine and needs no Bedrock access.

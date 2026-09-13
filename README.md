@@ -6,6 +6,9 @@ Private agents that negotiate the family caregiving load, so one sibling stops c
 
 Built with the [Strands Agents SDK](https://strandsagents.com) for the AWS **Agents for Humans** hackathon.
 
+**Try it:** https://shoulder-100-56-157-153.sslip.io (join with family code `rahman` and member ID
+`farah`, or create your own family).
+
 ---
 
 ## The problem
@@ -171,7 +174,7 @@ python -m shoulder.demos.leak            # the privacy hook catching a leak, no 
 python -m shoulder.demos.leak --live     # the same, with a real model on Bedrock
 python -m shoulder.demos.envelope        # the authority envelope at work, no AWS needed
 python -m shoulder.demos.next_month      # two months back to back: it learns, no AWS needed
-pytest                                   # 139 tests, no AWS needed
+pytest                                   # 144 tests, no AWS needed
 ```
 
 Runs remember their history in `.shoulder/` (SQLite, never committed). Delete it to start the family
@@ -227,6 +230,36 @@ task, and what every option on a decision card would do are all computed by the 
 server. A card's preview is made by applying that choice to a copy of the plan, so the number you see
 before choosing is the number you get.
 
+### Hosting
+
+The live app runs on one EC2 instance (t3.small, Ubuntu 24.04, us-east-1) with Docker Compose: the app
+container built from `Dockerfile`, and Caddy in front of it for HTTPS. The SQLite database is a Docker
+volume on the instance's disk, so families survive restarts and redeploys. The Rahmans are put back as
+they started every 12 hours (`SHOULDER_RESEED_HOURS`), without logging anyone out.
+
+```mermaid
+flowchart LR
+    V["Visitor"] -->|HTTPS| C["Caddy<br/>certificate, compression"]
+    C --> A["Shoulder container<br/>API and built app"]
+    A --> D[("SQLite on a<br/>Docker volume")]
+```
+
+| File | Purpose |
+|---|---|
+| `Dockerfile` | Builds `app/` with Node, then runs the API with Python 3.11 as a non-root user. |
+| `deploy/docker-compose.yml` | The app and Caddy, with secure cookies, the re-seed schedule, and proxy settings. |
+| `deploy/Caddyfile` | HTTPS for `SHOULDER_HOST`, gzip, and a request size cap. |
+| `deploy/ec2-user-data.sh` | First boot: swap, Docker, the repository, and `docker compose up`. |
+| `deploy/redeploy.sh` | Pull `main` on the server and rebuild. |
+
+To run the production setup anywhere with Docker and a public hostname:
+
+```bash
+cd deploy
+echo "SHOULDER_HOST=your.domain" > .env
+docker compose up -d --build
+```
+
 ### The storyboard screens
 
 The screens in `web/` are built to be filmed: the negotiation round by round, and what happens under
@@ -281,6 +314,7 @@ precedent.
 | `shoulder/api/` | The family app's API: sign-up and login, the per-person privacy projection, and every change, over SQLite. |
 | `app/` | The family app in Vite and React. Renders what the API returns and holds no family data. |
 | `web/` | The storyboard screens: the negotiation and what happens under the hood, reading `fixtures/`. |
+| `Dockerfile`, `deploy/` | The production image and the EC2 deployment. |
 | `docs/` | The architecture diagram, exported from the mermaid source in CLAUDE.md. |
 | `shoulder/demos/` | Runnable demonstrations of both hooks. |
 | `shoulder/seed/demo_circle.py` | The demo family. Entirely fictional. |

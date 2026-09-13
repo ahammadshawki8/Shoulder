@@ -1,6 +1,7 @@
 #!/bin/bash
 # First boot of an Ubuntu 24.04 EC2 instance: Docker, the repo, and the app.
-# SHOULDER_HOST is written into this script by deploy/aws.sh before launch.
+# Replace __SHOULDER_HOST__ with the public hostname before passing this as user data
+# (for example shoulder-1-2-3-4.sslip.io, which resolves to 1.2.3.4).
 set -euxo pipefail
 
 SHOULDER_HOST="__SHOULDER_HOST__"
