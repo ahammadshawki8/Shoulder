@@ -1,219 +1,159 @@
 import React, { useEffect, useState } from "react";
-import { Store, subscribeStore } from "./data/store.js";
-import {
-  Bell,
-  Calendar,
-  Clock,
-  Info,
-  Lock,
-  Moon,
-  Plus,
-  Shield,
-  Sliders,
-  Sun,
-} from "./components/Icons.jsx";
-import BalanceRail from "./components/BalanceRail.jsx";
+import { Store } from "./data/store.js";
+import { Bell, Calendar, Info, Plus, Shield, Sliders } from "./components/Icons.jsx";
 import Face from "./components/Face.jsx";
-import Welcome from "./screens/Welcome.jsx";
-import Setup from "./screens/Setup.jsx";
-import Schedule from "./screens/Schedule.jsx";
-import Limits from "./screens/Limits.jsx";
+import { Brand, ThemeToggle, useStore, useTheme } from "./components/ui.jsx";
+import Auth from "./screens/Auth.jsx";
+import Tasks from "./screens/Tasks.jsx";
 import Inbox from "./screens/Inbox.jsx";
-import Agreements from "./screens/Agreements.jsx";
-import AgentVault from "./screens/AgentVault.jsx";
-import Activity from "./screens/Activity.jsx";
-import HowItWorks from "./screens/HowItWorks.jsx";
+import Agreed from "./screens/Agreed.jsx";
+import ControlPanel from "./screens/ControlPanel.jsx";
+import About from "./screens/About.jsx";
 import AddTaskModal from "./components/AddTaskModal.jsx";
 
 const NAV = [
-  { id: "schedule", label: "Tasks", icon: Calendar },
+  { id: "tasks", label: "Tasks", icon: Calendar },
   { id: "inbox", label: "Needs you", icon: Bell },
-  { id: "limits", label: "My limits", icon: Sliders },
-  { id: "agreements", label: "Agreed", icon: Shield },
+  { id: "agreed", label: "Agreed", icon: Shield },
+  { id: "control", label: "Control Panel", icon: Sliders },
 ];
+const ROUTES = [...NAV.map((n) => n.id), "about"];
 
-const QUIET_NAV = [
-  { id: "agent", label: "Your agent", icon: Lock },
-  { id: "activity", label: "What it did", icon: Clock },
-  { id: "how-it-works", label: "How it works", icon: Info },
-];
-
-const ROUTES = [...NAV, ...QUIET_NAV].map((item) => item.id);
-
-function currentRoute() {
+function routeFromHash() {
   const hash = window.location.hash.replace(/^#\/?/, "");
-  return ROUTES.includes(hash) ? hash : "schedule";
+  return ROUTES.includes(hash) ? hash : "tasks";
 }
 
 export default function App() {
-  const [route, setRoute] = useState(currentRoute);
-  const [tick, setTick] = useState(0);
-  const [addingTask, setAddingTask] = useState(false);
-  const [theme, setTheme] = useState(() => localStorage.getItem("shoulder_theme_v2") || "light");
+  useStore();
+  const [theme, toggleTheme] = useTheme();
+  const [route, setRoute] = useState(routeFromHash);
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    const onHash = () => setRoute(currentRoute());
+    Store.boot();
+  }, []);
+
+  useEffect(() => {
+    const onHash = () => {
+      setRoute(routeFromHash());
+      window.scrollTo(0, 0);
+      if (Store.status() === "ready") Store.refresh();
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  // Siblings change the plan from their own devices. Pick those changes up when
+  // this tab comes back into view, and every so often while it is open, so two
+  // people looking at the same family see the same thing.
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("shoulder_theme_v2", theme);
-  }, [theme]);
+    const fresh = () => document.visibilityState === "visible" && Store.status() === "ready" && Store.refresh();
+    document.addEventListener("visibilitychange", fresh);
+    const timer = setInterval(fresh, 20000);
+    return () => {
+      document.removeEventListener("visibilitychange", fresh);
+      clearInterval(timer);
+    };
+  }, []);
 
-  useEffect(() => subscribeStore(() => setTick((n) => n + 1)), []);
+  const status = Store.status();
 
-  const mode = Store.getMode();
-  if (!mode) return <Welcome />;
-  if (!Store.isReady()) return <Setup />;
+  if (status === "booting") {
+    return (
+      <div className="splash" aria-busy="true">
+        <Brand />
+      </div>
+    );
+  }
+
+  if (status === "signed-out") {
+    return <Auth theme={theme} onToggleTheme={toggleTheme} />;
+  }
 
   const navigate = (id) => {
     window.location.hash = `#/${id}`;
   };
-
-  const activeUser = Store.getActiveUser();
-  const me = Store.person(activeUser);
-  const recipient = Store.getRecipient();
-  const openCards = Store.getOpenEscalations().length;
-  const people = Store.people().filter(Boolean);
+  const me = Store.person(Store.meId());
+  const recipient = Store.recipient();
+  const waiting = Store.needsMeCount();
 
   return (
     <div className="shell">
-      {/* ---------------------------------------------------------------
-          The rail. Fixed height, never scrolls: who you are, who she is,
-          and how the load sits. Everything here is a glance, not a read.
-          --------------------------------------------------------------- */}
       <aside className="rail">
-        <div className="rail-head">
-          <a href="#/schedule" className="rail-brand">
-            <span className="rail-mark">S</span>
-            <span>Shoulder</span>
-          </a>
-          <button
-            className={`mode-chip ${mode}`}
-            onClick={() => Store.leaveMode()}
-            title="Switch between the demo and your own circle"
-          >
-            {mode === "demo" ? "Demo" : "Yours"}
-          </button>
+        <Brand />
+
+        <div className="rail-recipient">
+          <Face
+            person={{
+              avatar: recipient.avatar,
+              initials: recipient.name.slice(0, 1).toUpperCase(),
+              color: "var(--accent)",
+            }}
+            size={40}
+          />
+          <div>
+            <strong>{recipient.name}</strong>
+            <span>{recipient.relation === "Someone else" ? "Being cared for" : recipient.relation}</span>
+          </div>
         </div>
 
-        <button className="rail-mum" onClick={() => navigate("how-it-works")}>
-          {recipient.avatar ? (
-            <img src={recipient.avatar} alt="" className="rail-mum-photo" />
-          ) : (
-            <span className="rail-mum-photo rail-mum-blank">{recipient.relation[0]}</span>
-          )}
-          <span className="rail-mum-text">
-            <span className="rail-mum-name">{recipient.relation}</span>
-            <span className="rail-mum-status">
-              <i className="dot-live" />
-              {recipient.name}
-            </span>
-          </span>
-        </button>
-
-        <BalanceRail activeUser={activeUser} />
-
-        {openCards > 0 && (
-          <button className="rail-needs" onClick={() => navigate("inbox")}>
-            <span className="rail-needs-count">{openCards}</span>
-            <span>
-              needs you
-              <em>a decision only you can make</em>
-            </span>
-          </button>
-        )}
-
-        <nav className="rail-nav">
+        <nav className="rail-nav" aria-label="Main">
           {NAV.map(({ id, label, icon: Icon }) => (
-            <a key={id} href={`#/${id}`} className={`rail-link ${route === id ? "active" : ""}`}>
-              <Icon size={16} />
-              <span>{label}</span>
+            <a key={id} href={`#/${id}`} className="rail-link" aria-current={route === id ? "page" : undefined}>
+              <Icon size={17} />
+              {label}
+              {id === "inbox" && waiting > 0 && (
+                <span className="rail-count" aria-label={`${waiting} waiting`}>
+                  {waiting}
+                </span>
+              )}
             </a>
           ))}
         </nav>
 
         <div className="rail-spacer" />
 
-        <button className="rail-add" onClick={() => setAddingTask(true)}>
-          <Plus size={15} />
-          <span>Add a task</span>
+        <button type="button" className="btn btn-primary btn-block rail-add" onClick={() => setAdding(true)}>
+          <Plus size={16} />
+          Add a task
         </button>
 
-        <div className="rail-quiet">
-          {QUIET_NAV.map(({ id, label, icon: Icon }) => (
-            <a
-              key={id}
-              href={`#/${id}`}
-              className={`rail-quiet-link ${route === id ? "active" : ""}`}
-            >
-              <Icon size={14} />
-              <span>{label}</span>
-            </a>
-          ))}
-        </div>
+        <a href="#/about" className="rail-link" aria-current={route === "about" ? "page" : undefined}>
+          <Info size={17} />
+          About Shoulder
+        </a>
 
         <div className="rail-me">
           <Face person={me} size={30} />
-          {people.length > 1 ? (
-            <select
-              className="rail-me-select"
-              value={activeUser || ""}
-              onChange={(e) => Store.setActiveUser(e.target.value)}
-              aria-label="Who is using this"
-            >
-              {people.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.shortName}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="rail-me-only">{me?.shortName}</span>
-          )}
-          <button
-            className="rail-theme"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            aria-label={theme === "dark" ? "Light mode" : "Dark mode"}
-          >
-            {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
-          </button>
+          <span className="rail-me-name">{me?.name}</span>
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
         </div>
       </aside>
 
-      {/* The work. This is the only thing that scrolls. */}
       <main className="work">
-        {route === "schedule" && (
-          <Schedule activeUser={activeUser} onNavigate={navigate} onAdd={() => setAddingTask(true)} />
-        )}
-        {route === "inbox" && <Inbox activeUser={activeUser} onNavigate={navigate} />}
-        {route === "limits" && <Limits activeUser={activeUser} onNavigate={navigate} />}
-        {route === "agreements" && <Agreements activeUser={activeUser} onNavigate={navigate} />}
-        {route === "agent" && <AgentVault activeUser={activeUser} onNavigate={navigate} />}
-        {route === "activity" && <Activity onNavigate={navigate} />}
-        {route === "how-it-works" && <HowItWorks onNavigate={navigate} />}
+        {route === "tasks" && <Tasks onNavigate={navigate} onAdd={() => setAdding(true)} />}
+        {route === "inbox" && <Inbox onNavigate={navigate} />}
+        {route === "agreed" && <Agreed onNavigate={navigate} />}
+        {route === "control" && <ControlPanel theme={theme} onToggleTheme={toggleTheme} />}
+        {route === "about" && <About />}
       </main>
 
-      <nav className="tabbar">
+      <nav className="tabbar" aria-label="Main">
         {NAV.map(({ id, label, icon: Icon }) => (
-          <a key={id} href={`#/${id}`} className={`tabbar-item ${route === id ? "active" : ""}`}>
-            <span className="tabbar-icon">
-              <Icon size={18} />
-              {id === "inbox" && openCards > 0 && <b className="tabbar-pip">{openCards}</b>}
-            </span>
-            <span>{label}</span>
+          <a key={id} href={`#/${id}`} aria-current={route === id ? "page" : undefined}>
+            <Icon size={19} />
+            {label === "Control Panel" ? "Control" : label}
+            {id === "inbox" && waiting > 0 && <b className="tabbar-pip">{waiting}</b>}
           </a>
         ))}
+        <button type="button" onClick={() => setAdding(true)}>
+          <Plus size={19} />
+          Add
+        </button>
       </nav>
 
-      <AddTaskModal
-        isOpen={addingTask}
-        onClose={() => setAddingTask(false)}
-        activeUser={activeUser}
-        onTaskAdded={() => navigate("schedule")}
-      />
+      {adding && <AddTaskModal onClose={() => setAdding(false)} onAdded={() => navigate("tasks")} />}
     </div>
   );
 }

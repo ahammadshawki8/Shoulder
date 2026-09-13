@@ -18,10 +18,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=9.0.0"]
+dev = ["pytest>=9.0.0", "httpx>=0.28.0"]
 
 [project.scripts]
 shoulder = "shoulder.cli:main"
+shoulder-api = "shoulder.api.__main__:main"
 
 [build-system]
 requires = ["setuptools>=68"]

@@ -3,8 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Shoulder · Family Eldercare</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤝</text></svg>">
+    <meta name="description" content="Share the care of a parent fairly. Each sibling says what they can and cannot do, and Shoulder works out a fair split." />
+    <title>Shoulder</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 28'%3E%3Cg fill='%231B6B73'%3E%3Ccircle cx='18.5' cy='8' r='3.4' opacity='.45'/%3E%3Cpath d='M11.5 25c0-5 3-8.2 7-8.2s7 3.2 7 8.2z' opacity='.45'/%3E%3Ccircle cx='10' cy='9.5' r='3.6'/%3E%3Cpath d='M2.5 25.5c0-5.4 3.2-8.8 7.5-8.8s7.5 3.4 7.5 8.8z'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <script>
+      // Set the theme before the first paint, so a dark-theme visitor never
+      // sees a flash of the light one while the app loads.
+      (function () {
+        var theme;
+        try { theme = localStorage.getItem("shoulder_theme"); } catch (e) {}
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

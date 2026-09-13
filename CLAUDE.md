@@ -43,6 +43,26 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
   `python -m shoulder.cli`. **`make` is not installed on Shawki's machine**, so the Makefile is a
   convenience only and must never be the documented path.
 - MIT license file at repo root, detectable by GitHub's About panel. This is a submission requirement.
+- **Some verification commands overwrite committed fixtures.** `python -m shoulder.cli`,
+  `shoulder.a2a.demo`, `shoulder.demos.leak` (without `--live`) and `shoulder.demos.envelope` write
+  to `fixtures/`. The committed copies are reviewed, and `privacy_demo.json` is a real `--live` catch
+  that the scripted run replaces with a weaker one. The Rahman family in the app is seeded from these
+  files. After running any of them, check `git status fixtures/` and `git checkout -- fixtures/`
+  unless the regeneration was the point. `pytest` and `python -m evals` do not write fixtures.
+
+**Family app rules (since Session 6):**
+
+- **The browser holds no family data.** No localStorage, no fixture imports in `app/`. The only
+  browser-side value is the theme preference. A fixture imported into the bundle ships to every
+  visitor, logged in or not: `privacy_demo.json` quoting Farah's reason was in the old bundle.
+- **Private reasons never enter the family record.** They live in `member_secrets` and are joined back
+  only for their owner in `shoulder/api/projection.py`. Other people's constraints go out with opaque
+  ids and no free text. `tests/test_api.py` sweeps every response for other people's private words;
+  keep adding new routes to that sweep.
+- **The server decides, the browser renders.** Fairness, eligibility, "why assigned" and every option's
+  preview come from the Python engine in the API. Do not reintroduce a JavaScript copy of the engine.
+- **There is no demo mode.** The Rahmans are an ordinary seeded family (`rahman` / `farah`), re-seeded
+  on every server start. Nothing in `app/` or `shoulder/api/` may branch on the family code.
 
 **Git and authorship rules:**
 
@@ -274,7 +294,7 @@ Build order should follow this storyboard - if a feature does not appear here, i
 |---|---|---|
 | 0:00–0:25 | **The problem** | "In 75% of families, when a parent needs care, exactly one adult child ends up doing all of it." Then the scale: 59M caregivers, 49.5B hours, **$1.01 trillion - more than all Medicaid spending combined**. 65% of it done by women. |
 | 0:25–0:45 | **Why it persists** | The NegotiAge line: *"There is a clinical trial of a program that teaches people how to talk to their own brother about mum. That is how hard this conversation is. We didn't build the training. We built the negotiation."* |
-| 0:45–1:20 | **Private intake** | Three siblings, three private screens. Amina - nearby, carrying everything. Rian - distant, has money not time. Farah types something she has never told her family (a health constraint), and the UI visibly marks it **never leaves this device**. |
+| 0:45–1:20 | **Private intake** | Three siblings, three private screens. Amina - nearby, carrying everything. Rian - distant, has money not time. Farah types something she has never told her family (a health constraint), and the UI visibly marks it **never shown to your family**. (Not "never leaves this device": reasons are stored server-side, owner-only, since Session 6.) |
 | 1:20–2:10 | **The negotiation** | The Convener wakes on schedule - nobody opened an app. Agents propose and counter over A2A. Fairness bars move each round. It settles on a rota satisfying capacity-adjusted proportionality - **having quietly routed around Farah's constraint without anyone learning why**. |
 | 2:10–2:45 | **The escalation** | One card. *"I couldn't close this fairly. Amina is carrying 40% more than either of you. She hasn't complained. I thought you should know. This isn't mine to decide."* Two options with their fairness consequences. A human taps one. |
 | 2:45–3:05 | **It learns** | Next month. *"Last time you decided whoever hosts doesn't also drive. I applied that without asking."* Escalation count drops 4 → 1. |
@@ -945,6 +965,9 @@ rest of Block 4.
 
 ### 2026-09-12 - Session 4 continued, the family app (Ashfaq -> Shawki)
 
+> **Superseded by Session 6.** The `app/` described below (two worlds, localStorage, `engine.js`,
+> `verify:engine`) no longer exists. Read Session 6 for the current family app. Kept for history.
+
 **There are two front ends now. Read this paragraph before touching either.**
 
 | | |
@@ -1110,3 +1133,99 @@ evals:  4/4 passing (fairness, privacy, escalation, precedent)
 2. Three blog posts on builder.aws.com (bonus +0.6 points)
 3. Devpost draft (deadline Sat 13 Sep - TODAY)
 4. Clean clone verification
+
+### 2026-09-13 - Session 6, the family app rebuilt: accounts, a database, and a server-side privacy boundary (Shawki)
+
+**What was asked.** One workflow for everyone: a landing page with "Join an existing family" and
+"Create your own family"; a two-step create wizard (the person cared for, then yourself, no adding
+siblings); system-generated **family code** and **member ID** shown once created; join with the family
+code alone (new member fills in a profile and gets a member ID) or with both (log back in). The
+Rahmans become an ordinary seeded family (`rahman` / `farah`). No demo or own mode. Database instead of
+localStorage. A minimal, professional redesign in light and dark.
+
+**What was found first, in the uncommitted draft left in the working tree:**
+- `app/` did not build (`Welcome.jsx` declared the same state twice). `store.js` had been half
+  rewritten by two regex scripts and called functions that no longer existed.
+- The draft FastAPI server returned **every member's private reasons** from `GET /family/{token}`,
+  let anyone overwrite a family with `PUT`, trusted client-chosen member IDs, and the client uploaded
+  the whole family, reasons included, on every change.
+- The old app bundle imported `fixtures/privacy_demo.json`, which quotes Farah's reason, so it shipped
+  to every visitor, logged in or not.
+- Session 5's verification runs had overwritten seven committed fixtures, including replacing the real
+  `--live` privacy catch with the scripted one. Restored with `git checkout -- fixtures/`.
+
+**Decisions the user made:** reasons stored server-side, owner-only, with the copy "Never shown to your
+family" (the storyboard line in section 8 was changed to match); the Rahmans re-seeded on every server
+start; `TOKEN_AUTH_STATUS.md`, `rewrite.py`, `rewrite_store.py` and `TIER_VERIFICATION.md` deleted
+(its only summary worth keeping: the evals run 31 gated checks across four suites).
+
+**The backend, `shoulder/api/`:**
+- `db.py`: SQLite. `families` (state document with no reasons), `members`, `member_secrets` (reasons,
+  apart), `privacy_catches` (the hook's catch, owner-only), `sessions` (token stored as SHA-256).
+  Writes run in `BEGIN IMMEDIATE`, so two siblings changing the plan at once are serialised.
+- `projection.py`: the per-viewer view. The only place a reason is joined back, for its owner. Other
+  people's constraints lose all free text and get opaque ids: the seeded constraint id
+  `farah-treatment` was itself a leak, caught by the API test that sweeps every response.
+- `domain.py`: every rule as a plain function over the state, using the real engine (`_eligible`,
+  `build_fairness_report`, `best_paid_help`). The server also computes fairness, per-task eligibility,
+  "why assigned", and each option's preview, by applying the option to a copy of the plan.
+- `app.py`: routes under `/api`, httpOnly SameSite=Lax cookie, sliding-window rate limits on login,
+  lookup, join and create, one message for a wrong family code or member ID so the form does not reveal
+  which half was right. Serves `app/dist` when built. `python -m shoulder.api` on port 8001.
+- `seed.py`: the Rahmans from fixtures, reasons and sensitive terms split into `member_secrets`, today
+  pinned to 2026-10-14 so their month reads right.
+
+**Two engine behaviours changed, both measured:**
+- **Rebalancing starts from finished work.** Re-dealing only open tasks with everyone at zero load made
+  paying for help *worse*: the Rahmans went from 23 to 37 percent. Starting from what each person
+  already carried on completed tasks gives 11.7 percent, proportional, with no finished task changing
+  hands.
+- **Paid help and removing tasks now re-deal the rest.** That is what makes one decision settle the
+  month: choosing paid help on the Rahmans' first card resolves both cards (the envelope's duplicate
+  question too) and empties the inbox, the "it learns" beat.
+- A fair split's headline now says "The care is shared fairly." The engine's max-to-min comparison
+  ("Rian is carrying 21 percent more than Farah") beside "Even, within 15%" read as a contradiction.
+- `GET /api/session` returns `200 {authenticated: false}` when logged out, so a first visit prints no
+  console error.
+
+**The frontend, `app/`:** rewritten. `data/api.js` and `data/store.js` (a cache of one server response,
+no engine), `components/ui.jsx` (theme, overlays, toast, the fairness bar), `ProfileFields.jsx` (shared
+by create and join so they cannot drift), `TaskDrawer.jsx`, `AddTaskModal.jsx`, and screens `Auth`,
+`Tasks`, `Inbox`, `Agreed`, `ControlPanel` (You, Family, Activity), `About`. Deleted: `engine.js` and
+its verify script, `bento.css`, and nine superseded or orphan screens and components. One typeface
+(Source Sans 3), one token set, dark theme complete, no inline colours. The app refreshes on navigation
+and every 20 seconds while visible, so siblings see each other's changes. Logging out resets to Tasks.
+The theme is set before first paint. The logo was redrawn (the old one read as a frowning face) and the
+emoji favicon replaced.
+
+**Verified:**
+- `pytest`: **132 passed** (99 before, plus 33 API tests). Fixtures untouched by the suite.
+- Built bundle searched for Farah's reason: not present.
+- Playwright, production mode (one process on 8001), separate browser contexts per person: create a
+  family through the wizard, codes shown, tasks added and assigned with honest reasons; a second sibling
+  joins with the family code only, work is re-dealt, and **no response or page text in their browser
+  contains the first sibling's reason** (7 API responses scanned); a recipient change needs the other
+  sibling to agree and syncs across browsers; log out and back in with both codes (case-insensitive).
+  As Amina in the Rahmans: 12 responses scanned, no leak, and Farah's privacy catch not shown to her.
+  Decision card preview (23 to 12 percent) matched the outcome. Calendar columns aligned. Zero console
+  errors. Light and dark checked; mobile at 390px has no horizontal overflow and a working tab bar.
+
+**Honest limits:**
+- A lost member ID cannot be recovered: there is no email and no password by design. Both codes are
+  shown in Control Panel while logged in, and the codes screen says so.
+- Sync is polling (20 seconds, plus on navigation and tab focus), not push.
+- The Rahmans are shared by everyone who logs in as them and reset only on restart.
+- `web/` (the storyboard app) was not changed and still bundles fixtures, which is its purpose.
+
+**Run it:**
+
+```
+cd app && npm install && npm run build && cd ..
+python -m shoulder.api                 http://127.0.0.1:8001   (rahman / farah)
+python -m shoulder.api & (cd app && npm run dev)    http://localhost:5174 for development
+python -m pytest                       132 tests
+```
+
+- **Next:** Tier 8. `python -m shoulder.api` already serves the app and API from one process, which is
+  most of a live demo link; set `SHOULDER_SECURE_COOKIES=1` behind HTTPS and give it a persistent
+  `SHOULDER_DB` path. Then the submission material.

@@ -171,16 +171,60 @@ python -m shoulder.demos.leak            # the privacy hook catching a leak, no 
 python -m shoulder.demos.leak --live     # the same, with a real model on Bedrock
 python -m shoulder.demos.envelope        # the authority envelope at work, no AWS needed
 python -m shoulder.demos.next_month      # two months back to back: it learns, no AWS needed
-pytest                                   # 93 tests, no AWS needed
+pytest                                   # 132 tests, no AWS needed
 ```
 
 Runs remember their history in `.shoulder/` (SQLite, never committed). Delete it to start the family
 over.
 
-### The product surface
+### The family app
 
-The screens are a Vite and React app in `web/`, built against the JSON in `fixtures/` from real
-runs. It needs Node 18 or later, and no AWS credentials at all.
+The app a family actually uses lives in `app/`, backed by the API in `shoulder/api/`. One process
+serves both, and needs no AWS credentials.
+
+```bash
+cd app && npm install && npm run build && cd ..
+python -m shoulder.api                   # then open http://127.0.0.1:8001
+```
+
+For development, run `python -m shoulder.api` and `cd app && npm run dev` side by side, then open
+http://localhost:5174. Vite forwards `/api` to the server, so everything stays on one origin.
+
+**Getting in.** Create a family in two steps (who you are caring for, then yourself), and Shoulder
+generates two codes: a **family code** to share with your siblings, and a **member ID** that is yours
+alone. A sibling joins with just the family code and gets their own member ID. Logging in again takes
+both. The Rahmans are already there: family code `rahman`, member ID `farah` (or `amina`, `rian`).
+They are restored to their original state every time the server starts.
+
+**Nothing about the family is kept in the browser.** Everything lives in SQLite on the server. Logging
+in sets an httpOnly session cookie that page scripts cannot read, and the database stores only its
+hash. The one thing the browser remembers is your light or dark theme.
+
+**The privacy boundary holds on the server too.** Each response is the family as the person asking may
+see it:
+
+```mermaid
+flowchart LR
+    DB[("families<br/>no reasons in it")] --> P["projection<br/>for the member asking"]
+    S[("member_secrets<br/>reasons, kept apart")] -->|"only the viewer's own"| P
+    P --> Y["You: your limits<br/>and your reasons"]
+    P --> O["Everyone else: which days<br/>and kinds of work, never why"]
+```
+
+Reasons are stored in their own table and never enter the family record, so no route can return one by
+accident. Other people's limits even arrive under opaque identifiers, because a limit's own id can give
+something away. `tests/test_api.py` logs in as each person and checks every response the API can
+produce for anyone else's private words.
+
+**The server decides; the browser shows.** Who does what, how even the split is, who may take each
+task, and what every option on a decision card would do are all computed by the Python engine on the
+server. A card's preview is made by applying that choice to a copy of the plan, so the number you see
+before choosing is the number you get.
+
+### The storyboard screens
+
+The screens in `web/` are built to be filmed: the negotiation round by round, and what happens under
+the hood. They read the JSON in `fixtures/` from real runs, and need no AWS credentials.
 
 ```bash
 cd web
@@ -228,11 +272,13 @@ precedent.
 | `shoulder/precedent.py` | Turning a family's decision into a rule, and applying it next time. |
 | `shoulder/session.py` | One period end to end, with memory: the loop the weekly schedule runs. |
 | `shoulder/store/` | SQLite: the family's session (rotas, cards, decisions, precedents) and each person's own. |
-| `web/` | The product surface: six screens in Vite and React, reading `fixtures/`. |
+| `shoulder/api/` | The family app's API: sign-up and login, the per-person privacy projection, and every change, over SQLite. |
+| `app/` | The family app in Vite and React. Renders what the API returns and holds no family data. |
+| `web/` | The storyboard screens: the negotiation and what happens under the hood, reading `fixtures/`. |
 | `docs/` | The architecture diagram, exported from the mermaid source in CLAUDE.md. |
 | `shoulder/demos/` | Runnable demonstrations of both hooks. |
 | `shoulder/seed/demo_circle.py` | The demo family. Entirely fictional. |
-| `tests/` | Tests for the engine, both hooks, the ledger, the privacy boundary over A2A, and the demo scenario. |
+| `tests/` | Tests for the engine, both hooks, the ledger, the privacy boundary over A2A and over the family app's API, and the demo scenario. |
 
 ## Data
 

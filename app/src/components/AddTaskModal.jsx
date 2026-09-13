@@ -1,157 +1,198 @@
-import React, { useEffect, useState } from "react";
-import { PAID_CAREGIVER_META, Store, TYPE_META, today } from "../data/store.js";
+import React, { useState } from "react";
+import { PAID, Store, TASK_TYPES, TYPE_META } from "../data/store.js";
 import Face from "./Face.jsx";
-import { TaskIcon } from "../screens/Schedule.jsx";
-import { Check, Sparkles, X } from "./Icons.jsx";
+import { ErrorLine, Modal } from "./ui.jsx";
 
-const TYPES = ["visit", "appointment", "medication", "transport", "household", "admin", "finance", "night"];
-const LENGTHS = [30, 60, 90, 120, 180, 540];
+const LENGTHS = [
+  { value: 30, label: "30 min" },
+  { value: 60, label: "1 hr" },
+  { value: 90, label: "1 hr 30 min" },
+  { value: 120, label: "2 hr" },
+  { value: 180, label: "3 hr" },
+  { value: 540, label: "Overnight" },
+];
 
 /**
- * Add something that needs doing.
- *
- * Four choices, and the fourth is optional: who. Left alone, the same rule
- * that built the opening split picks the person whose load stays lowest once
- * everyone's limits are respected, and says so afterwards.
+ * Add something that needs doing. Left to "whoever has room", the server uses
+ * the same rule as the opening split and says who it chose and why.
  */
-export default function AddTaskModal({ isOpen, onClose, activeUser, onTaskAdded }) {
+export default function AddTaskModal({ onClose, onAdded }) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("visit");
-  const [onDate, setOnDate] = useState(today());
+  const [onDate, setOnDate] = useState(Store.today());
   const [durationMin, setDurationMin] = useState(90);
+  const [time, setTime] = useState("");
   const [assignee, setAssignee] = useState("auto");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [result, setResult] = useState(null);
+  const meId = Store.meId();
 
-  useEffect(() => {
-    if (isOpen) {
-      setTitle("");
-      setType("visit");
-      setOnDate(today());
-      setDurationMin(90);
-      setAssignee("auto");
-      setResult(null);
-    }
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  const save = (event) => {
-    event.preventDefault();
+  const submit = async (e) => {
+    e.preventDefault();
     if (!title.trim()) return;
-    const added = Store.addTask({
-      title: title.trim(),
-      type,
-      on_date: onDate,
-      duration_min: durationMin,
-      requires_presence: type !== "admin" && type !== "finance",
-      assignee,
-    });
-    setResult(added);
+    setBusy(true);
+    setError("");
+    try {
+      setResult(
+        await Store.addTask({
+          title: title.trim(),
+          type,
+          on_date: onDate,
+          duration_min: durationMin,
+          time: time || null,
+          requires_presence: type !== "admin" && type !== "finance",
+          assignee,
+        })
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const finish = () => {
-    onTaskAdded?.(result);
-    onClose();
-  };
-
-  const who = result ? Store.person(result.assignedTo) || PAID_CAREGIVER_META : null;
-
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Add a task">
-        <div className="sheet-head">
-          <h3>{result ? "Added" : "What needs doing?"}</h3>
-          <button className="sheet-close" onClick={onClose} aria-label="Close">
-            <X size={18} />
-          </button>
-        </div>
-
-        {result ? (
-          <div className="added">
-            <div className="added-who">
-              <Face person={who} size={42} />
-              <div>
-                <strong>{who?.shortName} will take it</strong>
-                <p>{result.why}</p>
-              </div>
+  if (result) {
+    const holder = result.holder;
+    return (
+      <Modal title="Task added" onClose={onClose}>
+        <div className="stack">
+          <div className="drawer-holder">
+            {holder ? <Face person={holder} size={40} /> : <span className="glyph" />}
+            <div>
+              <strong>
+                {holder
+                  ? holder.id === PAID.id
+                    ? "Paid help will cover it"
+                    : holder.isMe
+                      ? "You will do it"
+                      : `${holder.shortName} will do it`
+                  : "Nobody can take it yet"}
+              </strong>
+              {result.why && <p className="muted" style={{ fontSize: "var(--t-sm)" }}>{result.why}</p>}
             </div>
-            <button className="btn-solid" onClick={finish}>
-              <Check size={16} /> Good
+          </div>
+          <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => {
+                onAdded?.();
+                onClose();
+              }}
+            >
+              Done
             </button>
           </div>
-        ) : (
-          <form className="form" onSubmit={save}>
-            <input
-              className="form-title"
-              value={title}
-              autoFocus
-              placeholder="Pharmacy run"
-              onChange={(e) => setTitle(e.target.value)}
-            />
+        </div>
+      </Modal>
+    );
+  }
 
-            <div className="chips">
-              {TYPES.map((option) => (
-                <button
-                  type="button"
-                  key={option}
-                  className={`chip ${type === option ? "on" : ""}`}
-                  onClick={() => {
-                    setType(option);
-                    // A night is a night. Anything else keeps what was chosen.
-                    if (option === "night") setDurationMin(540);
-                    else if (durationMin === 540) setDurationMin(90);
-                  }}
-                >
-                  <TaskIcon type={option} size={13} />
-                  {TYPE_META[option].label}
-                </button>
-              ))}
-            </div>
+  return (
+    <Modal title="Add a task" onClose={onClose}>
+      <form className="form" onSubmit={submit}>
+        <div className="field">
+          <label className="field-label" htmlFor="task-title">
+            What needs doing
+          </label>
+          <input
+            id="task-title"
+            className="input"
+            value={title}
+            maxLength={120}
+            autoFocus
+            onChange={(e) => setTitle(e.target.value)}
+          />
+        </div>
 
-            <div className="form-row">
-              <label>
-                <span>When</span>
-                <input type="date" value={onDate} onChange={(e) => setOnDate(e.target.value)} />
-              </label>
-              <label>
-                <span>How long</span>
-                <select value={durationMin} onChange={(e) => setDurationMin(Number(e.target.value))}>
-                  {LENGTHS.map((m) => (
-                    <option key={m} value={m}>
-                      {m >= 540 ? "overnight" : m >= 60 ? `${m / 60} hr` : `${m} min`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <div className="chips">
+        <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="field-label" style={{ marginBottom: "0.45rem" }}>
+            Kind of task
+          </legend>
+          <div className="chips">
+            {TASK_TYPES.map((option) => (
               <button
                 type="button"
-                className={`chip ${assignee === "auto" ? "on" : ""}`}
-                onClick={() => setAssignee("auto")}
+                key={option}
+                className="chip"
+                aria-pressed={type === option}
+                onClick={() => {
+                  setType(option);
+                  if (option === "night") setDurationMin(540);
+                  else if (durationMin === 540) setDurationMin(90);
+                }}
               >
-                <Sparkles size={13} /> Whoever has room
+                {TYPE_META[option].label}
               </button>
-              {Store.people().filter(Boolean).map((person) => (
-                <button
-                  type="button"
-                  key={person.id}
-                  className={`chip ${assignee === person.id ? "on" : ""}`}
-                  onClick={() => setAssignee(person.id)}
-                >
-                  <Face person={person} size={18} className="chip-face" />
-                  {person.id === activeUser ? "Me" : person.shortName}
-                </button>
-              ))}
-            </div>
+            ))}
+          </div>
+        </fieldset>
 
-            <button className="btn-solid" type="submit" disabled={!title.trim()}>
-              Add it
+        <div className="field-row">
+          <div className="field">
+            <label className="field-label" htmlFor="task-date">
+              Date
+            </label>
+            <input id="task-date" className="input" type="date" value={onDate} required onChange={(e) => setOnDate(e.target.value)} />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="task-time">
+              Time
+            </label>
+            <input id="task-time" className="input" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="field">
+          <label className="field-label" htmlFor="task-length">
+            How long it takes
+          </label>
+          <select id="task-length" className="select" value={durationMin} onChange={(e) => setDurationMin(Number(e.target.value))}>
+            {LENGTHS.map((l) => (
+              <option key={l.value} value={l.value}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}>
+          <legend className="field-label" style={{ marginBottom: "0.45rem" }}>
+            Who does it
+          </legend>
+          <div className="chips">
+            <button type="button" className="chip" aria-pressed={assignee === "auto"} onClick={() => setAssignee("auto")}>
+              Whoever has room
             </button>
-          </form>
-        )}
-      </div>
-    </div>
+            {Store.people().map((person) => (
+              <button
+                type="button"
+                key={person.id}
+                className="chip"
+                aria-pressed={assignee === person.id}
+                onClick={() => setAssignee(person.id)}
+              >
+                {person.id === meId ? "Me" : person.shortName}
+              </button>
+            ))}
+            <button type="button" className="chip" aria-pressed={assignee === PAID.id} onClick={() => setAssignee(PAID.id)}>
+              Paid help
+            </button>
+          </div>
+        </fieldset>
+
+        <ErrorLine error={error} />
+
+        <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="btn btn-primary" disabled={busy || !title.trim()}>
+            {busy ? "Adding task" : "Add task"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
