@@ -1269,3 +1269,25 @@ desktop and mobile. No console errors, and no horizontal overflow at 390px or 10
 The family app stores and shows agent instructions, but it does not run model negotiations itself;
 the negotiation pipeline reads them through `build_system_prompt(instructions=...)`.
 
+
+### 2026-09-13 - Session 6 continued, hero animation, agent activity, diagram fix (Shawki)
+
+- **Landing hero** no longer shows the Rahmans. `components/HeroAnimation.jsx` loops an eight-second
+  story with generic people (You, your sister, your brother): eight tasks start on one person, the
+  sister's "Not overnight" limit appears with its reason blurred, tasks move one at a time to whoever
+  has room, and the bar evens out to "Shared fairly". Plain CSS transitions, no library; with reduced
+  motion it shows the settled month. The rahman / farah hint now lives only on the Join page.
+- **Agent activity** replaces the Activity tab (`components/AgentActivity.jsx`): a bordered chat window,
+  oldest first and scrolled to the newest. Entries of one negotiation round are grouped, with a strip of
+  each agent's verdict, an optional list of steps, and a **decision graph** per round (suggested moves,
+  limit check in code, tried and kept or rejected, each person's agent answering, engine measurement).
+  The escalation step gets its own graph (wanted to act, authority check, asked the family). The graphs
+  are HTML and CSS, not mermaid, so they follow the theme and stack vertically on phones.
+- The seed now keeps each ledger entry's `round` and a whitelist of `details` (`verdict`,
+  `max_deviation`, `proportional`, `moves`, `tool`); a model's rationale and a refused tool's raw input
+  stay out. Pinned by a test. `pytest` 140 passed.
+- **About diagrams not showing:** they render in Playwright and in real Chrome on both the built app and
+  the dev server. The likely cause was a dev server started before `mermaid` was installed, where Vite
+  re-optimises and reloads on the first visit. `vite.config.js` now pre-bundles mermaid, renders go
+  through one queue (mermaid's global state breaks under concurrent renders), a failed render retries
+  once, and a real failure says so on the page instead of leaving a blank box.

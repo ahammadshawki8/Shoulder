@@ -34,6 +34,15 @@ def _load(name: str) -> Any:
     return json.loads((FIXTURES / name).read_text(encoding="utf-8"))
 
 
+# The only detail fields the activity view needs. Everything else a ledger entry
+# carries (a model's rationale, a refused tool's raw input) stays out.
+_DETAIL_KEYS = ("verdict", "max_deviation", "proportional", "moves", "tool")
+
+
+def _safe_details(details: dict) -> dict:
+    return {k: details[k] for k in _DETAIL_KEYS if k in details}
+
+
 def build() -> tuple[dict[str, Any], dict[str, list[tuple[str, str, list[str]]]]]:
     """The state document, and each member's secrets kept apart from it."""
     circle = _load("circle.json")
@@ -101,6 +110,8 @@ def build() -> tuple[dict[str, Any], dict[str, list[tuple[str, str, list[str]]]]
             "justification": e.get("justification") or "",
             "who": (e.get("actor") or "").replace("agent:", "") or None,
             "kind": e.get("kind") or "took_action",
+            "round": e.get("round_number"),
+            "details": _safe_details(e.get("details") or {}),
         }
         for e in reversed(ledger)
         if e.get("scope", "family") == "family"

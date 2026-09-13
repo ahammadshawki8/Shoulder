@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { RELATIONS, Store } from "../data/store.js";
 import ProfileFields, { EMPTY_PROFILE, toProfile } from "../components/ProfileFields.jsx";
 import { Brand, ErrorLine, ThemeToggle } from "../components/ui.jsx";
-import { Check, ChevronRight, Copy, Key, Lock, Plus, Scale } from "../components/Icons.jsx";
+import { Check, ChevronRight, Copy, Key, Plus } from "../components/Icons.jsx";
+import HeroAnimation from "../components/HeroAnimation.jsx";
 
 /**
  * Getting into a family.
@@ -105,12 +106,9 @@ function Landing({ onJoin, onCreate }) {
           </button>
         </div>
 
-        <p className="landing-demo">
-          Looking around? Join with family code <strong>rahman</strong> and member ID <strong>farah</strong>.
-        </p>
       </div>
 
-      <LandingPreview />
+      <HeroAnimation />
 
       <ul className="landing-facts">
         <li>
@@ -127,70 +125,6 @@ function Landing({ onJoin, onCreate }) {
         </li>
       </ul>
     </div>
-  );
-}
-
-// The Rahmans' real numbers from the seeded family: 23 percent apart before the
-// family's one decision, 12 percent after it.
-const PREVIEW = [
-  { name: "Amina", color: "#3B6E94", before: 44, after: 38 },
-  { name: "Rian", color: "#BF5D30", before: 31, after: 31 },
-  { name: "Farah", color: "#1B6B73", before: 25, after: 30 },
-];
-
-function LandingPreview() {
-  const [settled, setSettled] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setSettled(true), 900);
-    return () => clearTimeout(timer);
-  }, []);
-
-  return (
-    <figure className="preview" aria-label="An example of how Shoulder shares a month of care">
-      <div className="preview-head">
-        <span>The Rahmans, caring for Nasrin</span>
-        <span className={`preview-status ${settled ? "is-even" : "is-uneven"}`}>
-          {settled ? "12% apart, fair" : "23% apart"}
-        </span>
-      </div>
-      <p className="preview-title">
-        {settled ? "The care is shared fairly." : "Amina is carrying 46 percent more than Farah."}
-      </p>
-      <div className="fair-bar preview-bar" aria-hidden="true">
-        {PREVIEW.map((p) => (
-          <span
-            key={p.name}
-            className="fair-bar-part"
-            style={{ flexBasis: `${settled ? p.after : p.before}%`, background: p.color }}
-          />
-        ))}
-      </div>
-      <ul className="preview-people">
-        {PREVIEW.map((p) => (
-          <li key={p.name}>
-            <span className="preview-face" style={{ background: p.color }}>
-              {p.name[0]}
-            </span>
-            <span>
-              <strong>{p.name}</strong>
-              <small>{settled ? p.after : p.before}% of the load</small>
-            </span>
-          </li>
-        ))}
-      </ul>
-      <div className="preview-note">
-        <Lock size={15} />
-        <span>Farah cannot do Fridays or Saturdays. Her family never learns why.</span>
-      </div>
-      <div className={`preview-note ${settled ? "is-ok" : ""}`}>
-        <Scale size={15} />
-        <span>
-          {settled
-            ? "The family chose paid help for two tasks. Shoulder follows that from now on."
-            : "Shoulder could not close the gap alone, so it asks the family once."}
-        </span>
-      </div>
-    </figure>
   );
 }
 

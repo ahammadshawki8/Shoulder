@@ -150,6 +150,14 @@ def test_rahmans_log_in_as_farah(client):
     assert len(view["tasks"]) == 26 and len(view["escalations"]) == 2
 
 
+def test_rahman_activity_keeps_rounds_and_verdicts_but_no_rationale(client):
+    client.post("/api/session", json={"family_code": "rahman", "member_id": "amina"})
+    ledger = client.get("/api/family").json()["ledger"]
+    answers = [e for e in ledger if e["kind"] == "asked_for_view"]
+    assert answers and all(e["round"] and e["details"]["verdict"] for e in answers)
+    assert all(set(e["details"]) <= {"verdict", "max_deviation", "proportional", "moves", "tool"} for e in ledger)
+
+
 def test_rahmans_are_reseeded_on_start(tmp_path):
     path = str(tmp_path / "persist.db")
     with TestClient(create_app(db_path=path)) as c:

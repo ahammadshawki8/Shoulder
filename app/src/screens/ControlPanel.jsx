@@ -3,11 +3,12 @@ import { DAY_NAMES, DISTANCES, REFUSABLE, RELATIONS, Store, TYPE_META, WEEKDAYS 
 import { Check, Copy, Lock } from "../components/Icons.jsx";
 import Face from "../components/Face.jsx";
 import { ErrorLine, Modal, ThemeToggle, useStore, useToast } from "../components/ui.jsx";
+import AgentActivity from "../components/AgentActivity.jsx";
 
 const TABS = [
   { id: "you", label: "You" },
   { id: "family", label: "Family" },
-  { id: "activity", label: "Activity" },
+  { id: "activity", label: "Agent activity" },
 ];
 
 export default function ControlPanel({ theme, onToggleTheme }) {
@@ -48,7 +49,7 @@ export default function ControlPanel({ theme, onToggleTheme }) {
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
         {tab === "you" && <YouTab say={say} />}
         {tab === "family" && <FamilyTab say={say} />}
-        {tab === "activity" && <ActivityTab />}
+        {tab === "activity" && <AgentActivity />}
       </div>
     </div>
   );
@@ -777,55 +778,6 @@ function FamilyTab({ say }) {
           })}
         </ul>
       </section>
-    </>
-  );
-}
-
-// -- activity -------------------------------------------------------------------------
-
-function ActivityTab() {
-  const entries = Store.ledger();
-  const [open, setOpen] = useState(null);
-
-  if (!entries.length) {
-    return (
-      <div className="empty">
-        <h2>Nothing yet</h2>
-        <p>Everything Shoulder does without asking the family is recorded here, with the reason it was allowed to.</p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <p className="muted" style={{ marginBottom: "1.25rem" }}>
-        Everything that happened, newest first. Open an entry to see why.
-      </p>
-      <ul className="plain-list">
-        {entries.map((e) => {
-          const person = e.who ? Store.person(e.who) : null;
-          const expanded = open === e.id;
-          return (
-            <li key={e.id}>
-              <button
-                type="button"
-                className="ledger-item"
-                aria-expanded={expanded}
-                onClick={() => setOpen(expanded ? null : e.id)}
-                disabled={!e.justification}
-                style={!e.justification ? { cursor: "default" } : undefined}
-              >
-                <span className="ledger-summary">{e.summary}</span>
-                <span className="ledger-when">
-                  {person ? `${person.isMe ? "You" : person.shortName}, ` : ""}
-                  {new Date(e.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                </span>
-                {expanded && e.justification && <span className="ledger-why">{e.justification}</span>}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
     </>
   );
 }
