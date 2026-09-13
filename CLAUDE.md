@@ -1291,3 +1291,11 @@ the negotiation pipeline reads them through `build_system_prompt(instructions=..
   re-optimises and reloads on the first visit. `vite.config.js` now pre-bundles mermaid, renders go
   through one queue (mermaid's global state breaks under concurrent renders), a failed render retries
   once, and a real failure says so on the page instead of leaving a blank box.
+- **Follow-up polish:** no element scrolls inside the page any more (checked by scanning every element
+  on each screen at 1440, 1100 and 390px): the agent activity window grows with the page, textareas grow
+  with their text (`field-sizing: content`), the agent brief shows in full, and diagrams scale to their
+  width. Scrollbars are invisible until the pointer is on the thumb (Firefox: thin, shown while hovering
+  the scrolling element). `body { caret-color: transparent }` stops the blinking caret on ordinary text,
+  which Chrome's caret browsing (F7) draws; inputs keep theirs. The decision graph switches from a row
+  to a column by its own width (container query at 700px). The window header now reads "Shoulder and
+  N personal agents" with their faces, so it does not repeat the tab name.

@@ -106,6 +106,60 @@ body {
   min-height: 100vh;
 }
 
+/* Text that is not an input never shows a caret, even with caret browsing on. */
+body {
+  caret-color: transparent;
+}
+
+input,
+textarea,
+select,
+[contenteditable="true"] {
+  caret-color: auto;
+}
+
+/* Scrollbars stay invisible until the pointer is on them.
+   Chromium and Safari: a transparent thumb that appears when hovered or dragged.
+   Firefox has no thumb hover, so its scrollbar is thin and shows while the
+   pointer is over the thing that scrolls. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 10px;
+  background-color: transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--ink-3);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  *:hover {
+    scrollbar-color: var(--line-strong) transparent;
+  }
+
+  html:hover {
+    scrollbar-color: transparent transparent;
+  }
+}
+
 h1,
 h2,
 h3,
@@ -323,6 +377,8 @@ img {
 
 .textarea {
   min-height: 84px;
+  /* Grows with what is typed, so a long reason never scrolls inside the box. */
+  field-sizing: content;
   resize: vertical;
   line-height: 1.45;
 }
@@ -2064,10 +2120,9 @@ button.glance-item:hover {
 }
 
 .brief pre {
-  max-height: 340px;
   margin: 0;
-  overflow: auto;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   font-family: inherit;
   font-size: var(--t-sm);
   line-height: 1.5;
@@ -2182,7 +2237,8 @@ button.glance-item:hover {
   display: flex;
   justify-content: center;
   min-height: 120px;
-  overflow-x: auto;
+  /* The drawing scales to the width, so it never needs to scroll either way. */
+  overflow: hidden;
 }
 
 .diagram-canvas svg {
@@ -2404,6 +2460,21 @@ button.glance-item:hover {
   background: var(--sunken);
 }
 
+.console-people {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.console-people > * {
+  margin-left: -8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--sunken);
+}
+
+.console-people > :first-child {
+  margin-left: 0;
+}
+
 .console-head h2 {
   font-size: var(--t-md);
 }
@@ -2413,7 +2484,6 @@ button.glance-item:hover {
   color: var(--ink-2);
 }
 
-.console-mark,
 .msg-shoulder {
   display: inline-flex;
   align-items: center;
@@ -2424,35 +2494,23 @@ button.glance-item:hover {
   color: var(--accent-ink);
 }
 
-.console-mark {
-  width: 36px;
-  height: 36px;
-}
-
 .msg-shoulder {
   width: 30px;
   height: 30px;
 }
 
-.console-mark .brand-mark,
 .msg-shoulder .brand-mark {
   width: 20px;
   height: 20px;
   color: inherit;
 }
 
+/* It grows with the page instead of scrolling inside it: no nested scrollbar. */
 .console-body {
   display: grid;
   gap: 1rem;
-  max-height: min(72vh, 760px);
   padding: 1.25rem;
-  overflow-y: auto;
   background: var(--ground);
-}
-
-.console-body:focus-visible {
-  outline: none;
-  box-shadow: inset var(--focus);
 }
 
 .console-empty {
@@ -2755,6 +2813,46 @@ button.glance-item:hover {
   background: var(--surface);
 }
 
+/* The graph reads left to right when its box is wide enough for five steps,
+   and top to bottom otherwise, whatever the screen size. */
+.round {
+  container-type: inline-size;
+}
+
+@container (max-width: 700px) {
+  .graph {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .graph-stage {
+    flex: 0 0 auto;
+  }
+
+  .gnode,
+  .graph-fan {
+    max-width: none;
+  }
+
+  .graph-arrow {
+    flex: 0 0 18px;
+    align-self: center;
+    width: 2px;
+    height: 18px;
+    margin: 2px 0 4px;
+  }
+
+  .graph-arrow::after {
+    top: auto;
+    right: -4px;
+    bottom: -4px;
+    border-top: 6px solid var(--line-strong);
+    border-right: 5px solid transparent;
+    border-bottom: 0;
+    border-left: 5px solid transparent;
+  }
+}
+
 .gagent {
   display: flex;
   align-items: center;
@@ -2891,37 +2989,6 @@ button.glance-item:hover {
     padding: 0.9rem;
   }
 
-  .graph {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .graph-stage {
-    flex: 0 0 auto;
-  }
-
-  .gnode,
-  .graph-fan {
-    max-width: none;
-  }
-
-  .graph-arrow {
-    flex: 0 0 18px;
-    align-self: center;
-    width: 2px;
-    height: 18px;
-    margin: 2px 0 4px;
-  }
-
-  .graph-arrow::after {
-    top: auto;
-    right: -4px;
-    bottom: -4px;
-    border-top: 6px solid var(--line-strong);
-    border-right: 5px solid transparent;
-    border-bottom: 0;
-    border-left: 5px solid transparent;
-  }
 
   .page {
     padding: 1.75rem 1.1rem 6.5rem;

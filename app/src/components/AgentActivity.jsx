@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Store } from "../data/store.js";
 import Face from "./Face.jsx";
 import { BrandMark } from "./ui.jsx";
@@ -78,31 +78,33 @@ function pct(value) {
 export default function AgentActivity() {
   const ledger = Store.ledger();
   const groups = useMemo(() => buildTimeline(ledger), [ledger]);
-  const body = useRef(null);
   const rounds = groups.filter((g) => g.key?.startsWith("round-")).length;
-
-  useEffect(() => {
-    // Newest at the bottom, like any conversation, so start there.
-    if (body.current) body.current.scrollTop = body.current.scrollHeight;
-  }, [groups.length]);
+  const members = Store.members();
 
   return (
-    <section className="console" aria-label="Agent activity">
+    <section className="console" aria-label="Steps taken by Shoulder and each person's agent">
       <header className="console-head">
-        <span className="console-mark">
-          <BrandMark />
-        </span>
+        <div className="console-people" aria-hidden="true">
+          <span className="msg-shoulder">
+            <BrandMark />
+          </span>
+          {members.map((m) => (
+            <Face key={m.id} person={Store.person(m.id)} size={30} />
+          ))}
+        </div>
         <div>
-          <h2>Agent activity</h2>
+          <h2>
+            Shoulder and {members.length} personal agent{members.length === 1 ? "" : "s"}
+          </h2>
           <p>
             {ledger.length
-              ? `${ledger.length} things done without asking${rounds ? `, across ${rounds} negotiation round${rounds === 1 ? "" : "s"}` : ""}. Newest at the bottom.`
+              ? `${ledger.length} steps taken without asking${rounds ? `, across ${rounds} negotiation round${rounds === 1 ? "" : "s"}` : ""}. Oldest first.`
               : "Nothing yet."}
           </p>
         </div>
       </header>
 
-      <div className="console-body" ref={body} tabIndex={0} aria-label="Activity, oldest first">
+      <div className="console-body">
         {groups.length === 0 && (
           <p className="console-empty">
             When the agents negotiate, or anyone changes the plan, every step is written here with the rule that
