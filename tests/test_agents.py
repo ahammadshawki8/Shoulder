@@ -126,6 +126,18 @@ def test_a_private_reason_never_reaches_the_family_even_when_an_agent_tries(tmp_
         assert any(e["kind"] == "withheld_private_detail" for e in family["ledger"])
 
 
+def test_a_split_the_family_accepted_is_not_asked_about_again(tmp_path):
+    with _client(tmp_path) as client:
+        _login(client)
+        view = client.get("/api/family").json()
+        card = next(c for c in view["escalations"] if c["kind"] == "fairness_breach")
+        keep = next(i for i, o in enumerate(card["options"]) if o["effect"]["kind"] == "accept_split")
+        client.post(f"/api/escalations/{card['id']}/resolve", json={"option_index": keep})
+        client.post("/api/agents/negotiate")
+        view = _settle(client)
+        assert not [c for c in view["escalations"] if c["kind"] == "fairness_breach"]
+
+
 # -- handovers -----------------------------------------------------------------
 
 

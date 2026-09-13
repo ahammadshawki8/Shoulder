@@ -48,7 +48,7 @@ If any free text carries something private, the whole text is withheld, not just
 
 ## Holding the reply until it is safe
 
-Our agents talk to each other over A2A, the open agent-to-agent protocol, with each sibling's agent running as its own server with its own agent card. The Strands `A2AServer` streams a reply to the caller as it is generated, which is lovely for chat and exactly wrong for a secret: the first chunks can leave before the finished message ever reaches a hook.
+Shoulder's agents can run as separate services that talk to each other over A2A, the open agent-to-agent protocol, with each sibling's agent running as its own server with its own agent card. The Strands `A2AServer` streams a reply to the caller as it is generated, which is lovely for chat and exactly wrong for a secret: the first chunks can leave before the finished message ever reaches a hook.
 
 So we wrote `HeldReplyExecutor`, which holds each reply until the guard has seen the whole thing, and only then sends it. There is a test that serves the same guarded agent through the stock executor and asserts that it leaks. It is a strange test to be proud of, but it means that if the SDK ever changes underneath us, we find out from a failing build and not from a family.
 
@@ -78,6 +78,7 @@ Shoulder also has a family app, where each sibling logs in with a family code an
 - Private reasons live in their own database table and never enter the family record, so no route can return one by accident.
 - Every response is a projection built for the person asking. Your own reasons are joined back in for you. Everyone else's limits arrive with opaque ids and no free text, because we found that even an id like `farah-treatment` says too much.
 - A test logs in as each person and sweeps every response the API can produce for anyone else's private words and agent instructions.
+- The agents run inside the app too. When a sibling asks to hand Farah a task, Farah's agent is asked first, with everything she has told it, and its answer passes through the same hook before anyone reads it.
 
 ## What we took from it
 

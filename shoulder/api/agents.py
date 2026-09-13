@@ -437,13 +437,31 @@ class AgentService:
             for card in state["escalations"]:
                 if card.get("status", "open") == "open":
                     card["status"] = "superseded"
-            for index, card in enumerate(outcome.escalations):
+            # What the family already decided is not asked again: a split they accepted
+            # (unless it has since widened or left care uncovered), and an action they declined.
+            _circle, _allocation, report = domain.fairness(state)
+            accepted = state.get("accepted_spread")
+            within_accepted = (
+                accepted is not None
+                and report.max_deviation <= accepted + 1e-9
+                and not domain.unassigned(state)
+            )
+            declined = set(state.get("declined_actions") or [])
+            asked_cards = []
+            for card in outcome.escalations:
                 raw = card.model_dump(mode="json")
+                if raw["kind"] == "fairness_breach" and within_accepted:
+                    continue
+                actions = {(o.get("effect") or {}).get("action") for o in raw.get("options", [])}
+                if raw["kind"] == "authority_exceeded" and actions & declined:
+                    continue
+                asked_cards.append(raw)
+            for index, raw in enumerate(asked_cards):
                 raw.update({"id": f"{run_id}-{index + 1}", "status": "open", "source": "agents"})
                 state["escalations"].append(raw)
 
             view = domain.fairness_view(state)
-            asked = len(outcome.escalations)
+            asked = len(asked_cards)
             if outcome.settled:
                 headline = "The agents settled the plan"
             elif asked:

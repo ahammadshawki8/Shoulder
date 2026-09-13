@@ -12,6 +12,7 @@
 - **Two windows side by side** for scene 5: left logged in as Farah (`rahman` / `farah`), right as Amina (`rahman` / `amina`). Log in to each with its own profile or a private window.
 - **The Rahmans reset every 12 hours.** If the decision cards are already answered, restart the app so both cards are back before recording:
   `ssh -i ~/.ssh/shoulder-deploy.pem ubuntu@100.56.157.153 'cd /opt/shoulder/deploy && sudo docker compose restart app'`
+- **Record scene 6 before scene 4**, or restart the app between them: a negotiation replaces the family's decision cards with the ones it writes, and scene 6 wants the original pair.
 - **A live negotiation** takes about three minutes on Claude. Record it once in full as Farah (Tasks, "Negotiate now", then Control Panel, "Agent activity") and speed the middle up in the edit. A family can start one every ten minutes.
 - **Terminal** with a large font for one short shot: `python -m evals --quick`.
 - Record screens as silent clips first, then lay the voiceover over them. Cut on the sentence, not mid-word.

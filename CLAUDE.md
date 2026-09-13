@@ -130,7 +130,7 @@ Read `TaskDivision.md` to find out whose block is active and what the last hando
 | **Tagline** | *Nobody should shoulder it alone.* |
 | **One-liner** | Private agents that negotiate the family caregiving load, so one sibling stops carrying all of it. |
 | **Hackathon** | AWS "Agents for Humans" - agentsforhumans.devpost.com |
-| **Track** | **OPEN - Claude recommends Everyday Agents** (the brief lists "family" explicitly there). Good Neighbor has better prize odds but a theme-fit stretch. **Confirm with the user before submitting.** |
+| **Track** | **OPEN - Claude recommends Everyday Agents** (the brief lists "family" explicitly there). Good Neighbor has better prize odds but a theme-fit stretch. **Confirm with the user before submitting.** Still open at the Session 9 check. |
 | **License** | MIT |
 | **Deadline** | Sun 14 Sep 2026, 5:00pm PT |
 
@@ -488,6 +488,7 @@ is what makes the demo land: the agent negotiates around it without ever reveali
 - [x] Precedent regression: escalation count falls month over month (2→0 demonstrated)
 
 ### Tier 8 - Deployment
+- [x] The negotiation runs inside the hosted app on Claude through Amazon Bedrock (Session 8), triggered by changes and by "Negotiate now". Not on AgentCore
 - [ ] Convener on AgentCore Runtime, weekly schedule
 - [ ] AgentCore Memory wired
 - [ ] AgentCore Identity: each sibling a distinct authenticated principal
@@ -1452,3 +1453,34 @@ Lower `SHOULDER_AGENT_DAILY_NEGOTIATIONS` in the compose file to spend less.
   overnight stay, Amina to Rian) came back in a few seconds with "Rian's agent agreed". The app was then
   restarted so the Rahmans start fresh. `submission/devpost-story.md` and `submission/script.md` now
   describe and film the live negotiation and the agent-approved handover.
+
+### 2026-09-13 - Session 9, pre-submission check (Shawki)
+
+**Fixed before sign-off:** an agent negotiation used to raise a fairness card again even after the
+family had chosen to keep the split, and an authority card again after they had declined that action.
+`_apply` in `shoulder/api/agents.py` now skips a fairness card while the split is within
+`accepted_spread` and nothing is uncovered, and an authority card whose action is in the new
+`declined_actions` list (recorded by `domain.apply_option`). Pinned by
+`test_a_split_the_family_accepted_is_not_asked_about_again`. `pytest` 156 passed.
+
+**Submission material rechecked against the code:**
+- `devpost-story.md`: every figure matches this file (37 of 37, 14 of 14, 1.0 and 1.0 over 25, 2 0 0 0,
+  23 to 12 percent, 156 tests, 31 gated checks). Reworded one claim: agents run as separate A2A servers
+  in the A2A mode the privacy eval attacks; the hosted app runs the same agents in one service behind
+  the same hook. The diagrams no longer label the app's agents as A2A servers. AgentCore appears only
+  under What's next.
+- The three blog posts: facts checked (sensitive terms, the refusal wording, effort weights, travel cap,
+  tolerance, the envelope rules, precision and recall). Blog 1 now mentions agent-approved handovers.
+- `script.md`: films only what exists. Added the note to record the decision card scene before a live
+  negotiation (a run replaces the cards), plus how to restore them.
+- No emojis and no long dashes in any of them.
+
+**Ready for a person to do:**
+1. Confirm the track (section 2). Recommendation: Everyday Agents.
+2. Restore the Rahmans before recording:
+   `ssh -i ~/.ssh/shoulder-deploy.pem ubuntu@100.56.157.153 'cd /opt/shoulder/deploy && sudo docker compose restart app'`
+3. Record and edit the video from `submission/script.md`, upload to YouTube as public.
+4. Publish the three posts on builder.aws.com, each title starting "Agents for Humans:".
+5. Paste `submission/devpost-story.md` into Devpost, add the live link, repository, video and blog links,
+   and fill in the table in section 2 of this file.
+6. After judging: tear down the AWS resources listed in Session 7 and the IAM role from Session 8.

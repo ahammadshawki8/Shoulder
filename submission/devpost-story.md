@@ -50,7 +50,7 @@ Shoulder is a calm product with a straight line through it: everyone adds themse
 
 ```mermaid
 flowchart LR
-    A["Everyone adds<br/>their limits privately"] --> B["Agents negotiate<br/>over A2A"]
+    A["Everyone adds<br/>their limits privately"] --> B["Their agents<br/>negotiate"]
     B --> C{"Fair inside<br/>everyone's limits?"}
     C -->|"Yes"| D["The month's plan<br/>and fairness bar"]
     C -->|"No"| E["One decision card<br/>for the family"]
@@ -63,7 +63,7 @@ flowchart LR
 ## How we built it
 
 - **Strands Agents SDK at the core.** Every agent is a Strands Agent on Amazon Bedrock, with Claude Sonnet 4.5 doing the negotiation, critique and explanation.
-- **A2A for real privacy isolation.** Each sibling's agent runs as its own `A2AServer` with its own agent card and `context_id`. Private state lives in a process the Convener cannot read, so the privacy boundary is architectural, not a promise.
+- **A2A for real privacy isolation.** Each sibling's agent can run as its own `A2AServer` with its own agent card and `context_id`, so private state lives in a process the Convener cannot read and the privacy boundary is architectural, not a promise. Our adversarial privacy evaluation attacks exactly that path. The hosted app runs the same agents inside one service, behind the same privacy hook.
 - **A Strands Graph for the negotiation.** `recall`, `propose`, `critique`, `evaluate`, then `revise`, `settle` or `escalate`, with bounded rounds and conditional exits. A deterministic `recall` node applies the family's precedents before anyone negotiates.
 - **Deterministic fairness tools.** `compute_burden`, `check_proportionality`, `check_envy_freeness` and `fairness_report` are plain Python exposed as Strands `@tool`s. They implement capacity-adjusted proportionality and weighted envy-freeness from the fair division literature on indivisible chores (IJCAI 2023), chores under information asymmetry (arXiv 2305.02986), and repeated allocation over time (AAAI 2024). No language model ever computes a fairness number.
 - **Two enforcement hooks.**
@@ -77,7 +77,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph People["One private agent per person, each its own A2A server"]
+    subgraph People["One private agent per person"]
         PA["Amina's agent"]
         PR["Rian's agent"]
         PF["Farah's agent"]
@@ -121,7 +121,7 @@ flowchart TB
 - **Fairness you can trust.** Thirteen properties are checked across generated families with a deliberately hostile Convener: no stated limit is ever broken, every figure shown is recomputed, and the engine is deterministic, order and scale invariant, and blind to whether a limit is private.
 - **It genuinely learns.** Over four simulated months, a family that answers with a reusable decision is asked **2, 0, 0, 0** times, and every automatic action cites who decided it and when.
 - **One decision, real impact.** For the demo family, choosing paid help for two tasks takes the spread from **23 percent to 12 percent** and settles the month.
-- **A complete, hosted product.** A family app anyone can use today, where real agents on Amazon Bedrock negotiate a family's plan live, with accounts, a server-side privacy projection, and **155 automated tests**, plus 31 gated checks across four evaluation suites.
+- **A complete, hosted product.** A family app anyone can use today, where real agents on Amazon Bedrock negotiate a family's plan live, with accounts, a server-side privacy projection, and **156 automated tests**, plus 31 gated checks across four evaluation suites.
 
 ---
 
@@ -153,7 +153,7 @@ flowchart TB
 - **It uses Strands the way Strands was meant to be used.** A2A for genuine isolation, a Graph for bounded negotiation, `@tool`s for verifiable maths, hooks for enforcement, structured output as a contract, and memory for precedents. Every feature is there because the problem demands it.
 - **It is responsible by construction.** The agent never makes the human decision, fairness never goes through an LLM, and a private reason never leaves its owner. All three are enforced in code and proven by evaluations, not stated in a slide.
 - **It is research-backed.** From the 75 percent finding to NegotiAge, MAGPIE, and modern fair division theory, every design choice traces back to evidence.
-- **It is real.** A live, hosted family app where the agents negotiate on Amazon Bedrock as you watch, an open-source codebase, 155 tests, and four evaluation suites. Judges can log in as Farah right now, press "Negotiate now", and watch her secret stay hers.
+- **It is real.** A live, hosted family app where the agents negotiate on Amazon Bedrock as you watch, an open-source codebase, 156 tests, and four evaluation suites. Judges can log in as Farah right now, press "Negotiate now", and watch her secret stay hers.
 
 Amina should not be alone in that car park. With Shoulder, she will not be.
 

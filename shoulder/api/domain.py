@@ -806,6 +806,11 @@ def apply_option(state: dict[str, Any], card: dict[str, Any], option_index: int,
     if kind == "accept_split":
         _c, _a, report = fairness(state)
         state["accepted_spread"] = math.ceil(report.max_deviation * 100) / 100
+    if kind == "decline_action" and effect.get("action"):
+        # Remembered so the agents do not raise the same action again.
+        declined = state.setdefault("declined_actions", [])
+        if effect["action"] not in declined:
+            declined.append(effect["action"])
 
     changed_plan = False
     if kind in ("paid_help", "remove_tasks"):
