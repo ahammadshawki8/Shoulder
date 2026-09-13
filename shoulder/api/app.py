@@ -731,8 +731,16 @@ def create_app(
 
     @app.post("/api/escalations/{card_id}/resolve")
     def resolve(card_id: str, body: Resolve, request: Request):
-        def change(state, _code, member_id, _conn):
+        def change(state, code, member_id, _conn):
+            card = next((c for c in domain.open_escalations(state) if c["id"] == card_id), None)
+            option = (card or {}).get("options", [])[body.option_index] if card and 0 <= body.option_index < len(card["options"]) else {}
             domain.resolve(state, card_id, body.option_index, member_id)
+            kind = (option.get("effect") or {}).get("kind")
+            if kind in ("paid_help", "remove_tasks"):
+                # The family changed what is on the plan, so the agents look at the rest again.
+                name = domain.short_name(state, member_id)
+                label = option.get("label", "a change to the plan")
+                return lambda: agents.request_negotiation(code, f"{name} decided: {label}", member_id, after_decision=True)
 
         return mutate(request, change)
 

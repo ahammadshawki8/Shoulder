@@ -1484,3 +1484,38 @@ family had chosen to keep the split, and an authority card again after they had 
 5. Paste `submission/devpost-story.md` into Devpost, add the live link, repository, video and blog links,
    and fill in the table in section 2 of this file.
 6. After judging: tear down the AWS resources listed in Session 7 and the IAM role from Session 8.
+
+### 2026-09-13 - Session 10, a real disagreement in the Rahmans' story (Shawki)
+
+**Why:** judged honestly against the rubric, the weakest point was the risk register's "demo reads as
+theatre": in every live run all three agents said "it works", so the agents looked decorative.
+
+**Changed:**
+- `shoulder/api/seed.py`: every Rahman now has private agent instructions. Amina's carry the story: she
+  has been doing overnights and working the next day, is close to burning out, never says no to her
+  family, and asks her agent to say it for her, especially about overnight stays. Rian offers to take more
+  paperwork and bills. Farah's are unchanged. Instructions are owner-only and screened by the privacy
+  hook like reasons; no new constraint was added, so siblings see nothing new (a shape-less private
+  constraint would have shown them "Something they would rather not explain").
+- Choosing a card option that changes the plan (`paid_help`, `remove_tasks`) now starts a negotiation,
+  and skips the cooldown (`request_negotiation(after_decision=True)`); the daily cap still applies.
+- Two tests: the follow-up negotiation after paid help (inside a cooldown), and Amina's instructions
+  private to her. `pytest` 158 passed.
+
+**Verified live on Claude, twice:**
+- Run alone: Amina's agent countered in all four rounds ("I can take one overnight stay this month, but
+  not all three"); the Convener tried moving the Saturday overnight to Rian, the engine measured it less
+  even and kept the earlier split; the envelope stopped booking paid help; two cards.
+- Whole story: run 1 as above (170 seconds); the family chose paid help, 23 to 12 percent, inbox empty;
+  run 2 started by itself and took 31 seconds: Amina's and Rian's agents still raised objections, the
+  split measured 12 percent against the 15 percent limit, and the rota was published ("The agents
+  settled the plan"). Rian's view contained none of Amina's or Farah's private words.
+
+**Honest note for the video:** a negotiation settles on fairness, so counters are recorded but do not
+block publishing; only a veto does. The script says "the split is fair, and the plan is published", not
+that everyone agreed.
+
+**Submission material:** `script.md` scenes 2 to 6 now follow the disagreement (Amina's instructions,
+her agent objecting, the coordinator failing to fix it, the envelope stopping paid help, the family's
+decision, the agents settling it), recorded as one take as Farah; `devpost-story.md` gained the
+disagreement in What it does and Accomplishments; README describes it.

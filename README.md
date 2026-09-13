@@ -174,7 +174,7 @@ python -m shoulder.demos.leak            # the privacy hook catching a leak, no 
 python -m shoulder.demos.leak --live     # the same, with a real model on Bedrock
 python -m shoulder.demos.envelope        # the authority envelope at work, no AWS needed
 python -m shoulder.demos.next_month      # two months back to back: it learns, no AWS needed
-pytest                                   # 156 tests, no AWS needed
+pytest                                   # 158 tests, no AWS needed
 ```
 
 Runs remember their history in `.shoulder/` (SQLite, never committed). Delete it to start the family
@@ -236,6 +236,11 @@ They work in the background, on Claude through Amazon Bedrock when `SHOULDER_AGE
 - **Me** and **Paid help** are a person's own decision, so they apply at once.
 - Each step appears in Agent activity as it happens, grouped into rounds with a decision graph.
   Anything a privacy hook stopped goes only to the person it protected.
+- **A disagreement you can watch.** In the seeded Rahmans, Amina has asked her agent (privately) to say
+  no for her when her share is too much. A live negotiation shows her agent objecting to three overnight
+  stays, the coordinator failing to find a fairer move, and a card for the family; choosing paid help
+  starts a follow-up negotiation that settles the plan. Choosing a card option that changes the plan
+  starts that follow-up straight away, without the cooldown.
 - What the family already decided holds: a split they accepted is not raised again unless it widens,
   and an action they declined is not raised again.
 - What stays in code: whether someone may take a task at all, and every fairness number. A budget

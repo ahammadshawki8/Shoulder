@@ -218,11 +218,17 @@ class AgentService:
 
     # -- negotiations -----------------------------------------------------------
 
-    def request_negotiation(self, code: str, reason: str, by: str | None, *, now: bool = False) -> None:
-        """Schedule a negotiation. A request made while one is waiting joins it."""
+    def request_negotiation(
+        self, code: str, reason: str, by: str | None, *, now: bool = False, after_decision: bool = False
+    ) -> None:
+        """Schedule a negotiation. A request made while one is waiting joins it.
+
+        `after_decision` is a family's answer to a card that changed the plan: the
+        agents look again without waiting out the cooldown (the daily cap still holds).
+        """
         last = self.db.last_run(code, "negotiation")
         cooldown_left = 0.0
-        if last and last.get("started_at"):
+        if last and last.get("started_at") and not after_decision:
             started = datetime.fromisoformat(last["started_at"])
             cooldown_left = max(0.0, self.cooldown_s - (_now() - started).total_seconds())
 

@@ -138,6 +138,30 @@ def test_a_split_the_family_accepted_is_not_asked_about_again(tmp_path):
         assert not [c for c in view["escalations"] if c["kind"] == "fairness_breach"]
 
 
+def test_choosing_paid_help_on_a_card_asks_the_agents_to_look_again(tmp_path):
+    with _client(tmp_path, cooldown_s=600) as client:
+        _login(client)
+        card = next(c for c in client.get("/api/family").json()["escalations"] if c["kind"] == "fairness_breach")
+        client.post("/api/agents/negotiate")
+        _settle(client)
+        card = next(c for c in client.get("/api/family").json()["escalations"] if c["kind"] == "fairness_breach")
+        paid = next(i for i, o in enumerate(card["options"]) if o["effect"]["kind"] == "paid_help")
+        # Within the cooldown, but a family decision does not wait for it.
+        client.post(f"/api/escalations/{card['id']}/resolve", json={"option_index": paid})
+        _settle(client)
+        run = client.app.state.db.last_run("rahman", "negotiation")
+        assert run and "decided" in run["reason"]
+
+
+def test_amina_has_asked_her_agent_to_speak_up_and_nobody_else_can_see_it(tmp_path):
+    with _client(tmp_path) as client:
+        _login(client, "amina")
+        assert "say it for me" in client.get("/api/family").json()["my_agent"]["instructions"]
+        for other in ("rian", "farah"):
+            _login(client, other)
+            assert "burning out" not in client.get("/api/family").text
+
+
 # -- handovers -----------------------------------------------------------------
 
 

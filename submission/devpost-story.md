@@ -41,6 +41,7 @@ Shoulder is a calm product with a straight line through it: everyone adds themse
 - **Private intake.** Each person says, alone, how much of the care they can carry, which days and kinds of work they cannot do, and why, if there is a reason they would rather not say out loud. The screen marks it plainly: never shown to your family.
 - **A private agent for every person.** Each agent knows its person's whole truth but speaks only in positions: "cannot take Fridays", never "has chemotherapy on Fridays".
 - **Autonomous negotiation.** A Convener agent proposes a split, each person's agent critiques it, and the rounds repeat until the month is fair or the limits make that impossible. In the family app this happens by itself: add a task for "whoever has room", or let someone join or change their limits, and about a minute and a half later the agents renegotiate the whole plan while the family watches each step appear.
+- **Your agent can say no for you.** Amina has never said no to her family, so she asked her agent to say it for her. In a live negotiation her agent objects that three overnight stays is more than she can manage, round after round. The coordinator looks for a fairer split, the fairness engine rejects every move that would make it worse, and when nothing inside everyone's limits works, the family is asked once. After they choose, the agents renegotiate on their own and publish a fair plan.
 - **Nothing lands on you without your agent's say.** Handing a task to a sibling asks that sibling's own agent first, with everything only they have told it. The task moves only if it agrees.
 - **Fairness that is measured, not guessed.** Every task is weighted by effort and travel, and every share is measured against what that person said they can carry. The fairness bar shows the result in each person's colour.
 - **One decision at a time.** When the agents cannot close the gap, the family gets a single card: what was tried, the tension in plain words, real options with their exact effect on fairness, and what the agent will not decide.
@@ -120,8 +121,9 @@ flowchart TB
 - **An agent that knows its place, measurably.** Scored as a classifier over 25 hand-labelled scenarios, the authority boundary reaches **precision 1.0 and recall 1.0, with zero missed escalations.**
 - **Fairness you can trust.** Thirteen properties are checked across generated families with a deliberately hostile Convener: no stated limit is ever broken, every figure shown is recomputed, and the engine is deterministic, order and scale invariant, and blind to whether a limit is private.
 - **It genuinely learns.** Over four simulated months, a family that answers with a reusable decision is asked **2, 0, 0, 0** times, and every automatic action cites who decided it and when.
-- **One decision, real impact.** For the demo family, choosing paid help for two tasks takes the spread from **23 percent to 12 percent** and settles the month.
-- **A complete, hosted product.** A family app anyone can use today, where real agents on Amazon Bedrock negotiate a family's plan live, with accounts, a server-side privacy projection, and **156 automated tests**, plus 31 gated checks across four evaluation suites.
+- **A real disagreement, live.** On Claude, Amina's agent objects to her share in every round, the coordinator's attempt to move work to Rian is measured as less fair and rejected, and Shoulder is stopped from booking paid help on its own. None of Amina's private words reach her siblings.
+- **One decision, real impact.** For the demo family, choosing paid help for two tasks takes the spread from **23 percent to 12 percent**, and the agents' follow-up negotiation settles the month in a single round.
+- **A complete, hosted product.** A family app anyone can use today, where real agents on Amazon Bedrock negotiate a family's plan live, with accounts, a server-side privacy projection, and **158 automated tests**, plus 31 gated checks across four evaluation suites.
 
 ---
 
@@ -153,7 +155,7 @@ flowchart TB
 - **It uses Strands the way Strands was meant to be used.** A2A for genuine isolation, a Graph for bounded negotiation, `@tool`s for verifiable maths, hooks for enforcement, structured output as a contract, and memory for precedents. Every feature is there because the problem demands it.
 - **It is responsible by construction.** The agent never makes the human decision, fairness never goes through an LLM, and a private reason never leaves its owner. All three are enforced in code and proven by evaluations, not stated in a slide.
 - **It is research-backed.** From the 75 percent finding to NegotiAge, MAGPIE, and modern fair division theory, every design choice traces back to evidence.
-- **It is real.** A live, hosted family app where the agents negotiate on Amazon Bedrock as you watch, an open-source codebase, 156 tests, and four evaluation suites. Judges can log in as Farah right now, press "Negotiate now", and watch her secret stay hers.
+- **It is real.** A live, hosted family app where the agents negotiate on Amazon Bedrock as you watch, an open-source codebase, 158 tests, and four evaluation suites. Judges can log in as Farah right now, press "Negotiate now", and watch her secret stay hers.
 
 Amina should not be alone in that car park. With Shoulder, she will not be.
 

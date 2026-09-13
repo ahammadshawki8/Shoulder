@@ -121,9 +121,24 @@ def build() -> tuple[dict[str, Any], dict[str, list[tuple[str, str, list[str]]]]
     return state, secrets
 
 
-# What Farah has asked of her own agent. Invented, like everything in the seed,
-# and as private as her reason.
+# What each person has asked of their own agent. Invented, like everything in
+# the seed, and as private as a reason: only their own agent reads it, and the
+# privacy hook screens their agent's messages for it.
+#
+# Amina's is the heart of the story. She never says no to her family, so she
+# has asked her agent to say it for her. In a live negotiation her agent objects
+# to her share, which is the disagreement the family could not have out loud.
 INSTRUCTIONS = {
+    "amina": (
+        "I have been doing the overnight stays and then going to work the next morning for months, "
+        "and I am close to burning out. I never say no to my family, even when I should. "
+        "When my share is too much, say it for me, especially about the overnight stays. "
+        "Be kind about it and never blame anyone."
+    ),
+    "rian": (
+        "I live far away and work Monday to Thursday, but I want to carry my part. "
+        "Whenever it helps, say I can take more of the paperwork and the bills."
+    ),
     "farah": (
         "Keep my answers short, and never apologise for what I cannot do. "
         "I would rather take extra visits than any of the driving."
