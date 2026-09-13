@@ -1445,3 +1445,10 @@ metadata hop limit raised to 2 so the container can read the role's credentials.
 **Cost to expect:** roughly 20 model calls per negotiation, on the order of half a dollar each on
 Sonnet 4.5; about one call per handover. With the defaults the worst case is about 15 dollars a day.
 Lower `SHOULDER_AGENT_DAILY_NEGOTIATIONS` in the compose file to spend less.
+- **Verified live on the server** (after deploying): the container assumes `shoulder-ec2-agents` and
+  Claude answers; "Negotiate now" as Farah ran four rounds in 147 seconds with each step appearing in
+  Agent activity, rounds 3 and 4 found no new move instead of repeating the rejected ones, the envelope
+  stopped booking paid help, two cards were raised, no console errors. A live handover (Saturday
+  overnight stay, Amina to Rian) came back in a few seconds with "Rian's agent agreed". The app was then
+  restarted so the Rahmans start fresh. `submission/devpost-story.md` and `submission/script.md` now
+  describe and film the live negotiation and the agent-approved handover.

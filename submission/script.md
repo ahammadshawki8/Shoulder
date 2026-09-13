@@ -12,7 +12,7 @@
 - **Two windows side by side** for scene 5: left logged in as Farah (`rahman` / `farah`), right as Amina (`rahman` / `amina`). Log in to each with its own profile or a private window.
 - **The Rahmans reset every 12 hours.** If the decision cards are already answered, restart the app so both cards are back before recording:
   `ssh -i ~/.ssh/shoulder-deploy.pem ubuntu@100.56.157.153 'cd /opt/shoulder/deploy && sudo docker compose restart app'`
-- **Storyboard screens** for the negotiation round player: `cd web && npm run dev`, open http://localhost:5173, choose October, "This month".
+- **A live negotiation** takes about three minutes on Claude. Record it once in full as Farah (Tasks, "Negotiate now", then Control Panel, "Agent activity") and speed the middle up in the edit. A family can start one every ten minutes.
 - **Terminal** with a large font for one short shot: `python -m evals --quick`.
 - Record screens as silent clips first, then lay the voiceover over them. Cut on the sentence, not mid-word.
 
@@ -67,11 +67,12 @@
 ## Scene 4: The negotiation (1:05 to 1:35)
 
 **On screen**
-- Storyboard app, "This month", October. Press play on the round player. The fairness bars move round by round; each agent's answer appears beside its name.
-- Cut to the live app, Control Panel, "Agent activity". Scroll through rounds, then open "Decision graph" on round 2: Shoulder suggested 4 moves, limit check put 3 back, each person's agent answered, engine measured.
+- Live app as Farah, Tasks. Click "Negotiate now" on "Your family's agents". The card shows "Negotiating now, round 1" with a pulsing dot.
+- Cut to Control Panel, "Agent activity" (sped up two to four times): rounds appear one after another as the agents talk. Open "Decision graph" on round 2: Shoulder suggested moves, the limit check put some back, each person's agent answered, the engine measured.
+- Brief cut: "Give this to someone else" on a task, the drawer says "Asking Rian's agent whether this works for them", then the task moves with "Rian's agent agreed".
 
 **Voiceover**
-> Then the agents negotiate. Built on the Strands Agents SDK and Claude on Amazon Bedrock, a coordinator proposes a split, and each person's agent answers for them over the A2A protocol, from its own server, holding secrets the coordinator can never read.
+> Then the agents negotiate, live. Built on the Strands Agents SDK and Claude on Amazon Bedrock, a coordinator proposes a split, and each person's agent answers for them, holding secrets the coordinator can never read. Even handing over a single task asks the other person's agent first.
 >
 > The fairness is never guessed by the AI. It's measured, by deterministic tools, against what each person said they can carry. Every step is recorded, so the whole family can see how the plan was made.
 
@@ -144,7 +145,8 @@
 - [ ] Farah portrait crop and the three statistics cards
 - [ ] Landing page hero animation, full loop
 - [ ] Create family step 2 with the private reason field
-- [ ] Storyboard round player, October, rounds 1 to 4
+- [ ] Live negotiation: Negotiate now, rounds appearing in Agent activity
+- [ ] Handover asking the receiving agent, then moving
 - [ ] Agent activity with the round 2 decision graph open
 - [ ] Split screen: Farah's privacy catch and Amina's view of Farah
 - [ ] Terminal: `python -m evals --quick` scorecard

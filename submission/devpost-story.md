@@ -40,7 +40,8 @@ Shoulder is a calm product with a straight line through it: everyone adds themse
 
 - **Private intake.** Each person says, alone, how much of the care they can carry, which days and kinds of work they cannot do, and why, if there is a reason they would rather not say out loud. The screen marks it plainly: never shown to your family.
 - **A private agent for every person.** Each agent knows its person's whole truth but speaks only in positions: "cannot take Fridays", never "has chemotherapy on Fridays".
-- **Autonomous negotiation.** A Convener agent proposes a split, each person's agent critiques it over the A2A protocol, and the rounds repeat until the month is fair or the limits make that impossible.
+- **Autonomous negotiation.** A Convener agent proposes a split, each person's agent critiques it, and the rounds repeat until the month is fair or the limits make that impossible. In the family app this happens by itself: add a task for "whoever has room", or let someone join or change their limits, and about a minute and a half later the agents renegotiate the whole plan while the family watches each step appear.
+- **Nothing lands on you without your agent's say.** Handing a task to a sibling asks that sibling's own agent first, with everything only they have told it. The task moves only if it agrees.
 - **Fairness that is measured, not guessed.** Every task is weighted by effort and travel, and every share is measured against what that person said they can carry. The fairness bar shows the result in each person's colour.
 - **One decision at a time.** When the agents cannot close the gap, the family gets a single card: what was tried, the tension in plain words, real options with their exact effect on fairness, and what the agent will not decide.
 - **It learns what you decided.** A resolved card becomes a precedent with its provenance ("Amina decided this on 11 Sep"), applied automatically next month. Our demo family is asked two questions in October and none in November.
@@ -70,8 +71,9 @@ flowchart LR
   - `AuthorityGuard` on `BeforeToolCallEvent` enforces what the agent may do alone. Measuring is free, reminders only concern work someone already holds, and spending money, dropping care, or changing someone's capacity always become a card. Unknown tools fail closed.
 - **Structured output as a contract.** Escalation cards, critiques and option effects are typed models, so the interface renders exactly what the agents produced and every consequence is recomputed by the engine.
 - **Memory that belongs to the right person.** Each person's profile and private ledger live in their own store; the family's rotas, decisions and precedents live in a shared one.
+- **Agents inside the app.** A background agent service runs the same Strands graph on a family's live plan with Claude on Amazon Bedrock. Each person's agent is built from their private reasons and their own instructions, every step streams into the family's Agent activity as it happens, and a budget with cooldowns keeps model spend predictable.
 - **The family app.** FastAPI and SQLite on the server, React and Vite in the browser. Every response is a per-viewer projection: your reasons come back to you, everyone else's limits arrive with opaque ids and no text. Sessions are httpOnly cookies with hashed tokens, and writes are serialised so two siblings can change the plan at once.
-- **Hosted on AWS.** One EC2 instance running Docker Compose, with Caddy providing HTTPS and the SQLite database on a persistent volume.
+- **Hosted on AWS.** One EC2 instance running Docker Compose, with Caddy providing HTTPS, the SQLite database on a persistent volume, and an IAM role scoped to invoking Claude Sonnet 4.5 on Amazon Bedrock.
 
 ```mermaid
 flowchart TB
@@ -119,7 +121,7 @@ flowchart TB
 - **Fairness you can trust.** Thirteen properties are checked across generated families with a deliberately hostile Convener: no stated limit is ever broken, every figure shown is recomputed, and the engine is deterministic, order and scale invariant, and blind to whether a limit is private.
 - **It genuinely learns.** Over four simulated months, a family that answers with a reusable decision is asked **2, 0, 0, 0** times, and every automatic action cites who decided it and when.
 - **One decision, real impact.** For the demo family, choosing paid help for two tasks takes the spread from **23 percent to 12 percent** and settles the month.
-- **A complete, hosted product.** A family app anyone can use today, with accounts, a server-side privacy projection, and **144 automated tests**, plus 31 gated checks across four evaluation suites.
+- **A complete, hosted product.** A family app anyone can use today, where real agents on Amazon Bedrock negotiate a family's plan live, with accounts, a server-side privacy projection, and **155 automated tests**, plus 31 gated checks across four evaluation suites.
 
 ---
 
@@ -135,7 +137,7 @@ flowchart TB
 
 ## What's next for Shoulder
 
-- **A weekly schedule on Amazon Bedrock AgentCore.** Run the Convener on AgentCore Runtime so the family's month is renegotiated automatically, with no one needing to open the app.
+- **Amazon Bedrock AgentCore Runtime.** Move the agent service onto AgentCore Runtime with a weekly schedule, so every family's month is renegotiated even when nothing has changed.
 - **AgentCore Memory and Identity.** Each sibling as a distinct authenticated principal, with per-person memory kept apart from the family's.
 - **Gentle notifications.** A message only when a decision is genuinely needed, through AgentCore Gateway.
 - **Wider care circles.** Partners, grandchildren, neighbours and close friends, with the same fairness and privacy guarantees.
@@ -151,7 +153,7 @@ flowchart TB
 - **It uses Strands the way Strands was meant to be used.** A2A for genuine isolation, a Graph for bounded negotiation, `@tool`s for verifiable maths, hooks for enforcement, structured output as a contract, and memory for precedents. Every feature is there because the problem demands it.
 - **It is responsible by construction.** The agent never makes the human decision, fairness never goes through an LLM, and a private reason never leaves its owner. All three are enforced in code and proven by evaluations, not stated in a slide.
 - **It is research-backed.** From the 75 percent finding to NegotiAge, MAGPIE, and modern fair division theory, every design choice traces back to evidence.
-- **It is real.** A live, hosted family app, an open-source codebase, 144 tests, and four evaluation suites. Judges can log in as Farah right now and watch her secret stay hers.
+- **It is real.** A live, hosted family app where the agents negotiate on Amazon Bedrock as you watch, an open-source codebase, 155 tests, and four evaluation suites. Judges can log in as Farah right now, press "Negotiate now", and watch her secret stay hers.
 
 Amina should not be alone in that car park. With Shoulder, she will not be.
 
