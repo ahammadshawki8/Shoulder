@@ -1,0 +1,49 @@
+# Production: the app behind Caddy, which gets and renews the HTTPS certificate.
+#
+#   cd deploy
+#   echo "SHOULDER_HOST=shoulder.example.com" > .env
+#   docker compose up -d --build
+#
+# Only Caddy is reachable from outside. The app port stays on the compose network.
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SHOULDER_DB: /data/shoulder.db
+      # Cookies are only sent over HTTPS.
+      SHOULDER_SECURE_COOKIES: "1"
+      # Put the Rahmans back as they started twice a day, so every visitor finds
+      # the decision cards. Families people create are never touched.
+      SHOULDER_RESEED_HOURS: "12"
+      # Trust Caddy's X-Forwarded-For, so rate limits apply per visitor rather
+      # than to everyone at once. The app port is not published, so only Caddy
+      # can reach it.
+      FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - shoulder-data:/data
+    expose:
+      - "8001"
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SHOULDER_HOST: ${SHOULDER_HOST:?Set SHOULDER_HOST in deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  shoulder-data:
+  caddy-data:
+  caddy-config:

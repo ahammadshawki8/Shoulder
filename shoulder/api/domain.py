@@ -40,6 +40,10 @@ from shoulder.tools.fairness import (
 from shoulder.tools.remedies import best_paid_help
 
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+# What `state["covered"]` records for a task nobody in the family holds.
+PAID_HELP = "Paid help"
+OFF_PLAN = "Taken off the plan"
 LONG_DAY = {
     "Mon": "Monday", "Tue": "Tuesday", "Wed": "Wednesday", "Thu": "Thursday",
     "Fri": "Friday", "Sat": "Saturday", "Sun": "Sunday",
@@ -137,6 +141,16 @@ def _date(value: Any) -> str:
         return date.fromisoformat(str(value)).isoformat()
     except ValueError:
         raise DomainError("Please choose a valid date.")
+
+
+def _time(value: Any) -> str | None:
+    """A clock time as HH:MM, or None when no time was given."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", text):
+        raise DomainError("Please choose a valid time.")
+    return text
 
 
 # -- constructing a family ----------------------------------------------------
@@ -690,7 +704,7 @@ def fairness_view(state: dict[str, Any]) -> dict[str, Any]:
         "headline": headline,
         "burdens": [b.model_dump() for b in report.burdens],
         "unassigned": [t["id"] for t in unassigned(state)],
-        "paid_count": len(state["covered"]),
+        "paid_count": sum(1 for v in state["covered"].values() if v == PAID_HELP),
     }
 
 
@@ -734,7 +748,9 @@ def why_for(state: dict[str, Any], task_id: str) -> str:
     if saved:
         return saved
     if task_id in state["covered"]:
-        return "The family decided paid help covers this one."
+        if state["covered"][task_id] == PAID_HELP:
+            return "The family decided paid help covers this one."
+        return "The family decided to take this off the plan."
     holder = state["assignments"].get(task_id)
     task = next((t for t in state["tasks"] if t["id"] == task_id), None)
     if not holder or task is None or member(state, holder) is None:
@@ -793,8 +809,10 @@ def apply_option(state: dict[str, Any], card: dict[str, Any], option_index: int,
         for task_id in effect.get("task_ids") or []:
             if task_id not in known:
                 continue
-            state["covered"][task_id] = "Paid help" if kind == "paid_help" else "Taken off the plan"
+            state["covered"][task_id] = PAID_HELP if kind == "paid_help" else OFF_PLAN
             state["assignments"].pop(task_id, None)
+            # The old reason ("nobody can take this") no longer describes it.
+            state["why"].pop(task_id, None)
             changed_plan = True
 
     if not card.get("derived"):

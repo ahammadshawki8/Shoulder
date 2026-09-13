@@ -158,6 +158,51 @@ def test_rahman_activity_keeps_rounds_and_verdicts_but_no_rationale(client):
     assert all(set(e["details"]) <= {"verdict", "max_deviation", "proportional", "moves", "tool"} for e in ledger)
 
 
+def test_reseeding_keeps_seeded_logins_and_removes_newcomers(client):
+    from shoulder.api import seed
+
+    client.post("/api/session", json={"family_code": "rahman", "member_id": "farah"})
+    card = client.get("/api/family").json()["escalations"][0]
+    client.post(f"/api/escalations/{card['id']}/resolve", json={"option_index": 0})
+    guest = TestClient(client.app)
+    joined = guest.post("/api/families/rahman/members", json=_profile("Guest")).json()["member_id"]
+
+    seed.reseed(client.app.state.db)
+
+    view = client.get("/api/family")
+    assert view.status_code == 200, "Farah's session must survive a re-seed"
+    assert len(view.json()["escalations"]) == 2
+    assert joined not in [m["id"] for m in view.json()["members"]]
+    assert guest.get("/api/family").status_code == 401
+    assert "Chemotherapy" in next(m for m in view.json()["members"] if m["is_me"])["constraints"][0]["reason"]
+
+
+def test_api_responses_are_never_cached(client):
+    r = client.get("/api/session")
+    assert r.headers["cache-control"] == "no-store"
+    assert r.headers["x-content-type-options"] == "nosniff"
+
+
+def test_task_time_must_be_a_clock_time(client):
+    _create(client)
+    bad = client.post("/api/tasks", json={"title": "Visit", "on_date": "2026-09-20", "time": "tea time"})
+    assert bad.status_code == 400
+    good = client.post("/api/tasks", json={"title": "Visit", "on_date": "2026-09-20", "time": "14:30"}).json()
+    assert next(t for t in good["tasks"] if t["title"] == "Visit")["time"] == "14:30"
+
+
+def test_tasks_taken_off_the_plan_are_not_counted_as_paid_help(client):
+    _create(client, me=_profile("Sam", days_off=["Sun"]))
+    view = client.post("/api/tasks", json={"title": "Sunday visit", "on_date": "2026-09-20"}).json()
+    card = next(c for c in view["escalations"] if c["id"] == "live-shortfall")
+    index = next(i for i, o in enumerate(card["options"]) if o["effect"]["kind"] == "remove_tasks")
+    view = client.post(f"/api/escalations/{card['id']}/resolve", json={"option_index": index}).json()
+    task = next(t for t in view["tasks"] if t["title"] == "Sunday visit")
+    assert view["covered"][task["id"]] == "Taken off the plan"
+    assert view["fairness"]["paid_count"] == 0
+    assert "off the plan" in view["why"][task["id"]]
+
+
 def test_rahmans_are_reseeded_on_start(tmp_path):
     path = str(tmp_path / "persist.db")
     with TestClient(create_app(db_path=path)) as c:

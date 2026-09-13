@@ -38,6 +38,10 @@ export const DISTANCES = [
   { value: 300, label: "Far away" },
 ];
 
+// What the server records in `covered` for a task nobody in the family holds.
+const PAID_HELP = "Paid help";
+const OFF_PLAN = "Taken off the plan";
+
 export const PAID = {
   id: "paid",
   name: "Paid help",
@@ -218,7 +222,9 @@ export const Store = {
   },
 
   tasks() {
-    return [...view.tasks]
+    // A task the family decided to take off the plan is no longer part of it.
+    return view.tasks
+      .filter((t) => view.covered[t.id] !== OFF_PLAN)
       .map((t) => ({
         id: t.id,
         title: t.title,
@@ -247,7 +253,8 @@ export const Store = {
   eligible: (taskId) => view.eligible[taskId] || [],
 
   holder(taskId) {
-    if (view.covered[taskId]) return PAID;
+    if (view.covered[taskId] === PAID_HELP) return PAID;
+    if (view.covered[taskId]) return null;
     return this.person(view.assignments[taskId]);
   },
 

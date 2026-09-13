@@ -9,7 +9,10 @@ the family as the logged-in member is allowed to see it.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
+import re
 import secrets
 import time
 from collections import defaultdict, deque
@@ -26,6 +29,9 @@ from shoulder.api import domain, projection, seed
 from shoulder.api.db import SESSION_DAYS, Database
 
 COOKIE = "shoulder_session"
+# Vite names built scripts and styles by content hash, so they never change.
+HASHED_ASSET = re.compile(r"^/assets/[^/]+-[A-Za-z0-9_-]{8}\.(?:js|css)$")
+log = logging.getLogger("shoulder.api")
 APP_DIST = Path(__file__).resolve().parent.parent.parent / "app" / "dist"
 
 
@@ -131,6 +137,10 @@ class RateLimiter:
         hits = self._hits[key]
         while hits and now - hits[0] > window_s:
             hits.popleft()
+        if len(self._hits) > 10_000:
+            # Forget keys whose windows have emptied, so memory stays bounded.
+            for stale in [k for k, v in self._hits.items() if not v and k != key]:
+                del self._hits[stale]
         if len(hits) >= limit:
             return False
         hits.append(now)
@@ -149,15 +159,48 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
     limiter = RateLimiter()
     secure_cookies = os.getenv("SHOULDER_SECURE_COOKIES", "0") == "1"
 
+    reseed_hours = float(os.getenv("SHOULDER_RESEED_HOURS", "0") or 0)
+
+    async def reseed_every(hours: float) -> None:
+        while True:
+            await asyncio.sleep(hours * 3600)
+            try:
+                await asyncio.to_thread(seed.reseed, db)
+                log.info("Re-seeded the Rahmans")
+            except Exception:  # a failed re-seed must not stop the next one
+                log.exception("Re-seeding the Rahmans failed")
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        task = None
         if reseed_demo:
             seed.reseed(db)
+            if reseed_hours > 0:
+                task = asyncio.create_task(reseed_every(reseed_hours))
         yield
+        if task:
+            task.cancel()
 
     app = FastAPI(title="Shoulder", version="1.0.0", lifespan=lifespan)
     app.state.db = db
     app.state.limiter = limiter
+
+    @app.middleware("http")
+    async def headers(request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        if path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store"
+        elif HASHED_ASSET.match(path):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            # The page itself is always revalidated, so a redeploy is picked up
+            # at once instead of loading scripts that no longer exist.
+            response.headers["Cache-Control"] = "no-cache"
+        return response
 
     @app.exception_handler(domain.DomainError)
     async def _domain_error(_request: Request, exc: domain.DomainError):
@@ -495,7 +538,7 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
                 "on_date": domain._date(body.on_date),
                 "duration_min": max(5, min(24 * 60, int(body.duration_min))),
                 "requires_presence": bool(body.requires_presence),
-                "time": (body.time or None),
+                "time": domain._time(body.time),
                 "notes": domain._clean_text(body.notes, "the notes", 1000),
                 "is_custom": True,
                 "created_by": member_id,
@@ -521,7 +564,7 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
                 holder, why = body.assignee, f"Chosen by {me}."
 
             if holder == "paid":
-                state["covered"][record["id"]] = "Paid help"
+                state["covered"][record["id"]] = domain.PAID_HELP
             elif holder:
                 state["assignments"][record["id"]] = holder
             state["why"][record["id"]] = why
@@ -549,7 +592,7 @@ def create_app(db_path: str | None = None, reseed_demo: bool = True) -> FastAPI:
             me = domain.short_name(state, member_id)
             why = domain._clean_text(body.reason, "the reason", 300) or f"Moved by {me}."
             if body.to == "paid":
-                state["covered"][task_id] = "Paid help"
+                state["covered"][task_id] = domain.PAID_HELP
                 state["assignments"].pop(task_id, None)
             else:
                 refusal = domain.can_take(state, body.to, task)

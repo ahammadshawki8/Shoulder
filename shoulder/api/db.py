@@ -188,6 +188,18 @@ class Database:
             (family_code, member_id, _now().isoformat()),
         )
 
+    def member_ids(self, conn: sqlite3.Connection, family_code: str) -> list[str]:
+        rows = conn.execute("SELECT member_id FROM members WHERE family_code = ?", (family_code,)).fetchall()
+        return [r["member_id"] for r in rows]
+
+    def clear_private(self, conn: sqlite3.Connection, family_code: str, member_id: str) -> None:
+        """Remove a member's reasons, agent instructions and privacy catches. Sessions stay."""
+        for table in ("member_secrets", "member_agent", "privacy_catches"):
+            conn.execute(
+                f"DELETE FROM {table} WHERE family_code = ? AND member_id = ?",
+                (family_code, member_id),
+            )
+
     def delete_member(self, conn: sqlite3.Connection, family_code: str, member_id: str) -> None:
         for table in ("sessions", "member_secrets", "member_agent", "privacy_catches", "members"):
             conn.execute(

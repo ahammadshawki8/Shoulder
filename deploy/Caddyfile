@@ -1,0 +1,15 @@
+{$SHOULDER_HOST} {
+	encode zstd gzip
+
+	# Photos are sent as data URLs, capped by the API at about 1.5 MB.
+	request_body {
+		max_size 4MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	reverse_proxy app:8001
+}

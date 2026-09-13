@@ -14,4 +14,4 @@ test:
 	.venv/Scripts/python -m pytest
 
 clean:
-	rm -rf .pytest_cache __pycache__ fixtures/*.json
+	rm -rf .pytest_cache __pycache__ .shoulder

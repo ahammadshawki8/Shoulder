@@ -5,9 +5,9 @@ exists when the server starts: code `rahman`, members `amina`, `rian` and
 `farah`, a month of real negotiation output, and the two decisions it could not
 make on its own.
 
-It is re-seeded on every start. Everyone who logs in as Farah shares one family,
-so without this one visitor deciding both cards would leave every later visitor
-an empty inbox.
+It is re-seeded on every start, and every few hours when SHOULDER_RESEED_HOURS
+is set. Everyone who logs in as Farah shares one family, so without this one
+visitor deciding both cards would leave every later visitor an empty inbox.
 """
 
 from __future__ import annotations
@@ -130,13 +130,28 @@ INSTRUCTIONS = {
 
 
 def reseed(db: Database) -> None:
-    """Replace the Rahmans with a fresh copy, in one transaction."""
+    """Put the Rahmans back as they started, in one transaction.
+
+    Amina, Rian and Farah keep their member rows, so anyone logged in as one of
+    them stays logged in. Anyone who joined the Rahmans as a new member is
+    removed, along with their session. Families people created are untouched.
+    """
     state, secrets = build()
+    seeded = {m["id"] for m in state["members"]}
     with db.write() as conn:
-        db.delete_family(conn, CODE)
-        db.insert_family(conn, CODE, state)
+        if db.load_state(conn, CODE) is None:
+            db.insert_family(conn, CODE, state)
+        else:
+            db.save_state(conn, CODE, state)
+        existing = set(db.member_ids(conn, CODE))
+        for member_id in existing:
+            if member_id in seeded:
+                db.clear_private(conn, CODE, member_id)
+            else:
+                db.delete_member(conn, CODE, member_id)
         for m in state["members"]:
-            db.insert_member(conn, CODE, m["id"])
+            if m["id"] not in existing:
+                db.insert_member(conn, CODE, m["id"])
         for member_id, rows in secrets.items():
             for constraint_id, reason, terms in rows:
                 db.put_secret(conn, CODE, member_id, constraint_id, reason, terms)
