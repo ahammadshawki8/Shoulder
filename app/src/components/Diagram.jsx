@@ -1,73 +1,43 @@
 import React, { useEffect, useRef, useState } from "react";
+import { DIAGRAMS } from "../diagrams/sources.js";
 
 /**
- * A mermaid diagram drawn in the app's own colours.
+ * A diagram, drawn ahead of time in the app's colours for each theme.
  *
- * Mermaid is loaded only when a diagram is on screen, and redrawn when the
- * theme changes, reading the palette from the same CSS tokens as everything
- * else so a diagram can never be the one dark block on a light page.
- *
- * Mermaid keeps global state (its config, and a scratch element per render),
- * so two diagrams drawing at the same moment can break each other. Every
- * render goes through one queue, one at a time.
+ * Drawing mermaid in the browser meant downloading more than 2 MB of scripts
+ * before the first diagram appeared, and on a slow connection the boxes sat
+ * empty for ten seconds. The SVGs are exported from `diagrams/sources.js` by
+ * the dev-only export page, so this component only fetches a small file and
+ * swaps it when the theme changes.
  */
 
-let loading = null;
-let queue = Promise.resolve();
-let count = 0;
-
-function loadMermaid() {
-  loading ||= import("mermaid").then((m) => m.default);
-  return loading;
-}
-
-function token(name) {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-}
+const cache = new Map();
 
 function currentTheme() {
-  return document.documentElement.dataset.theme || "light";
+  return document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 }
 
-function draw(source, theme) {
-  const job = queue.then(async () => {
-    const mermaid = await loadMermaid();
-    mermaid.initialize({
-      startOnLoad: false,
-      theme: "base",
-      securityLevel: "strict",
-      suppressErrorRendering: true,
-      fontFamily: "Source Sans 3 Variable, Source Sans 3, system-ui, sans-serif",
-      flowchart: { curve: "basis", padding: 14, nodeSpacing: 36, rankSpacing: 44, htmlLabels: true },
-      themeVariables: {
-        darkMode: theme === "dark",
-        fontSize: "14px",
-        background: token("--ground"),
-        primaryColor: token("--surface"),
-        primaryTextColor: token("--ink"),
-        primaryBorderColor: token("--line-strong"),
-        secondaryColor: token("--accent-soft"),
-        tertiaryColor: token("--sunken"),
-        lineColor: token("--ink-3"),
-        textColor: token("--ink"),
-        clusterBkg: token("--sunken"),
-        clusterBorder: token("--line"),
-        edgeLabelBackground: token("--ground"),
-      },
-    });
-    count += 1;
-    const { svg } = await mermaid.render(`shoulder-diagram-${count}`, source);
-    return svg;
-  });
-  // A failed render must not jam the queue for the diagrams after it.
-  queue = job.catch(() => {});
-  return job;
+function load(name, theme) {
+  const key = `${name}-${theme}`;
+  if (!cache.has(key)) {
+    cache.set(
+      key,
+      fetch(`/diagrams/${key}.svg`).then((r) => {
+        if (!r.ok) throw new Error(`${key}.svg: ${r.status}`);
+        return r.text();
+      })
+    );
+    // A failed fetch should be retried next time, not remembered.
+    cache.get(key).catch(() => cache.delete(key));
+  }
+  return cache.get(key);
 }
 
-export default function Diagram({ source, label }) {
+export default function Diagram({ name }) {
   const ref = useRef(null);
   const [theme, setTheme] = useState(currentTheme);
-  const [state, setState] = useState("drawing");
+  const [state, setState] = useState("loading");
+  const { label } = DIAGRAMS[name];
 
   useEffect(() => {
     const observer = new MutationObserver(() => setTheme(currentTheme()));
@@ -77,29 +47,26 @@ export default function Diagram({ source, label }) {
 
   useEffect(() => {
     let cancelled = false;
-    const attempt = (tries) =>
-      draw(source, theme)
-        .then((svg) => {
-          if (cancelled || !ref.current) return;
-          ref.current.innerHTML = svg;
-          setState("drawn");
-        })
-        .catch((error) => {
-          if (cancelled) return;
-          if (tries > 0) return attempt(tries - 1);
-          console.error("Diagram could not be drawn:", error);
-          setState("failed");
-        });
-    attempt(1);
+    load(name, theme)
+      .then((svg) => {
+        if (cancelled || !ref.current) return;
+        ref.current.innerHTML = svg;
+        setState("drawn");
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error("Diagram could not be loaded:", error);
+        setState("failed");
+      });
     return () => {
       cancelled = true;
     };
-  }, [source, theme]);
+  }, [name, theme]);
 
   return (
     <figure className="diagram">
-      <div className={`diagram-canvas ${state === "drawing" ? "is-drawing" : ""}`} ref={ref} role="img" aria-label={label} />
-      {state === "failed" && <p className="muted diagram-failed">This diagram could not be drawn. Reload the page to try again.</p>}
+      <div className={`diagram-canvas ${state === "loading" ? "is-loading" : ""}`} ref={ref} role="img" aria-label={label} />
+      {state === "failed" && <p className="muted diagram-failed">This diagram could not be loaded. Reload the page to try again.</p>}
       <figcaption>{label}</figcaption>
     </figure>
   );

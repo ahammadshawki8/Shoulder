@@ -2,32 +2,6 @@ import React from "react";
 import { Lock, Scale, Shield } from "../components/Icons.jsx";
 import Diagram from "../components/Diagram.jsx";
 
-const MONTH = `flowchart LR
-  A["Everyone adds what<br/>they can and cannot do"] --> B["Shoulder works out<br/>the fairest split"]
-  B --> C{"Fair enough?"}
-  C -->|Yes| D["The plan appears<br/>in Tasks"]
-  C -->|No| E["One decision<br/>in Needs you"]
-  E --> F["The answer becomes<br/>an agreement"]
-  F -.->|next month| B`;
-
-const PRIVACY = `flowchart LR
-  L["Days and kinds of<br/>work you cannot do"] --> F[("Family record")]
-  R["Your reasons and<br/>agent instructions"] --> T[("Kept apart,<br/>read only for you")]
-  F --> O["What your family sees"]
-  F --> Y["What you see"]
-  T --> Y
-  A["Your agent's messages"] --> H(["Privacy check in code"])
-  H -->|"nothing that gives<br/>a reason away"| O`;
-
-const BUILT = `flowchart LR
-  UI["Family app<br/>in the browser"] -->|"httpOnly cookie"| API["Shoulder server<br/>sessions and one<br/>view per person"]
-  API --> DB[("SQLite")]
-  API --> ENG["Fairness engine<br/>no language model"]
-  CON["Convener<br/>Strands graph"] --> ENG
-  CON <-->|A2A| PA["One agent per person<br/>with privacy hook"]
-  CON --> BR["Amazon Bedrock"]
-  PA --> BR`;
-
 /** What Shoulder is for, how it works, and what it will never do. */
 export default function About() {
   return (
@@ -107,7 +81,7 @@ export default function About() {
             </div>
           </li>
         </ol>
-        <Diagram source={MONTH} label="How a month gets shared, and where the family is asked." />
+        <Diagram name="month" />
       </section>
 
       <section className="section">
@@ -149,7 +123,7 @@ export default function About() {
             </p>
           </div>
         </div>
-        <Diagram source={PRIVACY} label="Where what you tell Shoulder goes, and what reaches your family." />
+        <Diagram name="privacy" />
       </section>
 
       <section className="section">
@@ -159,7 +133,7 @@ export default function About() {
             <p>The family app and the agent negotiation share one fairness engine.</p>
           </div>
         </div>
-        <Diagram source={BUILT} label="The family app, its server, and the Strands Agents negotiation." />
+        <Diagram name="built" />
       </section>
 
       <section className="section">

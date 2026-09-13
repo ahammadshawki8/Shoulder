@@ -1352,3 +1352,11 @@ the negotiation pipeline reads them through `build_system_prompt(instructions=..
 
 **Not done, still Tier 8 proper:** AgentCore Runtime, Memory, Identity, Gateway and the scheduled
 Convener. The hosted app runs the deterministic engine and needs no Bedrock access.
+- **About diagrams, for good:** on the live site they took about 10 seconds to appear, because
+  drawing mermaid in the browser downloaded more than 2 MB of scripts first (the likely cause of
+  "diagrams not showing"). The app no longer ships mermaid. Sources live in `app/src/diagrams/sources.js`;
+  `app/diagrams.html` (dev only, never built) draws each in both themes from the CSS tokens and saves
+  `app/public/diagrams/<name>-<light|dark>.svg` through a dev-server endpoint in `vite.config.js`.
+  To change a diagram: edit the source, `npm run dev`, open `/diagrams.html`, press Save all, commit.
+  `components/Diagram.jsx` fetches the file for the current theme. About now draws in about 150 ms; the
+  main script is 240 KB and `dist` 752 KB. `mermaid` is a dev dependency only.
